@@ -1,0 +1,31 @@
+[project]
+name = "evofederated"
+version = "0.1.0"
+description = "EvoFederated - NAS evolutivo en FL Non-IID"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "numpy>=1.22",
+    "pandas>=1.5",
+    "matplotlib>=3.5",
+    "scikit-learn>=1.2",
+    "pymoo>=0.6",
+    "pyyaml>=6.0",
+    "scipy>=1.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "pytest-cov"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

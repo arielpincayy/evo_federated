@@ -1,0 +1,56 @@
+name: evo_federated_small
+output_dir: results
+seed: 42
+
+dataset:
+  name: synthetic
+  data_root: ./data
+  n_clients: 6
+  alpha: 0.5
+  min_samples_per_client: 10
+  test_ratio: 0.2
+  val_ratio: 0.1
+  seed: 42
+  synthetic_n_samples: 3000
+  synthetic_n_features: 32
+  synthetic_n_classes: 5
+  synthetic_n_informative: 20
+
+train:
+  optimizer: adam
+  lr: 0.001
+  batch_size: 32
+  epochs: 2
+  device: auto
+  num_workers: 0
+
+genome:
+  l_max: 3
+  n_neurons_choices: [16, 32, 64, 128]
+  activations: ["relu", "tanh"]
+  dropout_range: [0.0, 0.5]
+  use_batchnorm: true
+  use_dropout: true
+
+characterization:
+  k_epochs: 2
+  seed: 42
+  distance_metric: cosine
+  tau: 2.0
+
+evolution:
+  pop_size: 6
+  n_generations: 3
+  crossover_prob: 0.9
+  crossover_eta: 15
+  mutation_prob: 0.3
+  mutation_eta: 20
+  seed: 42
+  hv_ref_min: [0.0, 0.0]
+  strategy: dynamic
+  tau: 2.0
+  control_every: 0
+  control_top_k: 2
+
+baselines: ["random", "fixed", "dynamic"]
+# for smoke we skip full to save time; can add "full"
