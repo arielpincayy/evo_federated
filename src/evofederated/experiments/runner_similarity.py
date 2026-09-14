@@ -518,6 +518,150 @@ def run_similarity_experiment(
         df_gen["reduction_percent"] = (1 - df_gen["eval_count"] / df_gen["theoretical_full_cumulative"]) * 100
         df_gen.to_csv(output_dir / "generations" / "cost_per_generation.csv", index=False)
 
+    # === Unified instrumentation: individual_node_accuracy.csv, node_generation_summary, objective_vectors, periodic full eval ===
+    try:
+        # Build individual_node_accuracy.csv from evaluator.generation_history
+        ind_rows = []
+        # Determine best hashes for flagging
+        best_hash = None
+        if not df_ind.empty:
+            try:
+                best_hash = df_ind.loc[df_ind["mean_accuracy"].idxmax(), "genome_hash"]
+            except Exception:
+                best_hash = None
+        # also identify worst-hash? not needed
+        for rec in evaluator.generation_history:
+            gen = int(rec["generation"])
+            iid = int(rec["individual_idx"])
+            arch_hash = rec.get("genome_hash", "")
+            # per_rep accuracies stored as acc_rep_{cid}
+            for cid in client_ids_sorted:
+                col_acc = f"acc_rep_{cid}"
+                col_f1 = f"f1_rep_{cid}"
+                if col_acc in rec:
+                    acc = float(rec[col_acc]); f1 = float(rec.get(col_f1, 0.0))
+                    # loss not stored per rep separately in this evaluator; approximate 0
+                    ind_rows.append({
+                        "seed": int(cfg.seed),
+                        "generation": gen,
+                        "individual_id": f"g{gen}_i{iid}",
+                        "genome_hash": arch_hash,
+                        "node_id": int(cid),
+                        "accuracy": acc,
+                        "loss": 0.0,
+                        "f1": f1,
+                        "family": "similarity",
+                        "optimizer": "ga",
+                        "pairing_strategy": pairing_mode if pairing_mode!="probabilistic" else f"prob_tau_{pairing_tau}",
+                        "representative_strategy": rep_mode,
+                        "is_nondominated": False,
+                        "is_knee": False,
+                        "is_best_mean": bool(arch_hash==best_hash),
+                        "is_best_worst": False,
+                    })
+        if ind_rows:
+            df_ind_node = pd.DataFrame(ind_rows)
+            df_ind_node.to_csv(output_dir / "individual_node_accuracy.csv", index=False)
+            df_ind_node.to_csv(output_dir / "generations" / "individual_node_accuracy.csv", index=False)
+            # population_metrics alias
+            df_ind_node.to_csv(output_dir / "population_metrics.csv", index=False)
+        else:
+            df_ind_node = pd.DataFrame()
+
+        # objective_vectors.csv
+        if not df_ind.empty:
+            obj_cols = [c for c in df_ind.columns if c.startswith("acc_rep_") or c.startswith("obj_") or c.startswith("f1_rep_")]
+            df_obj = df_ind[["generation","individual_idx","genome_hash","mean_accuracy","mean_f1","std_accuracy"] + [c for c in obj_cols if c in df_ind.columns]]
+            df_obj.to_csv(output_dir / "objective_vectors.csv", index=False)
+            df_obj.to_csv(output_dir / "generations" / "objective_vectors.csv", index=False)
+        else:
+            pd.DataFrame().to_csv(output_dir / "objective_vectors.csv", index=False)
+
+        # node_generation_summary.csv
+        if ind_rows:
+            df_tmp = pd.DataFrame(ind_rows)
+            sum_rows=[]
+            for gen in sorted(df_tmp["generation"].unique()):
+                sub_gen = df_tmp[df_tmp["generation"]==gen]
+                for nid in sorted(df_tmp["node_id"].unique()):
+                    vals = sub_gen[sub_gen["node_id"]==nid]["accuracy"].values
+                    if len(vals)==0:
+                        continue
+                    sum_rows.append({
+                        "generation": int(gen), "node_id": int(nid),
+                        "best_accuracy": float(np.max(vals)), "mean_accuracy": float(np.mean(vals)),
+                        "median_accuracy": float(np.median(vals)), "worst_accuracy": float(np.min(vals)),
+                        "std_accuracy": float(np.std(vals)), "n_individuals": int(len(vals)),
+                        "best_mean_model_accuracy": float(np.max(df_tmp[df_tmp["generation"]==gen]["accuracy"].values)) if len(df_tmp[df_tmp["generation"]==gen])>0 else 0.0,
+                    })
+            if sum_rows:
+                pd.DataFrame(sum_rows).to_csv(output_dir / "node_generation_summary.csv", index=False)
+                pd.DataFrame(sum_rows).to_csv(output_dir / "generations" / "node_generation_summary.csv", index=False)
+        # pairing.json copy
+        try:
+            with open(output_dir / "similarity" / "pairs.json") as f:
+                pairing_data = json.load(f)
+            with open(output_dir / "pairing.json","w") as out:
+                json.dump(pairing_data, out, indent=2, default=str)
+        except Exception:
+            pass
+        # similarity_matrix.csv and distance_matrix.csv at top-level
+        try:
+            pd.DataFrame(S).to_csv(output_dir / "similarity_matrix.csv", index=False)
+            pd.DataFrame(D).to_csv(output_dir / "distance_matrix.csv", index=False)
+        except Exception:
+            pass
+        # final_full_evaluation.csv already at top via per_client_metrics coping? Ensure alias
+        try:
+            if (output_dir / "final_evaluation.csv").exists() and not (output_dir / "final_full_evaluation.csv").exists():
+                pd.read_csv(output_dir / "final_evaluation.csv").to_csv(output_dir / "final_full_evaluation.csv", index=False)
+            elif (output_dir / "final_evaluation" / "per_client_metrics.csv").exists():
+                pd.read_csv(output_dir / "final_evaluation" / "per_client_metrics.csv").to_csv(output_dir / "final_full_evaluation.csv", index=False)
+        except Exception:
+            pass
+
+        # Periodic full evaluation every 5 generations (if n_generations >=5)
+        try:
+            if cfg.evolution.n_generations >= 5 and not df_ind.empty:
+                periodic_gens = list(range(5, cfg.evolution.n_generations+1, 5))
+                # also include generation 1 for early insight
+                if 1 not in periodic_gens:
+                    periodic_gens = [1] + periodic_gens
+                periodic_rows=[]
+                # For each periodic gen, pick best individual (max mean_accuracy) and evaluate on all clients
+                for gen in periodic_gens:
+                    sub = df_ind[df_ind["generation"]==gen]
+                    if sub.empty:
+                        continue
+                    best_row = sub.loc[sub["mean_accuracy"].idxmax()]
+                    try:
+                        gdict = json.loads(best_row["genome"])
+                        genome = Genome.from_dict(gdict)
+                    except Exception:
+                        continue
+                    # exhaustive evaluate on all clients
+                    from ..evolution.validation import exhaustive_evaluate_genome
+                    ev = exhaustive_evaluate_genome(genome, clients, input_dim, n_classes, dataclasses.asdict(cfg.train), device=device)
+                    for cid_idx, cid in enumerate(sorted(clients.keys())):
+                        periodic_rows.append({
+                            "generation": int(gen),
+                            "genome_hash": best_row.get("genome_hash",""),
+                            "node_id": int(cid),
+                            "accuracy": float(ev["accs"][cid_idx]) if cid_idx < len(ev["accs"]) else 0.0,
+                            "f1": float(ev["f1s"][cid_idx]) if cid_idx < len(ev["f1s"]) else 0.0,
+                            "loss": float(ev["losses"][cid_idx]) if cid_idx < len(ev["losses"]) else 0.0,
+                            "is_best_mean": True,
+                        })
+                if periodic_rows:
+                    pd.DataFrame(periodic_rows).to_csv(output_dir / "generations" / "periodic_full_evaluation.csv", index=False)
+                    pd.DataFrame(periodic_rows).to_csv(output_dir / "periodic_full_evaluation.csv", index=False)
+        except Exception as e:
+            print(f"[WARN] periodic full eval failed: {e}")
+
+    except Exception as e:
+        print(f"[WARN] unified instrumentation failed for similarity: {e}")
+        import traceback; traceback.print_exc()
+
     # Summary for this run
     summary = {
         "seed": int(cfg.seed),

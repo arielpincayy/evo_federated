@@ -82,22 +82,17 @@ class SimilarityEvaluator:
                 rep_pos = a if (generation % 2 == 0) else b
                 reps_pos.append(int(rep_pos))
         elif self.rep_mode == "random":
-            # deterministic per generation using generation-seeded RNG derived from base seed
-            # To keep reproducibility independent of evaluation order, create a per-generation RNG
-            # Use generation as offset for numpy RandomState
-            # We use self.rng but save state: create new RNG seeded with original seed + generation
-            # Instead we derive from self.rng's initial seed? Use generation seed directly
-            # For simplicity use a fresh RNG seeded with hash(generation + rep_mode)
-            # But we need global determinism: use self.rng with generation-specific draws
-            # We'll create a temporary RNG seeded with base seed + generation
             tmp_rng = np.random.RandomState((self.rng.randint(0, 2**31-1) + generation) % (2**31-1))
-            # However this would be non-deterministic across runs if rng state advanced.
-            # Alternative: use generation itself as seed offset from initial seed
-            # Use a deterministic approach: for each pair, choose via hash(generation, pair_id)
             for idx, (a, b) in enumerate(self.pairs):
-                # pseudo-random per pair and generation using generation and idx
-                # Use simple deterministic: (generation* 1000 + idx) %2
-                # But we want true randomness; use tmp_rng
+                rep_pos = a if tmp_rng.rand() < 0.5 else b
+                reps_pos.append(int(rep_pos))
+        elif self.rep_mode == "probabilistic":
+            # probabilistic representative: sample with P proportional to similarity? For now uniform 0.5 like random but with different RNG seed offset to be distinguishable.
+            # In future could weight by similarity, but keep deterministic per generation.
+            tmp_rng = np.random.RandomState((self.rng.randint(0, 2**31-1) + generation*997) % (2**31-1))
+            for idx, (a, b) in enumerate(self.pairs):
+                # For similarity, we could bias toward higher similarity intra-pair? but both members equivalent similaritywise;
+                # So we keep 0.5 but deterministic per generation using different seed.
                 rep_pos = a if tmp_rng.rand() < 0.5 else b
                 reps_pos.append(int(rep_pos))
         else:
