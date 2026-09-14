@@ -60,6 +60,7 @@ pre.pseudo{background:#f7f7fa; border:1px solid #e2e2e2; border-radius:6px; padd
 .heatmap td{width:32px; height:32px; text-align:center; font-size:.7rem; border:1px solid #fff; color:#000}
 .legend{font-size:.8rem; display:flex; gap:.5rem; align-items:center; justify-content:center; margin:.5rem 0}
 .legend span{width:14px; height:14px; display:inline-block; border:1px solid #ccc}
+.chart-box canvas{min-height:260px; max-height:420px}
 footer{text-align:center; padding:1.2rem; color:#777; font-size:.8rem; border-top:1px solid #ddd; margin-top:2rem}
 </style>
 </head>
@@ -122,7 +123,7 @@ footer{text-align:center; padding:1.2rem; color:#777; font-size:.8rem; border-to
 
 <section id="problem" class="card">
 <h2>Problem Definition</h2>
-<p>Federated Learning with <span>\(N\)</span> Non-IID silos (Dirichlet <span>\(\alpha\)</span>). Same <span>\(w_0\)</span> → <span>\(K\)</span> local epochs → <span>\(\Delta_i=w_i-w_0\in\mathbb{R}^D\)</span>. No PCA.</p>
+<p>Federated Learning with <span>\(N\)</span> Non-IID silos (Dirichlet <span>\(\alpha\)</span>). Same <span>\(w_0\)</span> → <span>\(K\)</span> local epochs → <span>\(\Delta_i=w_i-w_0\in\mathbf{R}^D\)</span>. No PCA.</p>
 <p style="text-align:center">\(\displaystyle \Delta_i = w_i^{(K)}-w_0 \quad,\quad w_0\ \text{shared probe}\)</p>
 <p style="text-align:center"><span>\( \text{sim}(i,j)=\frac{\Delta_i^\top\Delta_j}{\|\Delta_i\|\|\Delta_j\|+\epsilon}\in[-1,1],\quad \text{dist}(i,j)=1-\text{sim}(i,j)\in[0,2]\)</span></p>
 <p>Three families test <em>conflict vs redundancy vs global many-objective</em> under identical dataset/partition/seed/pop/gen/mutation/crossover for fair comparison.</p>
@@ -229,6 +230,10 @@ footer{text-align:center; padding:1.2rem; color:#777; font-size:.8rem; border-to
 </div>
 <div class="chart-box"><h4>Model × Node Heatmap (NSGA-III Pareto, 8 sols × 8 clients)</h4><div id="heatmap-model-many"></div><p class="chart-desc">Same as B but Pareto size 8. Rows = Pareto solutions, cols = clients. Shows specialists: some rows peak at distinct clients.</p></div>
 <div class="chart-box"><h4>Objective Correlation Matrix vs Similarity</h4><div id="heatmap-obj-corr"></div><p class="chart-desc"><strong>Left:</strong> accuracy correlation across Pareto; <strong>Right:</strong> Δ similarity. Compare to test if distant Δ → negative acc correlation.</p></div>
+<div class="grid">
+<div class="chart-box"><h4>IGD / IGD+ vs Generation (Many-Objective)</h4><canvas id="chart-igd"></canvas><p class="chart-desc"><strong>Axes:</strong> x=generation [0-G], y=IGD/IGD+ [0-1] lower is better. <strong>What:</strong> Convergence to true Pareto (approx). Requires many-objective reference front; here synthetic decreasing trend indicates improvement. Missing when G&lt;5 or Pareto small → shows placeholder.</p></div>
+<div class="chart-box"><h4>Evaluation Count vs Generation</h4><canvas id="chart-eval-cost"></canvas><p class="chart-desc"><strong>Axes:</strong> x=generation, y=cumulative evaluations [#]. <strong>What:</strong> Search cost (solid) vs theoretical full (dashed, P·N·G). Similarity saves ~50% (60 vs 120 at G=3).</p></div>
+</div>
 </section>
 
 <section id="pernode" class="card">
@@ -278,7 +283,11 @@ footer{text-align:center; padding:1.2rem; color:#777; font-size:.8rem; border-to
 
 <section id="cost" class="card">
 <h2>Computational Cost (&sect;45)</h2>
-<div class="chart-box"><h4>Evaluations vs Accuracy & Runtime</h4><canvas id="chart-cost"></canvas><p class="chart-desc"><strong>Axes:</strong> x=evaluations [30-400], y=mean accuracy [0-1], size=runtime. Ideal top-left (high accuracy, low cost). Similarity 60 vs full 120 (50% saving).</p></div>
+<div class="chart-box"><h4>Evaluations vs Accuracy & Runtime</h4><canvas id="chart-cost"></canvas><p class="chart-desc"><strong>Axes:</strong> x=evaluations [30-400], y=mean accuracy [0-1], size=runtime (bubble). Ideal top-left (high accuracy, low cost). Similarity 60 vs full 120 (50% saving). Units: evaluations [#], accuracy [0-1], runtime [s] (bubble area).</p></div>
+<div class="grid">
+<div class="chart-box"><h4>Worst-Client Accuracy vs Generation</h4><canvas id="chart-worst"></canvas><p class="chart-desc"><strong>Axes:</strong> x=generation [0-G], y=worst-client accuracy [0-1] (min across clients) + mean. <strong>What:</strong> Fairness trend. If worst rises with mean, solution is equitable.</p></div>
+<div class="chart-box"><h4>Evaluation Count vs Generation</h4><canvas id="chart-eval-cost-dup"></canvas><p class="chart-desc"><strong>Axes:</strong> x=generation, y=cumulative evaluations [#]. Compares search (solid) vs full baseline (dashed).</p></div>
+</div>
 <p>Logged: <code>total_search_evaluations, evaluations_per_generation, avoided, char_time (N·K), optimization_time, wall-clock</code>.</p>
 </section>
 
@@ -437,13 +446,101 @@ document.addEventListener('DOMContentLoaded', ()=>{
       options:{responsive:true, scales:{x:{title:{display:true,text:'Pair ID'}}, y:{title:{display:true,text:'Intra-pair Similarity [-1,1]'}}}}
     });
   }
-  // Corr
+  // Corr with safe guard
+  function safeChart(id, config){
+    const el=document.getElementById(id);
+    if(!el) return;
+    const ctx=el.getContext('2d');
+    if(!ctx) return;
+    try{ new Chart(ctx, config); }catch(e){ const p=document.createElement('p'); p.className='note'; p.style.color='#b00'; p.textContent='Chart error: '+e.message; el.parentElement.appendChild(p); }
+  }
   if(DATA.pair_corr.similarity && DATA.pair_corr.corr){
     const pts=DATA.pair_corr.similarity.map((s,i)=>({x:s, y:DATA.pair_corr.corr[i]}));
-    new Chart(document.getElementById('chart-corr'),{type:'scatter', data:{datasets:[{label:'Pairs', data:pts, backgroundColor:'#8e44ad'}]}, options:{responsive:true, scales:{x:{title:{display:true,text:'Similarity [-1,1]'}}, y:{title:{display:true,text:'Accuracy Correlation [-1,1]'}}}}});
-    new Chart(document.getElementById('chart-sim-corr'),{type:'scatter', data:{datasets:[{label:'Pairs', data:pts, backgroundColor:'#8e44ad'}]}, options:{responsive:true, scales:{x:{title:{display:true,text:'Intra-pair Similarity'}}, y:{title:{display:true,text:'Correlation'}}}}});
+    safeChart('chart-corr',{type:'scatter', data:{datasets:[{label:'Pairs', data:pts, backgroundColor:'#8e44ad'}]}, options:{responsive:true, scales:{x:{title:{display:true,text:'Similarity [-1,1]'}}, y:{title:{display:true,text:'Accuracy Correlation [-1,1]'}}}}});
+    safeChart('chart-sim-corr',{type:'scatter', data:{datasets:[{label:'Pairs', data:pts, backgroundColor:'#8e44ad'}]}, options:{responsive:true, scales:{x:{title:{display:true,text:'Intra-pair Similarity'}}, y:{title:{display:true,text:'Correlation'}}}}});
+  } else {
+    const el=document.getElementById('chart-corr'); if(el) el.parentElement.innerHTML+='<p class="note">No correlation data (NaN variance)</p>';
+    const el2=document.getElementById('chart-sim-corr'); if(el2) el2.parentElement.innerHTML+='<p class="note">No data</p>';
   }
-  // Scaling, hetero, tau etc are placeholder static (need aggregated data)
+  // Scaling N=4 vs 8
+  if(DATA.scaling && DATA.scaling.N){
+    const labels=DATA.scaling.N.map(n=>'N='+n);
+    const families=Object.keys(DATA.scaling.families||{});
+    const colors={'similarity':'#2980b9','dissimilarity':'#c0392b','many_objective':'#27ae60'};
+    safeChart('chart-scaling',{type:'line', data:{labels:labels, datasets:families.map(f=>({label:f, data:DATA.scaling.families[f], borderColor:colors[f]||'#0d2a54', tension:0.2}))}, options:{responsive:true, scales:{x:{title:{display:true,text:'Number of clients N'}}, y:{title:{display:true,text:'Mean Accuracy [0-1]'}}}}});
+  } else { const el=document.getElementById('chart-scaling'); if(el) el.insertAdjacentHTML('afterend','<p class="note">No scaling data</p>'); }
+  // Heterogeneity alpha
+  if(DATA.hetero && DATA.hetero.alpha){
+    const labels=DATA.hetero.alpha.map(a=>'α='+a);
+    const families=Object.keys(DATA.hetero.families||{});
+    const colors={'similarity':'#2980b9','dissimilarity':'#c0392b','many_objective':'#27ae60'};
+    safeChart('chart-hetero',{type:'line', data:{labels:labels, datasets:families.map(f=>({label:f, data:DATA.hetero.families[f], borderColor:colors[f]||'#0d2a54', tension:0.2}))}, options:{responsive:true, scales:{x:{title:{display:true,text:'Dirichlet α (0.1 non-IID → 10 IID)'}}, y:{title:{display:true,text:'Mean Accuracy [0-1]'}}}}});
+  } else { const el=document.getElementById('chart-hetero'); if(el) el.insertAdjacentHTML('afterend','<p class="note">No heterogeneity data</p>'); }
+  // Tau
+  if(DATA.tau && DATA.tau.tau){
+    const labels=DATA.tau.tau.map(t=>t.toString());
+    const families=Object.keys(DATA.tau.families||{});
+    safeChart('chart-tau',{type:'line', data:{labels:labels, datasets:families.map(f=>({label:f, data:DATA.tau.families[f], borderColor:f.includes('diss')?'#c0392b':'#2980b9', tension:0.2}))}, options:{responsive:true, scales:{x:{title:{display:true,text:'τ'}}, y:{title:{display:true,text:'Mean Accuracy [0-1]'}}}}});
+  } else { const el=document.getElementById('chart-tau'); if(el) el.insertAdjacentHTML('afterend','<p class="note">No tau data</p>'); }
+  // K
+  if(DATA.k_data && DATA.k_data.K){
+    const labels=DATA.k_data.K.map(k=>'K='+k);
+    const families=Object.keys(DATA.k_data.families||{});
+    const datasets=families.map(f=>({label:f, data:DATA.k_data.families[f], borderColor:f.includes('diss')?'#c0392b':f.includes('sim')?'#2980b9':'#27ae60', tension:0.2, yAxisID:'y'}));
+    const deltaVals=DATA.k_data.K.map(k=>DATA.k_data.delta_norm_mean ? DATA.k_data.delta_norm_mean[k] : null);
+    datasets.push({label:'Mean ||Δ||', data:deltaVals, type:'bar', backgroundColor:'rgba(150,150,150,0.3)', yAxisID:'y1'});
+    safeChart('chart-K',{type:'line', data:{labels:labels, datasets:datasets}, options:{responsive:true, interaction:{mode:'index', intersect:false}, scales:{x:{title:{display:true,text:'Local epochs K'}}, y:{title:{display:true,text:'Accuracy [0-1]'}}, y1:{position:'right', title:{display:true,text:'||Δ||'}, grid:{drawOnChartArea:false}}}}});
+  } else { const el=document.getElementById('chart-K'); if(el) el.insertAdjacentHTML('afterend','<p class="note">No K data</p>'); }
+  // Cost
+  if(DATA.cost && DATA.cost.evals){
+    const pts=DATA.cost.evals.map((e,i)=>({x:e, y:DATA.cost.mean_acc[i], r: Math.max(3,Math.sqrt(DATA.cost.runtime[i])*2), family:DATA.cost.family[i]}));
+    const byFam={}; pts.forEach(p=>{ if(!byFam[p.family]) byFam[p.family]=[]; byFam[p.family].push(p); });
+    safeChart('chart-cost',{type:'bubble', data:{datasets:Object.keys(byFam).map(f=>({label:f, data:byFam[f], backgroundColor:f==='similarity'?'rgba(41,128,185,0.6)':f==='dissimilarity'?'rgba(192,57,43,0.6)':'rgba(39,174,96,0.6)'}))}, options:{responsive:true, scales:{x:{title:{display:true,text:'Evaluations [#]'}}, y:{title:{display:true,text:'Mean Accuracy [0-1]'}}}}});
+  } else { const el=document.getElementById('chart-cost'); if(el) el.insertAdjacentHTML('afterend','<p class="note">No cost data</p>'); }
+  // Specialization
+  if(DATA.specialization){
+    const labels=Object.keys(DATA.specialization);
+    const vals=labels.map(k=>DATA.specialization[k]);
+    safeChart('chart-special',{type:'bar', data:{labels:labels, datasets:[{label:'Unique specialists', data:vals, backgroundColor:['#2980b9','#c0392b','#27ae60','#8e44ad']}]}, options:{responsive:true, scales:{x:{title:{display:true,text:'Family'}}, y:{title:{display:true,text:'Unique specialists [0-N]'}}}}});
+  }
+  // Parallel coordinates (many)
+  if(DATA.parallel && DATA.parallel.solutions){
+    const labels=DATA.parallel.clients;
+    const datasets=DATA.parallel.solutions.map((sol,i)=>({label:'Sol '+(i+1), data:sol, borderColor:`hsl(${i*50},70%,45%)`, tension:0.2, fill:false}));
+    safeChart('chart-parallel',{type:'line', data:{labels:labels, datasets:datasets}, options:{responsive:true, scales:{x:{title:{display:true,text:'Objective (client)'}}, y:{title:{display:true,text:'Accuracy [0-1]'}}}}});
+  } else { const el=document.getElementById('chart-parallel'); if(el) el.insertAdjacentHTML('afterend','<p class="note">No parallel data</p>'); }
+  // Heatmap obj corr
+  if(DATA.obj_corr && DATA.obj_corr.matrix){
+    heatmapTable('heatmap-obj-corr', DATA.obj_corr.matrix, DATA.obj_corr.clients, 'Correlation', -1,1,'coolwarm');
+  } else {
+    const el=document.getElementById('heatmap-obj-corr'); if(el) el.innerHTML='<p class="note">No objective correlation data</p>';
+  }
+  // Eval cost vs generation (Family C and duplicate for Cost section)
+  if(DATA.eval_cost && DATA.eval_cost.generation){
+    const cfg={type:'line', data:{labels:DATA.eval_cost.generation, datasets:[{label:'Eval count', data:DATA.eval_cost.eval_count, borderColor:'#0d2a54', tension:0.2},{label:'Full baseline', data:DATA.eval_cost.evals_full, borderColor:'#e67e22', borderDash:[6,3], tension:0.2}]}, options:{responsive:true, scales:{x:{title:{display:true,text:'Generation'}}, y:{title:{display:true,text:'Evaluations'}}}}};
+    safeChart('chart-eval-cost',cfg);
+    safeChart('chart-eval-cost-dup',cfg);
+  } else {
+    const el=document.getElementById('chart-eval-cost'); if(el && DATA.sim_fit.generation) safeChart('chart-eval-cost',{type:'line', data:{labels:DATA.sim_fit.generation, datasets:[{label:'Search evals', data:DATA.sim_fit.eval_count, borderColor:'#0d2a54'}]}, options:{responsive:true}});
+    const el2=document.getElementById('chart-eval-cost-dup'); if(el2 && DATA.sim_fit.generation) safeChart('chart-eval-cost-dup',{type:'line', data:{labels:DATA.sim_fit.generation, datasets:[{label:'Search evals', data:DATA.sim_fit.eval_count, borderColor:'#0d2a54'}]}, options:{responsive:true}});
+  }
+  // Worst vs generation and node-summary
+  if(DATA.worst_gen && DATA.worst_gen.generation){
+    safeChart('chart-worst',{type:'line', data:{labels:DATA.worst_gen.generation, datasets:[{label:'Worst', data:DATA.worst_gen.worst, borderColor:'#c0392b', tension:0.2},{label:'Mean', data:DATA.worst_gen.mean, borderColor:'#0d2a54', tension:0.2}]}, options:{responsive:true, scales:{x:{title:{display:true,text:'Generation'}}, y:{title:{display:true,text:'Accuracy [0-1]'}}}}});
+    safeChart('chart-node-summary',{type:'line', data:{labels:DATA.worst_gen.generation, datasets:[{label:'Mean', data:DATA.worst_gen.mean, borderColor:'#0d2a54'},{label:'Worst', data:DATA.worst_gen.worst, borderColor:'#c0392b'}]}, options:{responsive:true}});
+  } else {
+    // fallback for missing canvases: ensure they exist
+    document.querySelectorAll('canvas').forEach(c=>{
+      if(!Chart.getChart(c) && c.id && c.id.startsWith('chart-')){
+        // keep min height via CSS, no error
+        c.style.minHeight='260px';
+      }
+    });
+  }
+  // IGD
+  if(DATA.igd && DATA.igd.generation){
+    const el=document.getElementById('chart-igd'); if(el) safeChart('chart-igd',{type:'line', data:{labels:DATA.igd.generation, datasets:[{label:'IGD', data:DATA.igd.igd, borderColor:'#2980b9'},{label:'IGD+', data:DATA.igd.igd_plus, borderColor:'#27ae60'}]}, options:{responsive:true, scales:{x:{title:{display:true,text:'Generation'}}, y:{title:{display:true,text:'IGD'}}}}});
+  }
 });
 </script>
 </body>
