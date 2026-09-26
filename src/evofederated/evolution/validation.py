@@ -16,7 +16,7 @@ def genome_hash(genome: Genome) -> str:
     return hashlib.md5(json.dumps(genome.to_dict(), sort_keys=True).encode()).hexdigest()[:12]
 
 
-def exhaustive_evaluate_genome(genome: Genome, clients, input_dim, n_classes, train_cfg, device="cpu"):
+def exhaustive_evaluate_genome(genome: Genome, clients, input_dim, n_classes, train_cfg, device="cpu", split: str = "test"):
     """Evaluate one genome on all clients independently from same init. Returns dict metrics."""
     # deterministic init per genome
     h = hashlib.md5(json.dumps(genome.to_dict(), sort_keys=True).encode()).hexdigest()
@@ -33,7 +33,7 @@ def exhaustive_evaluate_genome(genome: Genome, clients, input_dim, n_classes, tr
         client = clients[cid]
         client.train(model, epochs=train_cfg.get("epochs", 5), lr=train_cfg.get("lr", 1e-3),
                      optimizer_name=train_cfg.get("optimizer", "adam"), device=device)
-        res = client.evaluate(model, device=device, split="test")
+        res = client.evaluate(model, device=device, split=split)
         f1s.append(float(res["macro_f1"]))
         accs.append(float(res["accuracy"]))
         losses.append(float(res["loss"]))
@@ -54,11 +54,11 @@ def exhaustive_evaluate_genome(genome: Genome, clients, input_dim, n_classes, tr
     }
 
 
-def exhaustive_evaluate_pareto(genomes, clients, input_dim, n_classes, train_cfg, device="cpu", strategy="unknown", generation=0):
+def exhaustive_evaluate_pareto(genomes, clients, input_dim, n_classes, train_cfg, device="cpu", strategy="unknown", generation=0, split: str = "test"):
     """Evaluate list of genomes exhaustively. Returns DataFrame rows."""
     rows = []
     for idx, genome in enumerate(genomes):
-        ev = exhaustive_evaluate_genome(genome, clients, input_dim, n_classes, train_cfg, device)
+        ev = exhaustive_evaluate_genome(genome, clients, input_dim, n_classes, train_cfg, device, split=split)
         row = {
             "strategy": strategy,
             "generation": int(generation),

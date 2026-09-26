@@ -57,6 +57,12 @@ python run_experiment.py --config configs/small.yaml
 python run_experiment.py --config configs/main.yaml --output results/my_run
 ```
 
+### Campaña FedAvg de la tesis
+```bash
+.venv/bin/python run_federated_campaign.py
+```
+Usa `configs/federated_campaign.yaml`, mantiene la búsqueda en `val`, reserva `test` para la evaluación final y escribe el resumen en `results/federated_fedavg_campaign/`. La configuración actual usa 7 generaciones; la replicación multisemilla se ejecuta, por ejemplo, con `EVOFEDERATED_SEEDS=42,123,999 EVOFEDERATED_ROOT=results/federated_fedavg_replication_g7 .venv/bin/python run_federated_campaign.py`.
+
 Estrategias: `full` (exhaustivo R·G·N), `random`, `fixed` (most-divergent fijo), `dynamic` (probabilístico τ). Todas con mismo dataset/partición/seed/espacio/población/generaciones para comparación justa.
 
 Mergea ahorro: `Saving = 1 - E_method/E_full`.

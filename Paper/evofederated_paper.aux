@@ -1,0 +1,98 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{mcmahan2017}
+\citation{kairouz2021}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
+\citation{mcmahan2017}
+\citation{kairouz2021}
+\citation{lu2024noniid}
+\citation{ye2024hfl}
+\citation{zhu2021fednas}
+\citation{zhu2022realtime}
+\citation{pan2021mgfnas}
+\citation{yuan2024fednas}
+\citation{liu2024finch}
+\citation{yan2024peaches}
+\citation{ocal2025network}
+\citation{lai2021oort}
+\citation{deng2022auction}
+\citation{zhao2023newt}
+\citation{zhang2024submodular}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Related Work}{2}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Federated neural architecture search}{2}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Client selection and heterogeneous federated learning}{2}{subsection.2.2}\protected@file@percent }
+\citation{ezzeldin2023fairfed}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Methods}{3}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Federated NAS formulation}{3}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Architecture space and FedAvg}{3}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Algorithms}{4}{subsection.3.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Algorithm 1. Pseudocode for the inner FedAvg fitness. Floating-point BatchNorm buffers are averaged with the same sample weights; integer counters use the maximum. No raw examples leave a client.}}{4}{figure.1}\protected@file@percent }
+\newlabel{alg:fitness}{{1}{4}{Algorithm 1. Pseudocode for the inner FedAvg fitness. Floating-point BatchNorm buffers are averaged with the same sample weights; integer counters use the maximum. No raw examples leave a client}{figure.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Algorithm 2. Pseudocode for client characterization and participation construction. The probe and pairing are created once per run. For the completed campaign, all four pair representatives are used, so each search evaluation includes one representative from every pair; the realized $\tau $ and pair assignments are recorded for reproducibility.}}{5}{figure.2}\protected@file@percent }
+\newlabel{alg:schedule}{{2}{5}{Algorithm 2. Pseudocode for client characterization and participation construction. The probe and pairing are created once per run. For the completed campaign, all four pair representatives are used, so each search evaluation includes one representative from every pair; the realized $\tau $ and pair assignments are recorded for reproducibility}{figure.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Algorithm 3. Pseudocode for the two experimental phases. Phase 1 changes the optimizer under full participation; Phase 2 changes the search-time schedule under NSGA-II. Three validation-ranked candidates are re-trained, and rank one supplies the primary run-level result. The default final step uses full participation and the held-out test split only after validation-based selection.}}{6}{figure.3}\protected@file@percent }
+\newlabel{alg:nas}{{3}{6}{Algorithm 3. Pseudocode for the two experimental phases. Phase 1 changes the optimizer under full participation; Phase 2 changes the search-time schedule under NSGA-II. Three validation-ranked candidates are re-trained, and rank one supplies the primary run-level result. The default final step uses full participation and the held-out test split only after validation-based selection}{figure.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Experimental design}{6}{subsection.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.4.1}Experiment 1: optimizer comparison}{6}{subsubsection.3.4.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Optimizer conditions in the full-participation experiment. The objectives are written in minimization form.}}{7}{table.1}\protected@file@percent }
+\newlabel{tab:optimizer-settings}{{1}{7}{Optimizer conditions in the full-participation experiment. The objectives are written in minimization form}{table.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Participant schedules in the NSGA-II participation experiment. The probe is common to all conditions in a run and is not used as the candidate fitness model.}}{7}{table.2}\protected@file@percent }
+\newlabel{tab:participation-settings}{{2}{7}{Participant schedules in the NSGA-II participation experiment. The probe is common to all conditions in a run and is not used as the candidate fitness model}{table.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.4.2}Experiment 2: participation comparison}{7}{subsubsection.3.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}Evaluation and cost}{7}{subsection.3.5}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Common experimental protocol. All values are fixed across the optimizer and participation comparisons unless noted.}}{8}{table.3}\protected@file@percent }
+\newlabel{tab:protocol}{{3}{8}{Common experimental protocol. All values are fixed across the optimizer and participation comparisons unless noted}{table.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6}Analysis plan}{8}{subsection.3.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Results}{9}{section.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Phase 1 optimizer experiment under full participation. The five conditions are evaluated over three paired seeds; bars show final test mean and minimum client accuracy and macro-F1, the hatched bars denote minimum-client metrics, and error bars are 95\% descriptive t intervals across seeds.}}{9}{figure.4}\protected@file@percent }
+\newlabel{fig:optimizer-quality}{{4}{9}{Phase 1 optimizer experiment under full participation. The five conditions are evaluated over three paired seeds; bars show final test mean and minimum client accuracy and macro-F1, the hatched bars denote minimum-client metrics, and error bars are 95\% descriptive t intervals across seeds}{figure.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Internal hypervolume trajectories for the three multiobjective optimizers in the full-participation experiment. Each panel uses the optimizer's own objective space: two aggregate validation objectives for NSGA-II and eight per-client validation objectives for NSGA-III and MOEA/D. Lines and shaded regions show means and 95\% descriptive t intervals across the three seeds; values are compared only within a panel.}}{9}{figure.5}\protected@file@percent }
+\newlabel{fig:optimizer-hypervolume}{{5}{9}{Internal hypervolume trajectories for the three multiobjective optimizers in the full-participation experiment. Each panel uses the optimizer's own objective space: two aggregate validation objectives for NSGA-II and eight per-client validation objectives for NSGA-III and MOEA/D. Lines and shaded regions show means and 95\% descriptive t intervals across the three seeds; values are compared only within a panel}{figure.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Optimizer comparison}{9}{subsection.4.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Full-participation optimizer comparison on Fashion-MNIST. Entries are mean $\pm $ SD across three seeds; search uses validation and reported metrics are final held-out test values.}}{10}{table.4}\protected@file@percent }
+\newlabel{tab:optimizers}{{4}{10}{Full-participation optimizer comparison on Fashion-MNIST. Entries are mean $\pm $ SD across three seeds; search uses validation and reported metrics are final held-out test values}{table.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces NSGA-II participation comparison. Entries are mean $\pm $ SD across three seeds; the full row is the full-participation NSGA-II reference from Table~\ref {tab:optimizers}.}}{10}{table.5}\protected@file@percent }
+\newlabel{tab:participation}{{5}{10}{NSGA-II participation comparison. Entries are mean $\pm $ SD across three seeds; the full row is the full-participation NSGA-II reference from Table~\ref {tab:optimizers}}{table.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Participation comparison}{10}{subsection.4.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Phase 2 participation experiment under a fixed NSGA-II search. The full row is the Phase 1 full-participation reference; the other bars use four clients per search round. Final test mean and minimum client metrics are shown separately, with hatched bars denoting the minimum.}}{11}{figure.6}\protected@file@percent }
+\newlabel{fig:participation-quality}{{6}{11}{Phase 2 participation experiment under a fixed NSGA-II search. The full row is the Phase 1 full-participation reference; the other bars use four clients per search round. Final test mean and minimum client metrics are shown separately, with hatched bars denoting the minimum}{figure.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Internal hypervolume trajectories for the six NSGA-II participation conditions. All curves use the same two aggregate validation objectives and reference point, so values are comparable across schedules. Lines and shaded regions show means and 95\% descriptive t intervals across the three seeds.}}{12}{figure.7}\protected@file@percent }
+\newlabel{fig:participation-hypervolume}{{7}{12}{Internal hypervolume trajectories for the six NSGA-II participation conditions. All curves use the same two aggregate validation objectives and reference point, so values are comparable across schedules. Lines and shaded regions show means and 95\% descriptive t intervals across the three seeds}{figure.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Quality and cost from the same Phase 2 participation experiment. The left panel relates search local trainings to final test mean accuracy; the right panel reports run-level elapsed CPU time, including probe, search, final evaluation, and execution overhead. Error bars are 95\% descriptive t intervals; the exact search costs are 448 for full participation and 224 for each partial strategy.}}{12}{figure.8}\protected@file@percent }
+\newlabel{fig:participation-cost}{{8}{12}{Quality and cost from the same Phase 2 participation experiment. The left panel relates search local trainings to final test mean accuracy; the right panel reports run-level elapsed CPU time, including probe, search, final evaluation, and execution overhead. Error bars are 95\% descriptive t intervals; the exact search costs are 448 for full participation and 224 for each partial strategy}{figure.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Validation boundary and reproducibility checks}{13}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Search dynamics and client heterogeneity}{13}{subsection.4.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Search history for the full-participation NSGA-II condition across three seeds. Left: mean internal two-objective validation hypervolume versus cumulative architecture evaluations, with a descriptive t interval. Right: mean validation accuracy for each client after selecting the candidate with the highest validation mean in each generation; no test data or uncertainty band is used in this panel.}}{13}{figure.9}\protected@file@percent }
+\newlabel{fig:search-dynamics}{{9}{13}{Search history for the full-participation NSGA-II condition across three seeds. Left: mean internal two-objective validation hypervolume versus cumulative architecture evaluations, with a descriptive t interval. Right: mean validation accuracy for each client after selecting the candidate with the highest validation mean in each generation; no test data or uncertainty band is used in this panel}{figure.9}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Discussion}{14}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Limitations and next experiment}{14}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7}Conclusion}{14}{section.7}\protected@file@percent }
+\citation{kassis2026}
+\bibcite{mcmahan2017}{1}
+\bibcite{kairouz2021}{2}
+\bibcite{zoph2017}{3}
+\bibcite{pham2018}{4}
+\bibcite{real2019}{5}
+\bibcite{elsken2019}{6}
+\bibcite{deb2002}{7}
+\bibcite{deb2014}{8}
+\bibcite{zhang2007}{9}
+\bibcite{zitzler2003}{10}
+\bibcite{kassis2026}{11}
+\bibcite{zhu2021fednas}{12}
+\bibcite{zhu2022realtime}{13}
+\bibcite{pan2021mgfnas}{14}
+\bibcite{yuan2024fednas}{15}
+\bibcite{liu2024finch}{16}
+\bibcite{yan2024peaches}{17}
+\bibcite{ocal2025network}{18}
+\bibcite{lu2024noniid}{19}
+\bibcite{ye2024hfl}{20}
+\bibcite{lai2021oort}{21}
+\bibcite{deng2022auction}{22}
+\bibcite{zhao2023newt}{23}
+\bibcite{zhang2024submodular}{24}
+\bibcite{ezzeldin2023fairfed}{25}
+\gdef \@abspage@last{17}

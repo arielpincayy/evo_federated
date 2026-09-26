@@ -57,6 +57,17 @@ class CharacterizationConfig:
 
 
 @dataclasses.dataclass
+class FederatedConfig:
+    rounds: int = 2
+    clients_per_round: int = 2
+    local_epochs: int = 1
+    aggregation: str = "fedavg"  # solo fedavg ponderado por n_train
+    search_split: str = "val"  # búsqueda en validation; test reservado al final
+    final_split: str = "test"
+    final_participation: str = "full"  # full | same: régimen usado en evaluación final
+
+
+@dataclasses.dataclass
 class EvolutionConfig:
     pop_size: int = 20
     n_generations: int = 10
@@ -86,6 +97,7 @@ class ExperimentConfig:
     genome: GenomeConfig = dataclasses.field(default_factory=GenomeConfig)
     characterization: CharacterizationConfig = dataclasses.field(default_factory=CharacterizationConfig)
     evolution: EvolutionConfig = dataclasses.field(default_factory=EvolutionConfig)
+    federated: FederatedConfig = dataclasses.field(default_factory=FederatedConfig)
     baselines: tuple = ("full", "random", "fixed", "dynamic")
 
 
@@ -125,6 +137,7 @@ def load_config(path: str | Path) -> ExperimentConfig:
         genome=GenomeConfig(**merged["genome"]),
         characterization=CharacterizationConfig(**merged["characterization"]),
         evolution=EvolutionConfig(**merged["evolution"]),
+        federated=FederatedConfig(**merged.get("federated", {})),
         baselines=tuple(merged.get("baselines", ("full", "random", "fixed", "dynamic"))),
     )
     return cfg

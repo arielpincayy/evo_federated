@@ -2,10 +2,13 @@
 from typing import Dict, Any, Callable, Optional
 import copy
 import time
+import numpy as np
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset, Subset
+
+from ..federated.characterization import get_model_buffers, set_model_buffers
 
 
 class FederatedClient:
@@ -150,6 +153,46 @@ class FederatedClient:
             macro_f1 = 0.0
 
         return {"accuracy": acc, "loss": loss, "macro_f1": macro_f1, "n": total}
+
+    def train_from_params(
+        self,
+        model: nn.Module,
+        flat_params: np.ndarray,
+        epochs: int,
+        lr: float = 1e-3,
+        optimizer_name: str = "adam",
+        device: str = "cpu",
+        buffers: Optional[Dict[str, torch.Tensor]] = None,
+    ) -> Dict[str, Any]:
+        """Set model to global params, train locally, return updated flat params + metrics.
+
+        Only derived params/metrics leave the client; raw data stays local.
+        """
+        if buffers is not None:
+            set_model_buffers(model, buffers)
+
+        pointer = 0
+        with torch.no_grad():
+            for p in model.parameters():
+                num = p.numel()
+                arr = flat_params[pointer : pointer + num].reshape(p.shape)
+                p.copy_(torch.from_numpy(arr).to(p.device).type(p.dtype))
+                pointer += num
+        train_res = self.train(
+            model, epochs=epochs, lr=lr, optimizer_name=optimizer_name, device=device
+        )
+        out = []
+        for p in model.parameters():
+            out.append(p.detach().cpu().numpy().ravel())
+        updated = np.concatenate(out) if out else np.array([], dtype=np.float32)
+        return {
+            "params": updated,
+            "n_train": int(self.n_train),
+            "train_time": float(train_res["time"]),
+            "train_loss": float(train_res["loss"]),
+            "train_steps": int(train_res["steps"]),
+            "buffers": get_model_buffers(model),
+        }
 
     # Privacy enforcement helpers
     def get_model_update(self, delta: torch.Tensor):

@@ -27,6 +27,24 @@ class FederatedServer:
         """Placeholder for FedAvg etc., no usada directamente en NAS pero disponible."""
         pass
 
+    def fedavg_aggregate(self, updates: Dict[int, np.ndarray], weights: Dict[int, float]) -> np.ndarray:
+        """Weighted FedAvg over client updates.
+
+        updates: client_id -> flat param vector (post local training).
+        weights: client_id -> n_train samples. Only derived sizes, no raw data.
+        Returns aggregated flat vector.
+        """
+        cids = sorted(updates.keys())
+        total = float(sum(weights[c] for c in cids))
+        if total <= 0:
+            raise ValueError("FedAvg needs positive total weight")
+        agg = None
+        for cid in cids:
+            w = float(weights[cid]) / total
+            vec = updates[cid]
+            agg = vec * w if agg is None else agg + vec * w
+        return agg
+
     def set_divergence_matrix(self, D: np.ndarray):
         self.divergence_matrix = D
 

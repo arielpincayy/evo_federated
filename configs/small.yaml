@@ -52,5 +52,13 @@ evolution:
   control_every: 0
   control_top_k: 2
 
+federated:
+  rounds: 2
+  clients_per_round: 2
+  local_epochs: 1
+  aggregation: fedavg
+  search_split: val
+  final_split: test
+
 baselines: ["random", "fixed", "dynamic"]
 # for smoke we skip full to save time; can add "full"

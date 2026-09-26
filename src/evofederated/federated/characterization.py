@@ -29,6 +29,24 @@ def set_model_params(model: nn.Module, flat: np.ndarray):
         p.data.copy_(tensor)
 
 
+def get_model_buffers(model: nn.Module) -> Dict[str, torch.Tensor]:
+    """Return a CPU copy of non-trainable model state, including BatchNorm."""
+    return {
+        name: buffer.detach().cpu().clone()
+        for name, buffer in model.named_buffers()
+    }
+
+
+def set_model_buffers(model: nn.Module, buffers: Dict[str, torch.Tensor]):
+    """Restore non-trainable model state without replacing module buffers."""
+    model_buffers = dict(model.named_buffers())
+    with torch.no_grad():
+        for name, value in buffers.items():
+            if name not in model_buffers:
+                raise KeyError(f"Unknown model buffer: {name}")
+            model_buffers[name].copy_(value.to(model_buffers[name].device))
+
+
 def characterize_clients(
     clients: Dict[int, Any],
     decoder_input_dim: int,

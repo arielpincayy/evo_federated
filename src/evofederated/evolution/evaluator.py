@@ -256,7 +256,8 @@ class Evaluator:
             optimizer_name=self.train_config.get("optimizer", "adam"),
             device=self.device,
         )
-        eval_res = client.evaluate(model, device=self.device, split="test")
+        # Búsqueda en validation; test reservado a evaluación final.
+        eval_res = client.evaluate(model, device=self.device, split="val")
         return eval_res["macro_f1"], eval_res["accuracy"], eval_res["loss"], train_res["time"]
 
     def evaluate_batch(self, X: np.ndarray):
@@ -289,11 +290,11 @@ class Evaluator:
         # Use copy with same init
         model_copy_i = copy.deepcopy(model_i)
         train_res_i = client_i.train(model_copy_i, epochs=self.train_config.get("epochs",5), lr=self.train_config.get("lr",1e-3), optimizer_name=self.train_config.get("optimizer","adam"), device=self.device)
-        eval_i = client_i.evaluate(model_copy_i, device=self.device, split="test")
+        eval_i = client_i.evaluate(model_copy_i, device=self.device, split="val")
         # eval counterpart with same init
         model_copy_j = genome_to_model(genome, self.input_dim, self.n_classes)
         set_model_params(model_copy_j, flat_init)
         client_j = self.clients[counterpart_cid]
         train_res_j = client_j.train(model_copy_j, epochs=self.train_config.get("epochs",5), lr=self.train_config.get("lr",1e-3), optimizer_name=self.train_config.get("optimizer","adam"), device=self.device)
-        eval_j = client_j.evaluate(model_copy_j, device=self.device, split="test")
+        eval_j = client_j.evaluate(model_copy_j, device=self.device, split="val")
         return eval_i, eval_j

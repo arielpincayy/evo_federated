@@ -1,0 +1,13 @@
+claim_id,claim_type,claim_summary,source_file,source_locator,verification_note
+R001,result,MOEA/D mean test accuracy is 0.7580485654,results/federated_fedavg_replication_g7/method_summary_multiseed.csv,row 6,test_mean_accuracy_mean
+R002,result,Random search mean test macro-F1 is 0.5951475398,results/federated_fedavg_replication_g7/method_summary_multiseed.csv,row 3,test_mean_f1_mean
+R003,result,Probabilistic dissimilarity mean test accuracy is 0.7316282755,results/federated_fedavg_replication_g7_k4/method_summary_multiseed.csv,row 11,test_mean_accuracy_mean
+R004,result,Deterministic dissimilarity mean minimum accuracy is 0.5873709232,results/federated_fedavg_replication_g7_k4/method_summary_multiseed.csv,row 9,test_min_accuracy_mean
+R005,cost,Full search uses 448 local trainings and 480 total local trainings,results/federated_fedavg_replication_g7_k4/method_summary_multiseed.csv,rows 3-6,n_local_trainings_search_mean and n_local_trainings_total_mean
+R006,cost,Four-client partial search uses 224 local trainings and 256 total local trainings,results/federated_fedavg_replication_g7_k4/method_summary_multiseed.csv,rows 7-11,n_local_trainings_search_mean and n_local_trainings_total_mean
+M001,method,Search split is validation and final split is test,results/federated_fedavg_replication_g7_k4/method_summary_multiseed.csv,all rows,run metadata and analysis metadata
+M002,method,Probabilistic pairing records tau equal to 0.5,results/federated_fedavg_replication_g7_k4/phase2_participation/prob-similarity/seed_42/participation.json,participation metadata
+F001,figure,Optimizer quality figure provenance,Paper/figures/federated_campaign/figure_provenance.csv,row 2,source and transformation recorded
+F002,figure,Search dynamics figure provenance,Paper/figures/federated_campaign/figure_provenance.csv,row 7,source and transformation recorded
+F003,figure,Optimizer hypervolume trajectories for NSGA-II NSGA-III and MOEA/D,Paper/figures/federated_campaign/figure_provenance.csv,row 5,objective spaces kept separate
+F004,figure,Participation hypervolume trajectories for all NSGA-II schedules,Paper/figures/federated_campaign/figure_provenance.csv,row 6,common two-objective space

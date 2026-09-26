@@ -54,7 +54,8 @@ class GroupedManyObjectiveEvaluator:
         set_model_params(model, flat_init)
         client=self.clients[client_id]
         train_res=client.train(model, epochs=self.train_config.get("epochs",5), lr=self.train_config.get("lr",1e-3), optimizer_name=self.train_config.get("optimizer","adam"), device=self.device)
-        eval_res=client.evaluate(model, device=self.device, split="test")
+        # Búsqueda en validation; test reservado a evaluación final.
+        eval_res=client.evaluate(model, device=self.device, split="val")
         return eval_res, train_res
 
     def evaluate_single(self, vec, individual_idx, arch_id=None):

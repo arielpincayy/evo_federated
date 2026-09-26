@@ -70,7 +70,8 @@ class PairEvaluator:
                                  lr=self.train_config.get("lr",1e-3),
                                  optimizer_name=self.train_config.get("optimizer","adam"),
                                  device=dev)
-        eval_res = client.evaluate(model, device=dev, split="test")
+        # Búsqueda en validation; test reservado a evaluación final.
+        eval_res = client.evaluate(model, device=dev, split="val")
         return eval_res, train_res
 
     def evaluate_single(self, vec: np.ndarray, individual_idx: int, arch_id: str=None):
