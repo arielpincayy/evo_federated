@@ -1,0 +1,17 @@
+\begin{table}[H]\centering\small\caption{Cohesión de las agrupaciones con $C=10$ (Fashion-MNIST, $N=100$, media de 5 semillas). Dist. etiquetas: distancia de Hellinger entre distribuciones de clases; Var. relativa: varianza de un proxy del estimador (distribución de etiquetas) frente a $C$ nodos al azar.}\label{tab:clusters}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{rlcrcrr}
+\toprule
+$\alpha$ & Agrupación & Tamaños mín/med/máx & $\eta^2$ & Dist. etiquetas dentro / entre & Pureza & Var. relativa del estimador \\
+\midrule
+0.100 & $k$-means sobre $\Delta$ (usada) & 6.2 / 9.9 / 14.6 & 0.678 & 0.54 / 0.86 & 0.777 & 0.395 \\
+0.100 & Oráculo con etiquetas & 6.4 / 9.6 / 14.6 & 0.800 & 0.50 / 0.86 & 0.961 & 0.242 \\
+0.100 & Enlace promedio sobre $\Delta$ (tamaño libre) & 1.8 / 9.2 / 20.4 & 0.649 & 0.57 / 0.86 & 0.792 & 0.571 \\
+0.100 & Aleatoria & 10.0 / 10.0 / 10.0 & 0.095 & 0.83 / 0.83 & 0.282 & 0.995 \\
+0.500 & $k$-means sobre $\Delta$ (usada) & 5.8 / 9.7 / 14.6 & 0.464 & 0.46 / 0.60 & 0.513 & 0.649 \\
+0.500 & Oráculo con etiquetas & 6.0 / 10.0 / 14.8 & 0.617 & 0.45 / 0.60 & 0.856 & 0.457 \\
+0.500 & Enlace promedio sobre $\Delta$ (tamaño libre) & 2.0 / 10.4 / 19.8 & 0.449 & 0.47 / 0.60 & 0.560 & 0.862 \\
+0.500 & Aleatoria & 10.0 / 10.0 / 10.0 & 0.083 & 0.59 / 0.58 & 0.262 & 1.009 \\
+\bottomrule
+\end{tabular}}
+\end{table}

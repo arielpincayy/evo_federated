@@ -125,6 +125,19 @@ for m, g in r.groupby("method"):
                  "IC 95 \\%": f"[{d.ic_bajo:.3f}, {d.ic_alto:.3f}]", "Mejoran": f"{int(d.gana)}/{int(d.n)}"})
 tex_table(pd.DataFrame(rows), "tab_e4", "E4: HV del frente final en test antes y después del refinamiento multifidelidad ($C=40$ sobre $\\leq 12$ candidatos).", "tab:e4", "lrrrrr")
 
+
+# --- 6. cohesión de clusters ---------------------------------------------------------------------------------
+cm = pd.read_csv("runs/clusters/cluster_metrics.csv")
+NAME = {"kmeans_delta_C10": "$k$-means sobre $\\Delta$ (usada)", "label_oracle_C10": "Oráculo con etiquetas", "average_delta_C10": "Enlace promedio sobre $\\Delta$ (tamaño libre)", "random_C10": "Aleatoria"}
+rows = []
+for al in (0.1, 0.5):
+    for k, lab in NAME.items():
+        x = cm[(cm.alpha == al) & (cm.scheme == k)]
+        rows.append({"$\\alpha$": al, "Agrupación": lab, "Tamaños mín/med/máx": f"{x.size_min.mean():.1f} / {x.size_median.mean():.1f} / {x.size_max.mean():.1f}",
+                     "$\\eta^2$": x.eta2.mean(), "Dist. etiquetas dentro / entre": f"{x.within_hellinger.mean():.2f} / {x.between_hellinger.mean():.2f}",
+                     "Pureza": x.purity_dominant_class.mean(), "Var. relativa del estimador": x.var_ratio_vs_random.mean()})
+tex_table(pd.DataFrame(rows), "tab_clusters", "Cohesión de las agrupaciones con $C=10$ (Fashion-MNIST, $N=100$, media de 5 semillas). Dist. etiquetas: distancia de Hellinger entre distribuciones de clases; Var. relativa: varianza de un proxy del estimador (distribución de etiquetas) frente a $C$ nodos al azar.", "tab:clusters", "rlcrcrr")
+
 # --- números sueltos para el texto --------------------------------------------------------------------------
 d = pd.read_csv("runs/training_diagnostic.csv")
 num = {"trainAdamLow": d[(d.name == "adam_0.001") & (d.epochs == 2) & (d.rounds == 5)].set_index("alpha").acc_mean.to_dict(),
