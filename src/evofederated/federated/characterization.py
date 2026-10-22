@@ -118,3 +118,28 @@ def compute_delta_vectors(deltas: Dict[int, np.ndarray]) -> np.ndarray:
     cids = sorted(deltas.keys())
     mat = np.stack([deltas[cid] for cid in cids], axis=0)
     return mat
+
+
+def probe_deltas(
+    clients: Dict[int, Any],
+    model_fn,
+    k_epochs: int = 1,
+    lr: float = 1e-3,
+    optimizer_name: str = "adam",
+    seed: int = 42,
+    device: str = "cpu",
+) -> np.ndarray:
+    """Probe genérico: mismo modelo y misma init en cada nodo; devuelve Δ (N x P) ordenado por id.
+
+    Solo sale el delta de cada nodo, nunca sus datos. `model_fn()` crea el modelo sonda.
+    """
+    torch.manual_seed(seed)
+    probe = model_fn()
+    theta0 = flatten_params(probe)
+    rows = []
+    for cid in sorted(clients):
+        m = copy.deepcopy(probe)
+        set_model_params(m, theta0)
+        clients[cid].train(m, epochs=k_epochs, lr=lr, optimizer_name=optimizer_name, device=device)
+        rows.append(flatten_params(m) - theta0)
+    return np.stack(rows)

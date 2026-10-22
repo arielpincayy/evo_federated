@@ -128,3 +128,8 @@ temp/
 # ============================================================
 
 .opencode/
+
+# Código fuente cuyas carpetas coinciden con reglas anteriores (data/, models/, figures/)
+!src/evofederated/data/
+!src/evofederated/models/
+!manuscript/figures/

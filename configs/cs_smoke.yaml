@@ -1,0 +1,11 @@
+# Smoke test: Fashion-MNIST, pocos nodos, 3 generaciones.
+name: cs_smoke
+output_dir: runs/cs_smoke
+seed: 42
+dataset: {name: fashion-mnist, n_clients: 30, alpha: 0.5, val_ratio: 0.3, min_samples_per_client: 20}
+train: {batch_size: 32, device: cpu}
+space: {max_blocks: 2, channels: [8, 16], kernels: [3], activations: [relu]}
+sampling: {sampler: cluster, n_clusters: 5, method: kmeans}
+federated: {rounds: 1, local_epochs: 1}
+evolution: {search: nsga2, pop_size: 4, n_generations: 3}
+final: {enabled: true, n_seeds: 1, participation: reps, max_front: 2}

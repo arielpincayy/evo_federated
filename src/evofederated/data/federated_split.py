@@ -14,6 +14,7 @@ from .datasets import (
     make_synthetic_dataset,
     dirichlet_partition,
     get_input_dim_and_n_classes,
+    to_tensor_dataset,
 )
 from ..clients.client import FederatedClient
 
@@ -77,8 +78,8 @@ def build_federated_clients(cfg, seed: int | None = None):
                          "train_partition": train_part, "test_partition": test_part}
 
     # imagen: train y test oficiales separados
-    train_base = get_dataset(name, root=cfg.dataset.data_root, train=True, download=True)
-    test_base = get_dataset(name, root=cfg.dataset.data_root, train=False, download=True)
+    train_base = to_tensor_dataset(get_dataset(name, root=cfg.dataset.data_root, train=True, download=True), name)
+    test_base = to_tensor_dataset(get_dataset(name, root=cfg.dataset.data_root, train=False, download=True), name)
     train_labels = _labels_of(train_base)
     test_labels = _labels_of(test_base)
     train_part = dirichlet_partition(

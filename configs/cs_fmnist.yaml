@@ -1,0 +1,12 @@
+# Régimen alternativo del E2: Fashion-MNIST (los modelos aprenden rápido), muchos nodos.
+name: cs_fmnist
+output_dir: runs/cs_fmnist
+seed: 42
+dataset: {name: fashion-mnist, n_clients: 100, alpha: 0.5, val_ratio: 0.3, min_samples_per_client: 50}
+train: {batch_size: 32, device: cpu}
+space: {max_blocks: 3, channels: [8, 16, 32, 64], kernels: [3, 5], activations: [relu, elu]}
+probe: {k_epochs: 1, seed: 42}
+sampling: {sampler: cluster, n_clusters: 10, method: kmeans, weight_by_cluster: true}
+federated: {rounds: 2, local_epochs: 1}
+evolution: {search: nsga2, pop_size: 12, n_generations: 10, seed: 42}
+final: {enabled: true, n_seeds: 3, participation: full, max_front: 8}

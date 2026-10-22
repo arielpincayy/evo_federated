@@ -77,8 +77,13 @@ def run_fedavg(
     lr: float = 1e-3,
     optimizer_name: str = "adam",
     device: str = "cpu",
+    weight_override: Dict[int, float] = None,
 ) -> Dict[str, Any]:
-    """Ejecuta rondas FedAvg para una arquitectura. Retorna params globales y coste."""
+    """Ejecuta rondas FedAvg para una arquitectura. Retorna params globales y coste.
+
+    `weight_override`: pesos de agregación por cliente (p. ej. tamaño del cluster que representa);
+    por defecto se pondera por n_train.
+    """
     model = genome_to_model(genome, input_dim, n_classes)
     set_model_params(model, flat_init)
     global_params = flat_init.copy()
@@ -107,7 +112,7 @@ def run_fedavg(
                 device=device,
             )
             updates[int(cid)] = res["params"]
-            weights[int(cid)] = float(res["n_train"])
+            weights[int(cid)] = float(weight_override[cid]) if weight_override else float(res["n_train"])
             buffer_updates[int(cid)] = res["buffers"]
             n_local_trainings += 1
             total_steps += int(res["train_steps"])
