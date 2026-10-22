@@ -1,0 +1,27 @@
+\begin{table}[H]\centering\small\caption{Estimador de fitness frente a la accuracy del mismo modelo en todos los nodos (media sobre semillas; DE = desviación entre semillas; $\tau$: Kendall dentro de cada sorteo).}\label{tab:e2}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llrrrrr}
+\toprule
+Régimen & Variante & Sesgo & RMSE & RMSE (DE) & $\tau$ & Semillas \\
+\midrule
+Fashion-MNIST, $\alpha=0.1$ & Clusters por $\Delta$ & -0.008 & 0.047 & 0.008 & 0.885 & 5 \\
+Fashion-MNIST, $\alpha=0.1$ & Clusters por etiquetas (oráculo) & -0.012 & 0.047 & 0.011 & 0.900 & 5 \\
+Fashion-MNIST, $\alpha=0.1$ & Clusters aleatorios & -0.001 & 0.073 & 0.036 & 0.886 & 5 \\
+Fashion-MNIST, $\alpha=0.1$ & Nodos aleatorios & -0.036 & 0.094 & 0.032 & 0.853 & 5 \\
+Fashion-MNIST, $\alpha=0.1$ & Clusters por $\Delta$, sin retener & 0.072 & 0.080 & 0.017 & 0.907 & 5 \\
+Fashion-MNIST, $\alpha=0.1$ & Nodos aleatorios, sin retener & 0.140 & 0.151 & 0.010 & 0.868 & 5 \\
+Fashion-MNIST, $\alpha=0.5$ & Clusters por $\Delta$ & 0.007 & 0.028 & 0.007 & 0.958 & 5 \\
+Fashion-MNIST, $\alpha=0.5$ & Clusters por etiquetas (oráculo) & 0.003 & 0.036 & 0.017 & 0.957 & 5 \\
+Fashion-MNIST, $\alpha=0.5$ & Clusters aleatorios & -0.004 & 0.036 & 0.018 & 0.952 & 5 \\
+Fashion-MNIST, $\alpha=0.5$ & Nodos aleatorios & -0.015 & 0.049 & 0.023 & 0.945 & 5 \\
+Fashion-MNIST, $\alpha=0.5$ & Clusters por $\Delta$, sin retener & 0.044 & 0.051 & 0.019 & 0.948 & 5 \\
+Fashion-MNIST, $\alpha=0.5$ & Nodos aleatorios, sin retener & 0.053 & 0.062 & 0.013 & 0.972 & 5 \\
+CIFAR-10, $\alpha=0.5$ & Clusters por $\Delta$ & 0.003 & 0.031 & 0.009 & 0.835 & 5 \\
+CIFAR-10, $\alpha=0.5$ & Clusters por etiquetas (oráculo) & -0.002 & 0.032 & 0.003 & 0.829 & 5 \\
+CIFAR-10, $\alpha=0.5$ & Clusters aleatorios & -0.002 & 0.033 & 0.005 & 0.823 & 5 \\
+CIFAR-10, $\alpha=0.5$ & Nodos aleatorios & -0.015 & 0.039 & 0.007 & 0.819 & 5 \\
+CIFAR-10, $\alpha=0.5$ & Clusters por $\Delta$, sin retener & 0.056 & 0.060 & 0.008 & 0.867 & 5 \\
+CIFAR-10, $\alpha=0.5$ & Nodos aleatorios, sin retener & 0.062 & 0.068 & 0.007 & 0.850 & 5 \\
+\bottomrule
+\end{tabular}}
+\end{table}

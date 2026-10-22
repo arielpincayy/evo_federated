@@ -1,0 +1,7 @@
+{
+ "records_identified": 1400,
+ "unique_openalex_ids": 1182,
+ "after_title_dedup": 1167,
+ "after_federated_abstract_filter": 737,
+ "after_topical_filter": 261
+}

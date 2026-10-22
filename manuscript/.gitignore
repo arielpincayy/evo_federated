@@ -1,0 +1,11 @@
+# Artefactos de LaTeX y datos crudos de la búsqueda bibliográfica
+*.aux
+*.log
+*.fls
+*.fdb_latexmk
+*.out
+*.bbl
+*.blg
+*.toc
+search/raw_openalex.json
+search/__pycache__/

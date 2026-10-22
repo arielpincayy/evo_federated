@@ -1,0 +1,15 @@
+\begin{table}[H]\centering\small\caption{Ruido por nodos de entrenamiento (20 arquitecturas $\times$ 4 sorteos, Fashion-MNIST, $\alpha=0.1$).}\label{tab:noise}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrrrrr}
+\toprule
+Variante & SD misma arq. & Ruido/señal & $\tau$ test-retest & $\tau$ vs completa & Sesgo vs completa & RMSE vs completa \\
+\midrule
+Clusters $\Delta$, $C=10$ & 0.098 & 0.695 & 0.746 & 0.818 & -0.166 & 0.195 \\
+Clusters $\Delta$, $C=20$ & 0.043 & 0.283 & 0.796 & 0.832 & -0.083 & 0.101 \\
+Clusters $\Delta$, $C=40$ & 0.037 & 0.243 & 0.830 & 0.850 & -0.067 & 0.082 \\
+Nodos aleatorios, $C=10$ & 0.085 & 0.650 & 0.747 & 0.811 & -0.113 & 0.145 \\
+Nodos aleatorios, $C=20$ & 0.064 & 0.442 & 0.819 & 0.813 & -0.064 & 0.095 \\
+Nodos aleatorios, $C=40$ & 0.050 & 0.321 & 0.825 & 0.847 & -0.026 & 0.063 \\
+\bottomrule
+\end{tabular}}
+\end{table}

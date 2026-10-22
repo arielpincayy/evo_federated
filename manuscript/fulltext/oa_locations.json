@@ -1,0 +1,357 @@
+{
+ "50": {
+  "title": "Real-Time Federated Evolutionary Neural Architecture Search",
+  "doi": "https://doi.org/10.1109/tevc.2021.3099448",
+  "oa": {
+   "is_oa": true,
+   "oa_status": "green",
+   "oa_url": "https://arxiv.org/pdf/2003.02793",
+   "any_repository_has_fulltext": true
+  },
+  "locs": [
+   [
+    null,
+    "https://doi.org/10.1109/tevc.2021.3099448",
+    "IEEE Transactions on Evolutionary Computation"
+   ],
+   [
+    "https://arxiv.org/pdf/2003.02793",
+    "http://arxiv.org/abs/2003.02793",
+    "arXiv (Cornell University)"
+   ],
+   [
+    null,
+    "https://pub.uni-bielefeld.de/record/2978343",
+    "Publikationen an der Universit\u00e4t Bielefeld (Universit\u00e4t Bielefeld)"
+   ],
+   [
+    null,
+    "https://doi.org/10.48550/arxiv.2003.02793",
+    "arXiv (Cornell University)"
+   ]
+  ]
+ },
+ "236": {
+  "title": "Resource-Aware Federated Neural Architecture Search over Heterogeneous Mobile Devices",
+  "doi": "https://doi.org/10.1109/tbdata.2022.3227403",
+  "oa": {
+   "is_oa": false,
+   "oa_status": "closed",
+   "oa_url": null,
+   "any_repository_has_fulltext": false
+  },
+  "locs": [
+   [
+    null,
+    "https://doi.org/10.1109/tbdata.2022.3227403",
+    "IEEE Transactions on Big Data"
+   ]
+  ]
+ },
+ "54": {
+  "title": "Finch: Enhancing Federated Learning With Hierarchical Neural Architecture Search",
+  "doi": "https://doi.org/10.1109/tmc.2023.3315451",
+  "oa": {
+   "is_oa": false,
+   "oa_status": "closed",
+   "oa_url": null,
+   "any_repository_has_fulltext": false
+  },
+  "locs": [
+   [
+    null,
+    "https://doi.org/10.1109/tmc.2023.3315451",
+    "IEEE Transactions on Mobile Computing"
+   ]
+  ]
+ },
+ "45": {
+  "title": "From federated learning to federated neural architecture search: a survey",
+  "doi": "https://doi.org/10.1007/s40747-020-00247-z",
+  "oa": {
+   "is_oa": true,
+   "oa_status": "gold",
+   "oa_url": "https://link.springer.com/content/pdf/10.1007/s40747-020-00247-z.pdf",
+   "any_repository_has_fulltext": true
+  },
+  "locs": [
+   [
+    "https://link.springer.com/content/pdf/10.1007/s40747-020-00247-z.pdf",
+    "https://doi.org/10.1007/s40747-020-00247-z",
+    "Complex & Intelligent Systems"
+   ],
+   [
+    "https://arxiv.org/pdf/2009.05868",
+    "http://arxiv.org/abs/2009.05868",
+    "arXiv (Cornell University)"
+   ],
+   [
+    null,
+    "https://pub.uni-bielefeld.de/record/2978372",
+    "PUB \u2013 Publications at Bielefeld University (Bielefeld University)"
+   ],
+   [
+    null,
+    "https://doi.org/10.48550/arxiv.2009.05868",
+    "arXiv (Cornell University)"
+   ]
+  ]
+ },
+ "239": {
+  "title": "FedorAS: Federated Architecture Search under system heterogeneity",
+  "doi": "https://doi.org/10.48550/arxiv.2206.11239",
+  "oa": {
+   "is_oa": true,
+   "oa_status": "green",
+   "oa_url": "https://arxiv.org/pdf/2206.11239",
+   "any_repository_has_fulltext": true
+  },
+  "locs": [
+   [
+    "https://arxiv.org/pdf/2206.11239",
+    "http://arxiv.org/abs/2206.11239",
+    "arXiv (Cornell University)"
+   ],
+   [
+    null,
+    "https://doi.org/10.48550/arxiv.2206.11239",
+    "arXiv (Cornell University)"
+   ]
+  ]
+ },
+ "246": {
+  "title": "FEATHERS: Federated Architecture and Hyperparameter Search",
+  "doi": "https://doi.org/10.48550/arxiv.2206.12342",
+  "oa": {
+   "is_oa": true,
+   "oa_status": "green",
+   "oa_url": "https://arxiv.org/pdf/2206.12342",
+   "any_repository_has_fulltext": true
+  },
+  "locs": [
+   [
+    "https://arxiv.org/pdf/2206.12342",
+    "http://arxiv.org/abs/2206.12342",
+    "arXiv (Cornell University)"
+   ],
+   [
+    null,
+    "https://doi.org/10.48550/arxiv.2206.12342",
+    "arXiv (Cornell University)"
+   ]
+  ]
+ },
+ "230": {
+  "title": "Federated Hyperparameter Tuning: Challenges, Baselines, and Connections to Weight-Sharing",
+  "doi": "https://doi.org/10.48550/arxiv.2106.04502",
+  "oa": {
+   "is_oa": true,
+   "oa_status": "green",
+   "oa_url": "https://arxiv.org/pdf/2106.04502",
+   "any_repository_has_fulltext": true
+  },
+  "locs": [
+   [
+    "https://arxiv.org/pdf/2106.04502",
+    "http://arxiv.org/abs/2106.04502",
+    "arXiv (Cornell University)"
+   ],
+   [
+    null,
+    "http://export.arxiv.org/pdf/2106.04502",
+    "arXiv (Cornell University)"
+   ],
+   [
+    null,
+    "https://doi.org/10.48550/arxiv.2106.04502",
+    "arXiv (Cornell University)"
+   ],
+   [
+    null,
+    "https://dblp.uni-trier.de/db/journals/corr/corr2106.html#abs-2106-04502",
+    "neural information processing systems"
+   ]
+  ]
+ },
+ "259": {
+  "title": "Divide-and-Conquer the NAS puzzle in Resource Constrained Federated Learning Systems",
+  "doi": "https://doi.org/10.48550/arxiv.2305.07135",
+  "oa": {
+   "is_oa": true,
+   "oa_status": "green",
+   "oa_url": "https://arxiv.org/pdf/2305.07135",
+   "any_repository_has_fulltext": true
+  },
+  "locs": [
+   [
+    "https://arxiv.org/pdf/2305.07135",
+    "http://arxiv.org/abs/2305.07135",
+    "arXiv (Cornell University)"
+   ],
+   [
+    null,
+    "https://doi.org/10.48550/arxiv.2305.07135",
+    "arXiv (Cornell University)"
+   ]
+  ]
+ },
+ "95": {
+  "title": "Direct Federated Neural Architecture Search",
+  "doi": "https://doi.org/10.48550/arxiv.2010.06223",
+  "oa": {
+   "is_oa": true,
+   "oa_status": "green",
+   "oa_url": "https://arxiv.org/pdf/2010.06223",
+   "any_repository_has_fulltext": true
+  },
+  "locs": [
+   [
+    "https://arxiv.org/pdf/2010.06223",
+    "http://arxiv.org/abs/2010.06223",
+    "arXiv (Cornell University)"
+   ],
+   [
+    null,
+    "https://arxiv.org/pdf/2010.06223.pdf",
+    "arXiv (Cornell University)"
+   ],
+   [
+    null,
+    "https://doi.org/10.48550/arxiv.2010.06223",
+    "arXiv (Cornell University)"
+   ]
+  ]
+ },
+ "231": {
+  "title": "Federated Neural Architecture Search",
+  "doi": "https://doi.org/10.48550/arxiv.2002.06352",
+  "oa": {
+   "is_oa": true,
+   "oa_status": "green",
+   "oa_url": "https://arxiv.org/pdf/2002.06352",
+   "any_repository_has_fulltext": true
+  },
+  "locs": [
+   [
+    "https://arxiv.org/pdf/2002.06352",
+    "http://arxiv.org/abs/2002.06352",
+    "arXiv (Cornell University)"
+   ],
+   [
+    null,
+    "https://doi.org/10.48550/arxiv.2002.06352",
+    "arXiv (Cornell University)"
+   ]
+  ]
+ },
+ "38": {
+  "title": "DeepFedNAS: Efficient Hardware-Aware Architecture Adaptation for Heterogeneous IoT Federations via Pareto-Guided Supernet Training",
+  "doi": "https://doi.org/10.48550/arxiv.2601.15127",
+  "oa": {
+   "is_oa": true,
+   "oa_status": "green",
+   "oa_url": "https://arxiv.org/pdf/2601.15127",
+   "any_repository_has_fulltext": true
+  },
+  "locs": [
+   [
+    "https://arxiv.org/pdf/2601.15127",
+    "https://arxiv.org/abs/2601.15127",
+    "arXiv (Cornell University)"
+   ],
+   [
+    null,
+    "https://doi.org/10.48550/arxiv.2601.15127",
+    "arXiv (Cornell University)"
+   ]
+  ]
+ },
+ "0": {
+  "title": "Multi-Objective Federated Learning via Evolutionary Knowledge Transfer",
+  "doi": "https://doi.org/10.3390/app16105094",
+  "oa": {
+   "is_oa": true,
+   "oa_status": "gold",
+   "oa_url": "https://doi.org/10.3390/app16105094",
+   "any_repository_has_fulltext": true
+  },
+  "locs": [
+   [
+    null,
+    "https://doi.org/10.3390/app16105094",
+    "Applied Sciences"
+   ],
+   [
+    null,
+    "https://doaj.org/article/e31f32362e6f45c28769fcd138bdf21f",
+    "DOAJ (DOAJ: Directory of Open Access Journals)"
+   ]
+  ]
+ },
+ "84": {
+  "title": "Optimizing Multi-Objective Federated Learning on Non-IID Data with Improved NSGA-III and Hierarchical Clustering",
+  "doi": "https://doi.org/10.3390/sym14051070",
+  "oa": {
+   "is_oa": true,
+   "oa_status": "gold",
+   "oa_url": "https://www.mdpi.com/2073-8994/14/5/1070/pdf?version=1653295378",
+   "any_repository_has_fulltext": true
+  },
+  "locs": [
+   [
+    "https://www.mdpi.com/2073-8994/14/5/1070/pdf?version=1653295378",
+    "https://doi.org/10.3390/sym14051070",
+    "Symmetry"
+   ],
+   [
+    null,
+    "https://doaj.org/article/5975549949c441b29505d29c95f16845",
+    "DOAJ (DOAJ: Directory of Open Access Journals)"
+   ]
+  ]
+ },
+ "37": {
+  "title": "EvoCSFL: Surrogate-Assisted Evolutionary Client Selection for Efficient and Robust Federated Learning",
+  "doi": "https://doi.org/10.48550/arxiv.2606.07702",
+  "oa": {
+   "is_oa": true,
+   "oa_status": "green",
+   "oa_url": "https://arxiv.org/pdf/2606.07702",
+   "any_repository_has_fulltext": true
+  },
+  "locs": [
+   [
+    "https://arxiv.org/pdf/2606.07702",
+    "https://arxiv.org/abs/2606.07702",
+    "arXiv (Cornell University)"
+   ],
+   [
+    null,
+    "https://doi.org/10.48550/arxiv.2606.07702",
+    "arXiv (Cornell University)"
+   ]
+  ]
+ },
+ "141": {
+  "title": "FLIPS: Federated Learning using Intelligent Participant Selection",
+  "doi": "https://doi.org/10.48550/arxiv.2308.03901",
+  "oa": {
+   "is_oa": true,
+   "oa_status": "green",
+   "oa_url": "https://arxiv.org/pdf/2308.03901",
+   "any_repository_has_fulltext": true
+  },
+  "locs": [
+   [
+    "https://arxiv.org/pdf/2308.03901",
+    "http://arxiv.org/abs/2308.03901",
+    "arXiv (Cornell University)"
+   ],
+   [
+    null,
+    "https://doi.org/10.48550/arxiv.2308.03901",
+    "arXiv (Cornell University)"
+   ]
+  ]
+ }
+}

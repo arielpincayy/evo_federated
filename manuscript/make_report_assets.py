@@ -1,0 +1,133 @@
+#!/usr/bin/env python
+"""Genera figuras y tablas LaTeX del informe a partir de runs/ (no escribe números a mano). Ejecutar desde la raíz del repo."""
+import glob
+import json
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+OUT = "manuscript/report_assets"
+plt.rcParams.update({"font.size": 9, "axes.spines.top": False, "axes.spines.right": False, "figure.dpi": 150})
+C = {"cs_nsga": "#0072B2", "rand_nsga": "#D55E00", "cs_rand": "#009E73", "rand_rand": "#CC79A7", "cluster": "#0072B2", "random": "#D55E00"}
+LAB = {"cluster_delta": "Clusters por $\\Delta$", "cluster_label_oracle": "Clusters por etiquetas (oráculo)", "cluster_random": "Clusters aleatorios",
+       "random_nodes": "Nodos aleatorios", "cluster_delta_noholdout": "Clusters por $\\Delta$, sin retener", "random_nodes_noholdout": "Nodos aleatorios, sin retener"}
+ORDER = list(LAB)
+MET = {"cs_nsga": "CS-NSGA (clusters $\\Delta$ + NSGA-II)", "rand_nsga": "Nodos aleatorios + NSGA-II", "cs_rand": "Clusters $\\Delta$ + búsqueda aleatoria", "rand_rand": "Nodos aleatorios + búsqueda aleatoria"}
+
+
+def tex_table(df, name, caption, label, colfmt):
+    body = df.to_latex(index=False, escape=False, column_format=colfmt, float_format=lambda v: f"{v:.3f}")
+    body = body.replace("\\begin{tabular}", "\\resizebox{\\linewidth}{!}{%\n\\begin{tabular}", 1).replace("\\end{tabular}", "\\end{tabular}}", 1)
+    open(f"{OUT}/{name}.tex", "w").write(f"\\begin{{table}}[H]\\centering\\small\\caption{{{caption}}}\\label{{{label}}}\n{body}\\end{{table}}\n")
+
+
+# --- 1. diagnóstico de entrenamiento -------------------------------------------------------------------
+t = pd.read_csv("runs/training_diagnostic.csv")
+t["cfg"] = t.name.str.replace("fullpart", "todos los nodos").str.replace("_nobn", " sin BN") + " · " + t.epochs.astype(str) + " ép. · " + t.rounds.astype(str) + " r."
+t = t.pivot_table(index="cfg", columns="alpha", values="acc_mean").sort_values(0.5)
+fig, ax = plt.subplots(figsize=(6.4, 3.6)); y = np.arange(len(t))
+ax.barh(y - 0.2, t[0.5], 0.4, color="#0072B2", label="$\\alpha=0.5$"); ax.barh(y + 0.2, t[0.1], 0.4, color="#D55E00", label="$\\alpha=0.1$")
+ax.set_yticks(y); ax.set_yticklabels(t.index, fontsize=7); ax.set_xlabel("Accuracy media en todos los nodos"); ax.legend(frameon=False)
+plt.tight_layout(); plt.savefig(f"{OUT}/fig_training.pdf"); plt.close()
+
+# --- 2. E2: estimador ----------------------------------------------------------------------------------------
+sets = [("Fashion-MNIST, $\\alpha=0.1$", "runs/estimator_fmnist_lr/a0.1/per_seed_summary.csv"),
+        ("Fashion-MNIST, $\\alpha=0.5$", "runs/estimator_fmnist_lr/a0.5/per_seed_summary.csv"),
+        ("CIFAR-10, $\\alpha=0.5$", "runs/estimator_e2/per_seed_summary.csv")]
+fig, axs = plt.subplots(1, 3, figsize=(7.2, 3.0), sharey=True)
+rows = []
+for ax, (title, f) in zip(axs, sets):
+    d = pd.read_csv(f); g = d.groupby("arm")
+    m, s = g.rmse.mean().reindex(ORDER), g.rmse.std().reindex(ORDER)
+    ax.barh(range(len(ORDER)), m, xerr=s, color=["#0072B2", "#999999", "#CC79A7", "#D55E00", "#56B4E9", "#E69F00"], capsize=2)
+    ax.set_title(title, fontsize=8); ax.set_xlabel("RMSE del estimador"); ax.invert_yaxis()
+    for arm in ORDER:
+        x = d[d.arm == arm]
+        rows.append({"Régimen": title, "Variante": LAB[arm], "Sesgo": x.bias.mean(), "RMSE": x.rmse.mean(), "RMSE (DE)": x.rmse.std(), "$\\tau$": x.kendall.mean(), "Semillas": x.seed.nunique()})
+axs[0].set_yticks(range(len(ORDER))); axs[0].set_yticklabels([LAB[a].replace("$\\Delta$", "Δ") for a in ORDER], fontsize=7)
+plt.tight_layout(); plt.savefig(f"{OUT}/fig_e2.pdf"); plt.close()
+e2 = pd.DataFrame(rows)
+tex_table(e2, "tab_e2", "Estimador de fitness frente a la accuracy del mismo modelo en todos los nodos (media sobre semillas; DE = desviación entre semillas; $\\tau$: Kendall dentro de cada sorteo).", "tab:e2", "llrrrrr")
+
+# --- 3. E3 --------------------------------------------------------------------------------------------------------
+p = pd.read_csv("runs/e3/per_run.csv"); cv = pd.read_csv("runs/e3/curves.csv")
+fig, axs = plt.subplots(1, 3, figsize=(7.6, 3.0))
+for i, m in enumerate(MET):
+    x = p[p.method == m].sort_values("seed")
+    axs[0].plot(x.seed + (i - 1) * 0.12, x.hv_test, "o", color=C[m], label=MET[m])
+    axs[0].hlines(x.hv_test.mean(), -0.4, 4.4, color=C[m], lw=1, alpha=.6)
+    k = cv[cv.method == m].groupby("generation").hv_monitor
+    axs[1].plot(k.mean().index, k.mean(), color=C[m]); axs[1].fill_between(k.mean().index, k.mean() - k.std(), k.mean() + k.std(), color=C[m], alpha=.15)
+axs[0].set_xlabel("Semilla"); axs[0].set_ylabel("HV del frente final en test")
+axs[1].set_xlabel("Generación"); axs[1].set_ylabel("HV (acc. de todos los nodos)")
+# diferencia pareada por generación frente a la búsqueda aleatoria con los mismos clusters (IC bootstrap sobre semillas)
+pv = cv.pivot_table(index=["seed", "generation"], columns="method", values="hv_monitor").reset_index()
+rng = np.random.RandomState(0)
+for m, base in (("cs_nsga", "cs_rand"), ("rand_nsga", "rand_rand")):
+    mu, lo, hi = [], [], []
+    for g in sorted(pv.generation.unique()):
+        d = (pv[pv.generation == g][m] - pv[pv.generation == g][base]).values
+        bs = [rng.choice(d, len(d)).mean() for _ in range(4000)]
+        mu.append(d.mean()); lo.append(np.percentile(bs, 2.5)); hi.append(np.percentile(bs, 97.5))
+    gens = sorted(pv.generation.unique())
+    axs[2].plot(gens, mu, color=C[m]); axs[2].fill_between(gens, lo, hi, color=C[m], alpha=.15)
+axs[2].axhline(0, color="k", lw=.8); axs[2].set_xlabel("Generación"); axs[2].set_ylabel("Diferencia pareada de HV"); axs[2].set_title("NSGA-II $-$ búsq. aleatoria", fontsize=7)
+h, l = axs[0].get_legend_handles_labels(); fig.legend(h, l, loc="lower center", ncol=2, frameon=False, fontsize=7)
+plt.tight_layout(rect=(0, 0.12, 1, 1)); plt.savefig(f"{OUT}/fig_e3.pdf"); plt.close()
+con = pd.read_csv("runs/e3/paired_contrasts.csv")
+rows = [{"Método": MET[m], "HV test": f"{g.hv_test.mean():.3f} $\\pm$ {g.hv_test.std():.3f}", "HV todos los nodos": f"{g.hv_monitor_final.mean():.3f}",
+         "RMSE est.": g.est_rmse.mean(), "$\\tau$ est.": g.est_kendall.mean(), "Entren. locales": int(g.search_trainings.mean())} for m, g in p.groupby("method")]
+tex_table(pd.DataFrame(rows), "tab_e3", "E3: frente final reevaluado en test (media $\\pm$ DE, 5 semillas) y calidad del estimador durante la búsqueda.", "tab:e3", "lllrrr")
+NM = {"cs_nsga": "CS-NSGA", "rand_nsga": "NSGA-II nodos aleat.", "cs_rand": "búsq. aleat. clusters", "rand_rand": "búsq. aleat. nodos aleat."}
+ac = cv.pivot_table(index=["seed", "generation"], columns="method", values="hv_monitor").groupby("seed").mean()
+rngb = np.random.RandomState(0)
+
+
+def bci(d):
+    b = [rngb.choice(d, len(d)).mean() for _ in range(5000)]
+    return d.mean(), np.percentile(b, 2.5), np.percentile(b, 97.5), int((d > 0).sum()), len(d)
+
+
+rows = []
+for x, y in (("cs_nsga", "rand_nsga"), ("rand_nsga", "rand_rand"), ("cs_nsga", "cs_rand"), ("cs_rand", "rand_rand"), ("rand_nsga", "cs_rand")):
+    pt = p.pivot(index="seed", columns="method", values="hv_test"); pm = p.pivot(index="seed", columns="method", values="hv_monitor_final")
+    for lab, d in (("HV test", (pt[x] - pt[y]).values), ("HV todos (final)", (pm[x] - pm[y]).values), ("Área bajo la curva", (ac[x] - ac[y]).values)):
+        m_, lo, hi, w, n_ = bci(d)
+        rows.append({"Contraste": f"{NM[x]} $-$ {NM[y]}", "Métrica": lab, "Diferencia": m_, "IC 95 \\%": f"[{lo:.3f}, {hi:.3f}]", "A favor": f"{w}/{n_}"})
+tex_table(pd.DataFrame(rows), "tab_e3c", "E3: diferencias pareadas por semilla (IC bootstrap sobre 5 semillas; descriptivo).", "tab:e3c", "llrrr")
+
+# --- 4. ruido ------------------------------------------------------------------------------------------------------
+n = pd.read_csv("runs/noise/summary.csv")
+fig, axs = plt.subplots(1, 2, figsize=(7.0, 2.8))
+for fam in ("cluster", "random"):
+    x = n[n.family == fam].sort_values("C")
+    axs[0].plot(x.C, x.sd_within, "o-", color=C[fam], label="Clusters $\\Delta$" if fam == "cluster" else "Nodos aleatorios")
+    axs[1].plot(x.C, x["kendall_vs_full(1 draw)"], "o-", color=C[fam])
+axs[0].axhline(n.sd_between.mean(), ls=":", color="gray"); axs[0].text(10, n.sd_between.mean() + .004, "SD entre arquitecturas", fontsize=7, color="gray")
+axs[0].set_xlabel("Nodos de entrenamiento $C$"); axs[0].set_ylabel("SD de la misma arquitectura"); axs[0].legend(frameon=False)
+axs[1].set_xlabel("Nodos de entrenamiento $C$"); axs[1].set_ylabel("$\\tau$ frente a participación completa"); axs[1].set_ylim(0.7, 0.95)
+for a_ in axs: a_.set_xticks([10, 20, 40])
+plt.tight_layout(); plt.savefig(f"{OUT}/fig_noise.pdf"); plt.close()
+nt = n.assign(Variante=n.family.map({"cluster": "Clusters $\\Delta$", "random": "Nodos aleatorios"}) + ", $C=" + n.C.astype(str) + "$")
+nt = nt[["Variante", "sd_within", "noise/signal", "retest_kendall", "kendall_vs_full(1 draw)", "bias_vs_full", "rmse_vs_full(1 draw)"]]
+nt.columns = ["Variante", "SD misma arq.", "Ruido/señal", "$\\tau$ test-retest", "$\\tau$ vs completa", "Sesgo vs completa", "RMSE vs completa"]
+tex_table(nt, "tab_noise", "Ruido por nodos de entrenamiento (20 arquitecturas $\\times$ 4 sorteos, Fashion-MNIST, $\\alpha=0.1$).", "tab:noise", "lrrrrrr")
+
+# --- 5. E4 ---------------------------------------------------------------------------------------------------------
+r = pd.read_csv("runs/e3/refine_per_run.csv"); rc = pd.read_csv("runs/e3/refine_contrasts.csv")
+rows = []
+for m, g in r.groupby("method"):
+    d = rc[(rc.contraste == f"H1 refinado − original ({m})") & (rc["métrica"] == "hv")].iloc[0]
+    rows.append({"Método": MET[m], "HV original": g.hv_original.mean(), "HV refinado": g.hv_refined.mean(), "Cambio pareado": d.media,
+                 "IC 95 \\%": f"[{d.ic_bajo:.3f}, {d.ic_alto:.3f}]", "Mejoran": f"{int(d.gana)}/{int(d.n)}"})
+tex_table(pd.DataFrame(rows), "tab_e4", "E4: HV del frente final en test antes y después del refinamiento multifidelidad ($C=40$ sobre $\\leq 12$ candidatos).", "tab:e4", "lrrrrr")
+
+# --- números sueltos para el texto --------------------------------------------------------------------------
+d = pd.read_csv("runs/training_diagnostic.csv")
+num = {"trainAdamLow": d[(d.name == "adam_0.001") & (d.epochs == 2) & (d.rounds == 5)].set_index("alpha").acc_mean.to_dict(),
+       "trainBest": d[(d.name == "adam_0.01") & (d.epochs == 5) & (d.rounds == 20)].set_index("alpha").acc_mean.to_dict()}
+json.dump(num, open(f"{OUT}/numbers.json", "w"), indent=1, default=float)
+print("assets ok", sorted(glob.glob(f"{OUT}/*")))

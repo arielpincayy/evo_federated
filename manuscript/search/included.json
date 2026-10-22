@@ -1,0 +1,1902 @@
+[
+ {
+  "idx": 0,
+  "doi": "10.3390/app16105094",
+  "title": "Multi-Objective Federated Learning via Evolutionary Knowledge Transfer",
+  "year": 2026,
+  "type": "article",
+  "venue": "Applied Sciences",
+  "authors": [
+   "Zhiyuan Li",
+   "Chenhui Ju",
+   "Hui Li",
+   "Maoguo Gong"
+  ],
+  "volume": "16",
+  "issue": "10",
+  "pages": "5094--5094",
+  "crossref_ok": true,
+  "crossref_title": "Multi-Objective Federated Learning via Evolutionary Knowledge Transfer"
+ },
+ {
+  "idx": 1,
+  "doi": "10.3390/app16083878",
+  "title": "pFedZKD: A One-Shot Personalized Federated Learning Framework via Evolutionary Architecture Search and Data-Free Distillation",
+  "year": 2026,
+  "type": "article",
+  "venue": "Applied Sciences",
+  "authors": [
+   "Jiaqi Yan",
+   "Xuan Yang",
+   "Desheng Wang",
+   "Yonggang Xu",
+   "Gang Hua"
+  ],
+  "volume": "16",
+  "issue": "8",
+  "pages": "3878--3878",
+  "crossref_ok": true,
+  "crossref_title": "pFedZKD: A One-Shot Personalized Federated Learning Framework via Evolutionary Architecture Search and Data-Free Distillation"
+ },
+ {
+  "idx": 2,
+  "doi": "10.1109/jiot.2022.3161943",
+  "title": "Data Heterogeneity-Robust Federated Learning via Group Client Selection in Industrial IoT",
+  "year": 2022,
+  "type": "article",
+  "venue": "IEEE Internet of Things Journal",
+  "authors": [
+   "Zonghang Li",
+   "Yihong He",
+   "Hongfang Yu",
+   "Jiawen Kang",
+   "Xiaoping Li",
+   "Zenglin Xu",
+   "Dusit Tao Niyato"
+  ],
+  "volume": "9",
+  "issue": "18",
+  "pages": "17844--17857",
+  "crossref_ok": true,
+  "crossref_title": "Data Heterogeneity-Robust Federated Learning via Group Client Selection in Industrial IoT"
+ },
+ {
+  "idx": 5,
+  "doi": "10.1109/jiot.2023.3334018",
+  "title": "Hybrid IoT Device Selection With Knowledge Transfer for Federated Learning",
+  "year": 2023,
+  "type": "article",
+  "venue": "IEEE Internet of Things Journal",
+  "authors": [
+   "Qianlong Dang",
+   "Guanghui Zhang",
+   "Ling Wang",
+   "Shuai Yang",
+   "Tao Zhan"
+  ],
+  "volume": "11",
+  "issue": "7",
+  "pages": "12216--12227",
+  "crossref_ok": true,
+  "crossref_title": "Hybrid IoT Device Selection With Knowledge Transfer for Federated Learning"
+ },
+ {
+  "idx": 8,
+  "doi": "10.3390/fi15060209",
+  "title": "A DQN-Based Multi-Objective Participant Selection for Efficient Federated Learning",
+  "year": 2023,
+  "type": "article",
+  "venue": "Future Internet",
+  "authors": [
+   "Tongyang Xu",
+   "Yuan Liu",
+   "Zhaotai Ma",
+   "Yiqiang Huang",
+   "Peng Liu"
+  ],
+  "volume": "15",
+  "issue": "6",
+  "pages": "209--209",
+  "crossref_ok": true,
+  "crossref_title": "A DQN-Based Multi-Objective Participant Selection for Efficient Federated Learning"
+ },
+ {
+  "idx": 10,
+  "doi": "10.1109/jiot.2025.3563614",
+  "title": "A Fairness-Aware Resource Management Model With Many-Objective Optimization in Uncertain Resource-Constrained Internet of Vehicles",
+  "year": 2025,
+  "type": "article",
+  "venue": "IEEE Internet of Things Journal",
+  "authors": [
+   "Jianghui Cai",
+   "Bujia Chen",
+   "Mian Zhang",
+   "Jie Wen",
+   "Zhihua Cui",
+   "Jinjun Chen"
+  ],
+  "volume": "12",
+  "issue": "14",
+  "pages": "26718--26729",
+  "crossref_ok": true,
+  "crossref_title": "A Fairness-Aware Resource Management Model With Many-Objective Optimization in Uncertain Resource-Constrained Internet of Vehicles"
+ },
+ {
+  "idx": 12,
+  "doi": "10.1049/cit2.70090",
+  "title": "Multi\u2010Objective Optimisation Framework for Heterogeneous Federated Learning",
+  "year": 2025,
+  "type": "article",
+  "venue": "CAAI Transactions on Intelligence Technology",
+  "authors": [
+   "Jamshid Tursunboev",
+   "Vikas Palakonda",
+   "Il\u2010Min Kim",
+   "Sunghwan Moon",
+   "Jae\u2010Mo Kang"
+  ],
+  "volume": "11",
+  "issue": "1",
+  "pages": "1--14",
+  "crossref_ok": true,
+  "crossref_title": "Multi\u2010Objective Optimisation Framework for Heterogeneous Federated Learning"
+ },
+ {
+  "idx": 14,
+  "doi": "10.3390/s24082476",
+  "title": "Federated Learning with Pareto Optimality for Resource Efficiency and Fast Model Convergence in Mobile Environments",
+  "year": 2024,
+  "type": "article",
+  "venue": "Sensors",
+  "authors": [
+   "June-Pyo Jung",
+   "Young\u2010Bae Ko",
+   "Sung\u2010Hwa Lim"
+  ],
+  "volume": "24",
+  "issue": "8",
+  "pages": "2476--2476",
+  "crossref_ok": true,
+  "crossref_title": "Federated Learning with Pareto Optimality for Resource Efficiency and Fast Model Convergence in Mobile Environments"
+ },
+ {
+  "idx": 20,
+  "doi": "10.3390/electronics14244902",
+  "title": "FedRegNAS: Regime-Aware Federated Neural Architecture Search for Privacy-Preserving Stock Price Forecasting",
+  "year": 2025,
+  "type": "article",
+  "venue": "Electronics",
+  "authors": [
+   "Zizhen Chen",
+   "Haobo Zhang",
+   "Shiwen Wang",
+   "Junming Chen"
+  ],
+  "volume": "14",
+  "issue": "24",
+  "pages": "4902--4902",
+  "crossref_ok": true,
+  "crossref_title": "FedRegNAS: Regime-Aware Federated Neural Architecture Search for Privacy-Preserving Stock Price Forecasting"
+ },
+ {
+  "idx": 27,
+  "doi": "10.1007/s12065-026-01236-w",
+  "title": "Resilient federated learning under data and system heterogeneity via genetic algorithm-based group client selection",
+  "year": 2026,
+  "type": "article",
+  "venue": "Evolutionary Intelligence",
+  "authors": [
+   "Sani Umar",
+   "Ahmed Alagha",
+   "Rabeb Mizouni",
+   "Shakti Singh",
+   "Jamal Bentahar",
+   "Hadi Otrok"
+  ],
+  "volume": "19",
+  "issue": "4",
+  "pages": "",
+  "crossref_ok": true,
+  "crossref_title": "Resilient federated learning under data and system heterogeneity via genetic algorithm-based group client selection"
+ },
+ {
+  "idx": 29,
+  "doi": "10.33899/rjcsm.v19i2.60317",
+  "title": "A Survey on Federated Learning: Fundamentals, Challenges and Client Selection Methods",
+  "year": 2025,
+  "type": "article",
+  "venue": "Ma\u01e7alla\u1e97 al-r\u0101fidayn li-\u02bful\u016bm al-\u1e25\u0101sib\u0101t wa-al-riy\u0101\u1e0diyy\u0101\u1e97/\u0098Al-\u009cRafidain journal for computer sciences and mathematics",
+  "authors": [
+   "Alaa Amjad Mala Baker",
+   "Manar Younis Kashmola"
+  ],
+  "volume": "19",
+  "issue": "2",
+  "pages": "70--83",
+  "crossref_ok": true,
+  "crossref_title": "A Survey on Federated Learning: Fundamentals, Challenges and Client Selection Methods"
+ },
+ {
+  "idx": 31,
+  "doi": "10.48550/arxiv.2603.11992",
+  "title": "Few-for-Many Personalized Federated Learning",
+  "year": 2026,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Ping Guo",
+   "Tiantian Zhang",
+   "Xi Lin",
+   "Xiang Li",
+   "Zhi-Ri Tang",
+   "Qingfu Zhang"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 32,
+  "doi": "10.48550/arxiv.2605.21322",
+  "title": "Optimized Federated Knowledge Distillation with Distributed Neural Architecture Search",
+  "year": 2026,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Chaimaa Medjadji",
+   "Sylvain Kubler A",
+   "Yves Le Traon",
+   "Guilain Leduc",
+   "Sadi Alawadi",
+   "Feras M. Awaysheh"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 34,
+  "doi": "10.12677/mos.2025.144366",
+  "title": "Euclidean-Based Client Selection in Federated Learning",
+  "year": 2025,
+  "type": "article",
+  "venue": "Modeling and Simulation",
+  "authors": [
+   "\u6dd1\u654f \u90ac"
+  ],
+  "volume": "14",
+  "issue": "04",
+  "pages": "1200--1211",
+  "crossref_ok": true,
+  "crossref_title": "Euclidean-Based Client Selection in Federated Learning"
+ },
+ {
+  "idx": 36,
+  "doi": "10.48550/arxiv.2602.20450",
+  "title": "Heterogeneity-Aware Client Selection Methodology For Efficient Federated Learning",
+  "year": 2026,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Nihal Balivada",
+   "Shrey Gupta",
+   "Shashank Shreedhar Bhatt",
+   "Suyash Gupta"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 37,
+  "doi": "10.48550/arxiv.2606.07702",
+  "title": "EvoCSFL: Surrogate-Assisted Evolutionary Client Selection for Efficient and Robust Federated Learning",
+  "year": 2026,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Lin Qiang",
+   "Sun Xiaoyan",
+   "Hu Yao",
+   "Fang Wei"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 38,
+  "doi": "10.48550/arxiv.2601.15127",
+  "title": "DeepFedNAS: Efficient Hardware-Aware Architecture Adaptation for Heterogeneous IoT Federations via Pareto-Guided Supernet Training",
+  "year": 2026,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Bostan Khan",
+   "Masoud Daneshtalab"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 39,
+  "doi": "10.1109/access.2025.3615459",
+  "title": "Low-Similarity Client Sampling for Decentralized Federated Learning",
+  "year": 2025,
+  "type": "article",
+  "venue": "IEEE Access",
+  "authors": [
+   "Young Ah Kang",
+   "Jaeyoung Song"
+  ],
+  "volume": "13",
+  "issue": null,
+  "pages": "170225--170234",
+  "crossref_ok": true,
+  "crossref_title": "Low-Similarity Client Sampling for Decentralized Federated Learning"
+ },
+ {
+  "idx": 42,
+  "doi": "10.48550/arxiv.2111.04263",
+  "title": "Federated Learning Based on Dynamic Regularization",
+  "year": 2021,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Durmus Alp Emre Acar",
+   "Yue Zhao",
+   "Navarro, Ramon Matas",
+   "Matthew Mattina",
+   "Paul N. Whatmough",
+   "Venkatesh Saligrama"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 43,
+  "doi": "10.1007/s11280-022-01046-x",
+  "title": "Multi-center federated learning: clients clustering for better personalization",
+  "year": 2022,
+  "type": "article",
+  "venue": "World Wide Web",
+  "authors": [
+   "Guodong Long",
+   "Ming Xiao Xie",
+   "Tao Shen",
+   "Tianyi Zhou",
+   "Xianzhi Wang",
+   "Jing Bo Jiang"
+  ],
+  "volume": "26",
+  "issue": "1",
+  "pages": "481--500",
+  "crossref_ok": true,
+  "crossref_title": "Multi-center federated learning: clients clustering for better personalization"
+ },
+ {
+  "idx": 44,
+  "doi": "10.1109/access.2021.3056919",
+  "title": "Client Selection for Federated Learning With Non-IID Data in Mobile Edge Computing",
+  "year": 2021,
+  "type": "article",
+  "venue": "IEEE Access",
+  "authors": [
+   "Wenyu Zhang",
+   "Xiumin Wang",
+   "Pan Zhou",
+   "Weiwei Wu",
+   "Xinglin Zhang"
+  ],
+  "volume": "9",
+  "issue": null,
+  "pages": "24462--24474",
+  "crossref_ok": true,
+  "crossref_title": "Client Selection for Federated Learning With Non-IID Data in Mobile Edge Computing"
+ },
+ {
+  "idx": 45,
+  "doi": "10.1007/s40747-020-00247-z",
+  "title": "From federated learning to federated neural architecture search: a survey",
+  "year": 2021,
+  "type": "article",
+  "venue": "Complex & Intelligent Systems",
+  "authors": [
+   "Hangyu Zhu",
+   "Haoyu Zhang",
+   "Yaochu Jin"
+  ],
+  "volume": "7",
+  "issue": "2",
+  "pages": "639--657",
+  "crossref_ok": true,
+  "crossref_title": "From federated learning to federated neural architecture search: a survey"
+ },
+ {
+  "idx": 46,
+  "doi": "10.1109/jiot.2022.3172113",
+  "title": "Stochastic Client Selection for Federated Learning With Volatile Clients",
+  "year": 2022,
+  "type": "article",
+  "venue": "IEEE Internet of Things Journal",
+  "authors": [
+   "Tiansheng Huang",
+   "Weiwei Lin",
+   "Li Shen",
+   "Keqin Li",
+   "Albert Y. Zomaya"
+  ],
+  "volume": "9",
+  "issue": "20",
+  "pages": "20055--20070",
+  "crossref_ok": true,
+  "crossref_title": "Stochastic Client Selection for Federated Learning With Volatile Clients"
+ },
+ {
+  "idx": 47,
+  "doi": "10.1109/tfuzz.2024.3369944",
+  "title": "A Novel Centralized Federated Deep Fuzzy Neural Network with Multi-objectives Neural Architecture Search for Epistatic Detection",
+  "year": 2024,
+  "type": "article",
+  "venue": "IEEE Transactions on Fuzzy Systems",
+  "authors": [
+   "Xiang Wu",
+   "Yongting Zhang",
+   "Khin Wee Lai",
+   "Ming-Zhao Yang",
+   "Gelan Yang",
+   "Huanhuan Wang"
+  ],
+  "volume": "33",
+  "issue": "1",
+  "pages": "94--107",
+  "crossref_ok": true,
+  "crossref_title": "A Novel Centralized Federated Deep Fuzzy Neural Network with Multi-objectives Neural Architecture Search for Epistatic Detection"
+ },
+ {
+  "idx": 49,
+  "doi": "10.1109/ojcs.2023.3262203",
+  "title": "FLIS: Clustered Federated Learning Via Inference Similarity for Non-IID Data Distribution",
+  "year": 2023,
+  "type": "article",
+  "venue": "IEEE Open Journal of the Computer Society",
+  "authors": [
+   "Mahdi Morafah",
+   "Saeed Vahidian",
+   "Weijia Wang",
+   "Bill Lin"
+  ],
+  "volume": "4",
+  "issue": null,
+  "pages": "109--120",
+  "crossref_ok": true,
+  "crossref_title": "FLIS: Clustered Federated Learning Via Inference Similarity for Non-IID Data Distribution"
+ },
+ {
+  "idx": 50,
+  "doi": "10.1109/tevc.2021.3099448",
+  "title": "Real-Time Federated Evolutionary Neural Architecture Search",
+  "year": 2021,
+  "type": "article",
+  "venue": "IEEE Transactions on Evolutionary Computation",
+  "authors": [
+   "Hangyu Zhu",
+   "Yaochu Jin"
+  ],
+  "volume": "26",
+  "issue": "2",
+  "pages": "364--378",
+  "crossref_ok": true,
+  "crossref_title": "Real-Time Federated Evolutionary Neural Architecture Search"
+ },
+ {
+  "idx": 52,
+  "doi": "10.48550/arxiv.2108.08435",
+  "title": "Addressing Algorithmic Disparity and Performance Inconsistency in Federated Learning",
+  "year": 2021,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Sen Cui",
+   "Weishen Pan",
+   "Jian Liang",
+   "Changshui Zhang",
+   "Wang Fei"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 54,
+  "doi": "10.1109/tmc.2023.3315451",
+  "title": "Finch: Enhancing Federated Learning With Hierarchical Neural Architecture Search",
+  "year": 2023,
+  "type": "article",
+  "venue": "IEEE Transactions on Mobile Computing",
+  "authors": [
+   "Jianchun Liu",
+   "Jiaming Yan",
+   "Hongli Xu",
+   "Zhiyuan Wang",
+   "Jinyang Huang",
+   "Yang Xu"
+  ],
+  "volume": "23",
+  "issue": "5",
+  "pages": "6012--6026",
+  "crossref_ok": true,
+  "crossref_title": "Finch: Enhancing Federated Learning With Hierarchical Neural Architecture Search"
+ },
+ {
+  "idx": 57,
+  "doi": "10.1145/3593434.3593438",
+  "title": "A Systematic Literature Review on Client Selection in Federated Learning",
+  "year": 2023,
+  "type": "review",
+  "venue": "International Conference on Evaluation and Assessment in Software Engineering (EASE)",
+  "authors": [
+   "Carl Smestad",
+   "Jingyue Li"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "2--11",
+  "crossref_ok": true,
+  "crossref_title": "A Systematic Literature Review on Client Selection in Federated Learning"
+ },
+ {
+  "idx": 59,
+  "doi": "10.1109/jiot.2023.3265564",
+  "title": "On-Demand-FL: A Dynamic and Efficient Multicriteria Federated Learning Client Deployment Scheme",
+  "year": 2023,
+  "type": "article",
+  "venue": "IEEE Internet of Things Journal",
+  "authors": [
+   "Mario Chahoud",
+   "Hani Sami",
+   "Azzam Mourad",
+   "Safa Otoum",
+   "Hadi Otrok",
+   "Jamal Bentahar",
+   "Mohsen Guizani"
+  ],
+  "volume": "10",
+  "issue": "18",
+  "pages": "15822--15834",
+  "crossref_ok": true,
+  "crossref_title": "On-Demand-FL: A Dynamic and Efficient Multicriteria Federated Learning Client Deployment Scheme"
+ },
+ {
+  "idx": 60,
+  "doi": "10.1145/3701035",
+  "title": "A Many-objective Joint Device Selection and Aggregation Scheme for Federated Learning in IoV",
+  "year": 2024,
+  "type": "article",
+  "venue": "ACM Transactions on Sensor Networks",
+  "authors": [
+   "Jie Wen",
+   "Zhihua Cui",
+   "Huihua Zhang",
+   "Jinjun Chen"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": true,
+  "crossref_title": "A Many-objective Joint Device Selection and Aggregation Scheme for Federated Learning in IoV"
+ },
+ {
+  "idx": 61,
+  "doi": "10.1109/tmc.2025.3529487",
+  "title": "SnapCFL: A Pre-Clustering-Based Clustered Federated Learning Framework for Data and System Heterogeneities",
+  "year": 2025,
+  "type": "article",
+  "venue": "IEEE Transactions on Mobile Computing",
+  "authors": [
+   "Yujun Cheng",
+   "Weiting Zhang",
+   "Zhewei Zhang",
+   "Jiawen Kang",
+   "Qi Ming Xu",
+   "Shengjin Wang",
+   "Dusit Tao Niyato"
+  ],
+  "volume": "24",
+  "issue": "6",
+  "pages": "5214--5228",
+  "crossref_ok": true,
+  "crossref_title": "SnapCFL: A Pre-Clustering-Based Clustered Federated Learning Framework for Data and System Heterogeneities"
+ },
+ {
+  "idx": 64,
+  "doi": "10.1109/jiot.2022.3154605",
+  "title": "Toward Tailored Models on Private AIoT Devices: Federated Direct Neural Architecture Search",
+  "year": 2022,
+  "type": "article",
+  "venue": "IEEE Internet of Things Journal",
+  "authors": [
+   "Chunhui Zhang",
+   "Xiaoming Yuan",
+   "Qianyun Zhang",
+   "Guangxu Zhu",
+   "Lei Cheng",
+   "Ning Zhang"
+  ],
+  "volume": "9",
+  "issue": "18",
+  "pages": "17309--17322",
+  "crossref_ok": true,
+  "crossref_title": "Toward Tailored Models on Private AIoT Devices: Federated Direct Neural Architecture Search"
+ },
+ {
+  "idx": 68,
+  "doi": "10.1007/s40747-024-01668-w",
+  "title": "Towards fairness-aware multi-objective optimization",
+  "year": 2024,
+  "type": "article",
+  "venue": "Complex & Intelligent Systems",
+  "authors": [
+   "Guo Yu",
+   "Lianbo Ma",
+   "Xilu Wang",
+   "Wei Du",
+   "Wenli Du",
+   "Yaochu Jin"
+  ],
+  "volume": "11",
+  "issue": "1",
+  "pages": "",
+  "crossref_ok": true,
+  "crossref_title": "Towards fairness-aware multi-objective optimization"
+ },
+ {
+  "idx": 72,
+  "doi": "10.1145/3701039",
+  "title": "Optimizing Privacy, Utility, and Efficiency in a Constrained Multi-Objective Federated Learning Framework",
+  "year": 2024,
+  "type": "article",
+  "venue": "ACM Transactions on Intelligent Systems and Technology",
+  "authors": [
+   "Yan Kang",
+   "Hanlin Gu",
+   "Xingxing Tang",
+   "Yuanqin He",
+   "Yuzhu Zhang",
+   "Jinnan He",
+   "Yuxing Han",
+   "Lixin Fan",
+   "Kai Chen",
+   "Qiang Yang"
+  ],
+  "volume": "15",
+  "issue": "6",
+  "pages": "1--33",
+  "crossref_ok": true,
+  "crossref_title": "Optimizing Privacy, Utility, and Efficiency in a Constrained Multi-Objective Federated Learning Framework"
+ },
+ {
+  "idx": 75,
+  "doi": "10.1109/tmc.2024.3373506",
+  "title": "Peaches: Personalized Federated Learning With Neural Architecture Search in Edge Computing",
+  "year": 2024,
+  "type": "article",
+  "venue": "IEEE Transactions on Mobile Computing",
+  "authors": [
+   "Jiaming Yan",
+   "Jianchun Liu",
+   "Hongli Xu",
+   "Zhiyuan Wang",
+   "Chunming Qiao"
+  ],
+  "volume": "23",
+  "issue": "11",
+  "pages": "10296--10312",
+  "crossref_ok": true,
+  "crossref_title": "Peaches: Personalized Federated Learning With Neural Architecture Search in Edge Computing"
+ },
+ {
+  "idx": 77,
+  "doi": "10.1109/access.2024.3458991",
+  "title": "Client Selection for Federated Learning in Vehicular Edge Computing: A Deep Reinforcement Learning Approach",
+  "year": 2024,
+  "type": "article",
+  "venue": "IEEE Access",
+  "authors": [
+   "Sung-Won Moon",
+   "Yujin Lim"
+  ],
+  "volume": "12",
+  "issue": null,
+  "pages": "131337--131348",
+  "crossref_ok": true,
+  "crossref_title": "Client Selection for Federated Learning in Vehicular Edge Computing: A Deep Reinforcement Learning Approach"
+ },
+ {
+  "idx": 80,
+  "doi": "10.1109/tmi.2024.3432388",
+  "title": "Generalizable Reconstruction for Accelerating MR Imaging via Federated Learning With Neural Architecture Search",
+  "year": 2024,
+  "type": "article",
+  "venue": "IEEE Transactions on Medical Imaging",
+  "authors": [
+   "Ruoyou Wu",
+   "Cheng Li",
+   "Juan Zou",
+   "Xinfeng Liu",
+   "Hairong Zheng",
+   "Shanshan Wang"
+  ],
+  "volume": "44",
+  "issue": "1",
+  "pages": "106--117",
+  "crossref_ok": true,
+  "crossref_title": "Generalizable Reconstruction for Accelerating MR Imaging via Federated Learning With Neural Architecture Search"
+ },
+ {
+  "idx": 82,
+  "doi": "10.1109/access.2023.3304368",
+  "title": "GA Approach to Optimize Training Client Set in Federated Learning",
+  "year": 2023,
+  "type": "article",
+  "venue": "IEEE Access",
+  "authors": [
+   "Dongseok Kang",
+   "Chang Wook Ahn"
+  ],
+  "volume": "11",
+  "issue": null,
+  "pages": "85489--85500",
+  "crossref_ok": true,
+  "crossref_title": "GA Approach to Optimize Training Client Set in Federated Learning"
+ },
+ {
+  "idx": 83,
+  "doi": "10.1155/2021/3381998",
+  "title": "WCL: Client Selection in Federated Learning with a Combination of Model Weight Divergence and Client Training Loss for Internet Traffic Classification",
+  "year": 2021,
+  "type": "article",
+  "venue": "Wireless Communications and Mobile Computing",
+  "authors": [
+   "Yingya Guo",
+   "Kai Huang",
+   "Jianshan Chen"
+  ],
+  "volume": "2021",
+  "issue": "1",
+  "pages": "",
+  "crossref_ok": true,
+  "crossref_title": "WCL: Client Selection in Federated Learning with a Combination of Model Weight Divergence and Client Training Loss for Internet Traffic Classification"
+ },
+ {
+  "idx": 84,
+  "doi": "10.3390/sym14051070",
+  "title": "Optimizing Multi-Objective Federated Learning on Non-IID Data with Improved NSGA-III and Hierarchical Clustering",
+  "year": 2022,
+  "type": "article",
+  "venue": "Symmetry",
+  "authors": [
+   "Jialin Zhong",
+   "Yahui Wu",
+   "Wubin Ma",
+   "Su Deng",
+   "Haohao Zhou"
+  ],
+  "volume": "14",
+  "issue": "5",
+  "pages": "1070--1070",
+  "crossref_ok": true,
+  "crossref_title": "Optimizing Multi-Objective Federated Learning on Non-IID Data with Improved NSGA-III and Hierarchical Clustering"
+ },
+ {
+  "idx": 85,
+  "doi": "10.48550/arxiv.2104.04141",
+  "title": "FL-AGCNS: Federated Learning Framework for Automatic Graph Convolutional Network Search",
+  "year": 2021,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Chunnan Wang",
+   "Bozhou Chen",
+   "Geng Li",
+   "Hongzhi Wang"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 86,
+  "doi": "10.3390/s22187061",
+  "title": "A Cluster-Driven Adaptive Training Approach for Federated Learning",
+  "year": 2022,
+  "type": "article",
+  "venue": "Sensors",
+  "authors": [
+   "Younghwan Jeong",
+   "Taeyoon Kim"
+  ],
+  "volume": "22",
+  "issue": "18",
+  "pages": "7061--7061",
+  "crossref_ok": true,
+  "crossref_title": "A Cluster-Driven Adaptive Training Approach for Federated Learning"
+ },
+ {
+  "idx": 87,
+  "doi": "10.3390/computers15030155",
+  "title": "Federated Learning: A Survey of Core Challenges, Current Methods, and Opportunities",
+  "year": 2026,
+  "type": "article",
+  "venue": "Computers",
+  "authors": [
+   "Madan Baduwal",
+   "Priyanka Paudel",
+   "Vini Chaudhary"
+  ],
+  "volume": "15",
+  "issue": "3",
+  "pages": "155--155",
+  "crossref_ok": true,
+  "crossref_title": "Federated Learning: A Survey of Core Challenges, Current Methods, and Opportunities"
+ },
+ {
+  "idx": 89,
+  "doi": "10.1109/tdsc.2025.3572527",
+  "title": "The Power of Bias: Optimizing Client Selection in Federated Learning With Heterogeneous Differential Privacy",
+  "year": 2025,
+  "type": "article",
+  "venue": "IEEE Transactions on Dependable and Secure Computing",
+  "authors": [
+   "Jiating Ma",
+   "Yipeng Zhou",
+   "Qi Lecky Li",
+   "Quan Z. Sheng",
+   "Laizhong Cui",
+   "Jiangchuan Liu"
+  ],
+  "volume": "22",
+  "issue": "5",
+  "pages": "5672--5687",
+  "crossref_ok": true,
+  "crossref_title": "The Power of Bias: Optimizing Client Selection in Federated Learning With Heterogeneous Differential Privacy"
+ },
+ {
+  "idx": 90,
+  "doi": "10.1109/tccn.2025.3547751",
+  "title": "FedPPO: Reinforcement Learning-Based Client Selection for Federated Learning With Heterogeneous Data",
+  "year": 2025,
+  "type": "article",
+  "venue": "IEEE Transactions on Cognitive Communications and Networking",
+  "authors": [
+   "Zheyu Zhao",
+   "Anran Li",
+   "Ruidong Li",
+   "Lei Yang",
+   "Xiaohua Xu"
+  ],
+  "volume": "11",
+  "issue": "6",
+  "pages": "4141--4153",
+  "crossref_ok": true,
+  "crossref_title": "FedPPO: Reinforcement Learning-Based Client Selection for Federated Learning With Heterogeneous Data"
+ },
+ {
+  "idx": 92,
+  "doi": "10.1109/access.2025.3586943",
+  "title": "Federated Learning for All: A Reinforcement Learning-Based Approach for Ensuring Fairness in Client Selection",
+  "year": 2025,
+  "type": "article",
+  "venue": "IEEE Access",
+  "authors": [
+   "Saeedeh Ghazi",
+   "Saeed Farzi",
+   "Amirhossein Nikoofard"
+  ],
+  "volume": "13",
+  "issue": null,
+  "pages": "118515--118535",
+  "crossref_ok": true,
+  "crossref_title": "Federated Learning for All: A Reinforcement Learning-Based Approach for Ensuring Fairness in Client Selection"
+ },
+ {
+  "idx": 95,
+  "doi": "10.48550/arxiv.2010.06223",
+  "title": "Direct Federated Neural Architecture Search",
+  "year": 2020,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Anubhav Garg",
+   "Amit Kumar Saha",
+   "Debo Dutta"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 98,
+  "doi": "10.12720/jait.15.9.1011-1018",
+  "title": "Federated Learning Using GPT-4 Boosted Particle Swarm Optimization for Compact Neural Architecture Search",
+  "year": 2024,
+  "type": "article",
+  "venue": "Journal of Advances in Information Technology",
+  "authors": [
+   "Di Wang"
+  ],
+  "volume": "15",
+  "issue": "9",
+  "pages": "1011--1018",
+  "crossref_ok": true,
+  "crossref_title": "Federated Learning Using GPT-4 Boosted Particle Swarm Optimization for Compact Neural Architecture Search"
+ },
+ {
+  "idx": 99,
+  "doi": "10.3390/s24134180",
+  "title": "Multi-Objective Distributed Client Selection in Federated Learning-Assisted Internet of Vehicles",
+  "year": 2024,
+  "type": "article",
+  "venue": "Sensors",
+  "authors": [
+   "Narisu Cha",
+   "Long Chang"
+  ],
+  "volume": "24",
+  "issue": "13",
+  "pages": "4180--4180",
+  "crossref_ok": true,
+  "crossref_title": "Multi-Objective Distributed Client Selection in Federated Learning-Assisted Internet of Vehicles"
+ },
+ {
+  "idx": 101,
+  "doi": "10.48550/arxiv.2112.13939",
+  "title": "SPIDER: Searching Personalized Neural Architecture for Federated Learning",
+  "year": 2021,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Erum Mushtaq",
+   "Chaoyang He",
+   "Jie Ding",
+   "Salman Avestimehr"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 108,
+  "doi": "10.1109/jiot.2025.3572901",
+  "title": "Federated Learning With Client Clustering Selection and Quality-Aware Model Aggregation (2024)",
+  "year": 2025,
+  "type": "article",
+  "venue": "IEEE Internet of Things Journal",
+  "authors": [
+   "Yong Kang Peng",
+   "C. Wang",
+   "Hongjian Shi",
+   "Ruhui Ma",
+   "Haibing Guan",
+   "Hanbo Yang"
+  ],
+  "volume": "12",
+  "issue": "19",
+  "pages": "39247--39259",
+  "crossref_ok": true,
+  "crossref_title": "Federated Learning With Client Clustering Selection and Quality-Aware Model Aggregation (2024)"
+ },
+ {
+  "idx": 110,
+  "doi": "10.1109/tmc.2024.3490835",
+  "title": "Privacy-Preserving Federated Neural Architecture Search With Enhanced Robustness for Edge Computing",
+  "year": 2024,
+  "type": "article",
+  "venue": "IEEE Transactions on Mobile Computing",
+  "authors": [
+   "Feifei Zhang",
+   "Mao Li",
+   "Jidong Ge",
+   "Fenghui Tang",
+   "Sheng Zhang",
+   "Jie Wu",
+   "Bin Luo"
+  ],
+  "volume": "24",
+  "issue": "3",
+  "pages": "2234--2252",
+  "crossref_ok": true,
+  "crossref_title": "Privacy-Preserving Federated Neural Architecture Search With Enhanced Robustness for Edge Computing"
+ },
+ {
+  "idx": 112,
+  "doi": "10.1360/ssi-2021-0190",
+  "title": "Adaptive federated learning algorithm based on evolution strategies",
+  "year": 2022,
+  "type": "article",
+  "venue": "Scientia Sinica Informationis",
+  "authors": [
+   "\u8302\u679c \u516c",
+   "\u539f \u9ad8",
+   "\u70af\u4e7e \u738b",
+   "\u5143\u4fa8 \u5f20",
+   "\u5584\u5cf0 \u738b",
+   "\u98de \u8c22"
+  ],
+  "volume": "53",
+  "issue": "3",
+  "pages": "437--437",
+  "crossref_ok": true,
+  "crossref_title": "Adaptive federated learning algorithm based on evolution strategies"
+ },
+ {
+  "idx": 114,
+  "doi": "10.1109/jiot.2025.3598127",
+  "title": "GPFL: A Gradient Projection-Based Client Selection Framework for Efficient Federated Learning",
+  "year": 2025,
+  "type": "article",
+  "venue": "IEEE Internet of Things Journal",
+  "authors": [
+   "Shijie Na",
+   "Yuzhi Liang",
+   "Siu\u2010Ming Yiu"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "1--1",
+  "crossref_ok": true,
+  "crossref_title": "GPFL: A Gradient Projection-Based Client Selection Framework for Efficient Federated Learning"
+ },
+ {
+  "idx": 118,
+  "doi": "10.48550/arxiv.2206.01366",
+  "title": "Supernet Training for Federated Image Classification under System Heterogeneity",
+  "year": 2022,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Taehyeon Kim",
+   "Se-Young Yun"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 123,
+  "doi": "10.48550/arxiv.2402.16919",
+  "title": "Personalized Federated Instruction Tuning via Neural Architecture Search",
+  "year": 2024,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Zhang, Pengyu",
+   "Yingbo Zhou",
+   "Hu, Ming",
+   "Junxian Feng",
+   "Jiawen Weng",
+   "Mingsong Chen"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 124,
+  "doi": "10.48550/arxiv.2208.05135",
+  "title": "Fast Heterogeneous Federated Learning with Hybrid Client Selection",
+  "year": 2022,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Guangyuan Shen",
+   "Dehong Gao",
+   "Duanxiao Song",
+   "Libin Yang",
+   "Xukai Zhou",
+   "Shirui Pan",
+   "Wei Lou",
+   "Zhou, Fang"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 126,
+  "doi": "10.48550/arxiv.2411.18877",
+  "title": "Swarm Intelligence-Driven Client Selection for Federated Learning in Cybersecurity applications",
+  "year": 2024,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Koffka Khan",
+   "Wayne S. Goodridge"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 127,
+  "doi": "10.48550/arxiv.2310.08147",
+  "title": "Optimization of Federated Learning's Client Selection for Non-IID Data Based on Grey Relational Analysis",
+  "year": 2023,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Shuaijun Chen",
+   "Omid Tavallaie",
+   "Michael Henri Hambali",
+   "Seid Miad Zandavi",
+   "Hamed Haddadi",
+   "Nicholas D. Lane",
+   "Song Guo",
+   "Albert Y. Zomaya"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 128,
+  "doi": "10.48550/arxiv.2408.13683",
+  "title": "Submodular Maximization Approaches for Equitable Client Selection in Federated Learning",
+  "year": 2024,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Andr\u00e9s Catalino Castillo Jim\u00e9nez",
+   "Ege Can Kaya",
+   "Lintao Ye",
+   "Abolfazl Hashemi"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 130,
+  "doi": "10.1007/s10586-026-06097-7",
+  "title": "Fed-DCSRW: a privacy-preserving, dynamic client selection framework for heterogeneous federated learning via roulette wheel mechanism",
+  "year": 2026,
+  "type": "article",
+  "venue": "Cluster Computing",
+  "authors": [
+   "Aline Abboud",
+   "Mohamed\u2010el\u2010Amine Brahmia",
+   "Abdelhafid Aboua\u00efssa",
+   "Ahmad M. Shahin",
+   "Rocks Mazraani"
+  ],
+  "volume": "29",
+  "issue": "5",
+  "pages": "",
+  "crossref_ok": true,
+  "crossref_title": "Fed-DCSRW: a privacy-preserving, dynamic client selection framework for heterogeneous federated learning via roulette wheel mechanism"
+ },
+ {
+  "idx": 131,
+  "doi": "10.1109/tr.2026.3655532",
+  "title": "A Cluster-Based Client Selection Model for Federated Learning With Heterogeneous Clients",
+  "year": 2026,
+  "type": "article",
+  "venue": "IEEE Transactions on Reliability",
+  "authors": [
+   "Wanjing Zhao",
+   "Yunpeng Xiao",
+   "Haonan Mo",
+   "Qian Li",
+   "Tun Li",
+   "Guoyin Wang"
+  ],
+  "volume": "75",
+  "issue": null,
+  "pages": "779--790",
+  "crossref_ok": true,
+  "crossref_title": "A Cluster-Based Client Selection Model for Federated Learning With Heterogeneous Clients"
+ },
+ {
+  "idx": 134,
+  "doi": "10.48550/arxiv.2307.10579",
+  "title": "SecureBoost Hyperparameter Tuning via Multi-Objective Federated Learning",
+  "year": 2023,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Ziyao Ren",
+   "Yan Kang",
+   "Lixin Fan",
+   "Linghua Yang",
+   "Yongxin Tong",
+   "Qiang Yang"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 137,
+  "doi": "10.3390/e27070759",
+  "title": "Heterogeneity-Aware Personalized Federated Neural Architecture Search",
+  "year": 2025,
+  "type": "article",
+  "venue": "Entropy",
+  "authors": [
+   "An Yang",
+   "Ying Liu"
+  ],
+  "volume": "27",
+  "issue": "7",
+  "pages": "759--759",
+  "crossref_ok": true,
+  "crossref_title": "Heterogeneity-Aware Personalized Federated Neural Architecture Search"
+ },
+ {
+  "idx": 141,
+  "doi": "10.48550/arxiv.2308.03901",
+  "title": "FLIPS: Federated Learning using Intelligent Participant Selection",
+  "year": 2023,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Rahul Atul Bhope",
+   "K. R. Jayaram",
+   "Nalini Venkatasubramanian",
+   "Ashish Verma",
+   "Gegi Thomas"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 147,
+  "doi": "",
+  "title": "Fair and Consistent Federated Learning.",
+  "year": 2021,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Sen Cui",
+   "Weishen Pan",
+   "Jian Liang",
+   "Changshui Zhang",
+   "Wang Fei"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 149,
+  "doi": "10.1109/tai.2025.3609733",
+  "title": "Towards Vox Populi in Federated Learning: A Fair and Inclusive Client Selection Framework",
+  "year": 2025,
+  "type": "article",
+  "venue": "IEEE Transactions on Artificial Intelligence",
+  "authors": [
+   "Sarhad Arisdakessian",
+   "Osama Wehbi",
+   "Omar Abdel Wahab",
+   "Azzam Mourad",
+   "Hadi Otrok"
+  ],
+  "volume": "7",
+  "issue": "4",
+  "pages": "1997--2011",
+  "crossref_ok": true,
+  "crossref_title": "Towards Vox Populi in Federated Learning: A Fair and Inclusive Client Selection Framework"
+ },
+ {
+  "idx": 156,
+  "doi": "",
+  "title": "FedLECC: Cluster- and Loss-Guided Client Selection for Federated Learning under Non-IID Data",
+  "year": 2026,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Daniel M. Jimenez-Gutierrez",
+   "Giovanni Giunta",
+   "Mehrdad Hassanzadeh",
+   "Aris Anagnostopoulos",
+   "Ioannis Chatzigiannakis",
+   "Andrea Vitaletti"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 157,
+  "doi": "10.3390/electronics15143178",
+  "title": "A Fairness Perspective on Client Selection and Aggregation Methods for Non-IID Mitigation in Federated Learning: A Survey",
+  "year": 2026,
+  "type": "article",
+  "venue": "Electronics",
+  "authors": [
+   "Mohannad Alsofyani",
+   "Isra M. Al-Turaiki",
+   "Hassan I. Mathkour"
+  ],
+  "volume": "15",
+  "issue": "14",
+  "pages": "3178--3178",
+  "crossref_ok": true,
+  "crossref_title": "A Fairness Perspective on Client Selection and Aggregation Methods for Non-IID Mitigation in Federated Learning: A Survey"
+ },
+ {
+  "idx": 162,
+  "doi": "10.48550/arxiv.2410.16398",
+  "title": "Federated Communication-Efficient Multi-Objective Optimization",
+  "year": 2024,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Baris Askin",
+   "Pranay Sharma",
+   "Gauri Joshi",
+   "Carlee Joe\u2010Wong"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 163,
+  "doi": "10.48550/arxiv.2609.32790",
+  "title": "FedHV: Low-Overhead Hypervolume Weighting for Federated Multi-Objective Optimization",
+  "year": 2026,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Amirardalan Dehghanpour",
+   "Seyed Mohammad Azimi\u2010Abarghouyi",
+   "Christopher G. Brinton"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 164,
+  "doi": "10.48550/arxiv.2403.07450",
+  "title": "Measuring Data Similarity for Efficient Federated Learning: A Feasibility Study",
+  "year": 2024,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Fernanda Fam\u00e1",
+   "Charalampos Kalalas",
+   "Sandra Lag\u00e9n",
+   "Paolo Dini"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 167,
+  "doi": "10.54254/2755-2721/2026.36498",
+  "title": "History-Aware Multi-Objective Client Selection for Federated Learning under Statistical and System Heterogeneity",
+  "year": 2026,
+  "type": "article",
+  "venue": "Applied and Computational Engineering",
+  "authors": [
+   "Haoxuan Geng"
+  ],
+  "volume": "256",
+  "issue": "1",
+  "pages": "161--173",
+  "crossref_ok": true,
+  "crossref_title": "History-Aware Multi-Objective Client Selection for Federated Learning under Statistical and System Heterogeneity"
+ },
+ {
+  "idx": 170,
+  "doi": "10.1016/j.comnet.2026.112723",
+  "title": "Federated learning: From design foundations to advanced participant selection paradigms",
+  "year": 2026,
+  "type": "article",
+  "venue": "Computer Networks",
+  "authors": [
+   "Kasun Eranda Wijethilake",
+   "Adnan Mahmood",
+   "Fahmida Islam",
+   "Manoj Madushanka Perera",
+   "Maryam Tahermazandarani",
+   "Quan Z. Sheng"
+  ],
+  "volume": "289",
+  "issue": null,
+  "pages": "112723--112723",
+  "crossref_ok": true,
+  "crossref_title": "Federated learning: From design foundations to advanced participant selection paradigms"
+ },
+ {
+  "idx": 180,
+  "doi": "10.22456/2175-2745.150621",
+  "title": "PSO-based Client Selection to Improve Medical Image Classification in Federated Learning",
+  "year": 2026,
+  "type": "article",
+  "venue": "Revista de Inform\u00e1tica Te\u00f3rica e Aplicada",
+  "authors": [
+   "Lara Cristina Evaristo Rodrigues",
+   "Larissa Ferreira Rodrigues Moreira",
+   "Rodrigo Moreira",
+   "Andr\u00e9 Ricardo Backes"
+  ],
+  "volume": "33",
+  "issue": "2",
+  "pages": "333--340",
+  "crossref_ok": true,
+  "crossref_title": "PSO-based Client Selection to Improve Medical Image Classification in Federated Learning"
+ },
+ {
+  "idx": 182,
+  "doi": "10.48550/arxiv.2605.30452",
+  "title": "A Unified Framework for Gradient Aggregation in Multi-Objective Optimization",
+  "year": 2026,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Zeou Hu",
+   "Kelvin Ho",
+   "Yaoliang Yu"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 190,
+  "doi": "10.1109/tccn.2026.3696246",
+  "title": "Prototype Margin-Based Client Selection for Federated Learning",
+  "year": 2026,
+  "type": "article",
+  "venue": "IEEE Transactions on Cognitive Communications and Networking",
+  "authors": [
+   "H M Zhang",
+   "Yuan Liu"
+  ],
+  "volume": "12",
+  "issue": null,
+  "pages": "8597--8608",
+  "crossref_ok": true,
+  "crossref_title": "Prototype Margin-Based Client Selection for Federated Learning"
+ },
+ {
+  "idx": 202,
+  "doi": "10.48550/arxiv.2312.14941",
+  "title": "Multi-Criteria Client Selection and Scheduling with Fairness Guarantee for Federated Learning Service",
+  "year": 2023,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Meiying Zhang",
+   "Huan Qi Zhao",
+   "Sheldon C. Ebron",
+   "Ruitao Xie",
+   "Yang, Kan"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 209,
+  "doi": "10.48550/arxiv.2502.03108",
+  "title": "Multi-objective methods in Federated Learning: A survey and taxonomy",
+  "year": 2025,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Maria Hartmann",
+   "Gr\u00e9goire Danoy",
+   "Pascal Bouvry"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 219,
+  "doi": "10.1109/jsac.2025.3574599",
+  "title": "Energy-Friendly Federated Neural Architecture Search for Industrial Cyber-Physical Systems",
+  "year": 2025,
+  "type": "article",
+  "venue": "IEEE Journal on Selected Areas in Communications",
+  "authors": [
+   "Xiaofei Wang",
+   "Yunfeng Zhao",
+   "Chao Qiu",
+   "Fei Gao",
+   "Zebo Zhao",
+   "Haipeng Yao",
+   "Xiuhua Li"
+  ],
+  "volume": "43",
+  "issue": "10",
+  "pages": "3502--3518",
+  "crossref_ok": true,
+  "crossref_title": "Energy-Friendly Federated Neural Architecture Search for Industrial Cyber-Physical Systems"
+ },
+ {
+  "idx": 221,
+  "doi": "10.48550/arxiv.2508.05424",
+  "title": "Federated Multi-Objective Learning with Controlled Pareto Frontiers",
+  "year": 2025,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Rao, Jiansheng",
+   "Jun Li",
+   "Gong, Zhizhi",
+   "Soummya Kar",
+   "Haoxuan Li"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 227,
+  "doi": "10.1109/tii.2022.3144016",
+  "title": "Federated Neural Architecture Search for Medical Data Security",
+  "year": 2022,
+  "type": "article",
+  "venue": "IEEE Transactions on Industrial Informatics",
+  "authors": [
+   "Xin Liu",
+   "Jianwei Zhao",
+   "Jie Li",
+   "Bin Cao",
+   "Zhihan Lv"
+  ],
+  "volume": "18",
+  "issue": "8",
+  "pages": "5628--5636",
+  "crossref_ok": true,
+  "crossref_title": "Federated Neural Architecture Search for Medical Data Security"
+ },
+ {
+  "idx": 230,
+  "doi": "10.48550/arxiv.2106.04502",
+  "title": "Federated Hyperparameter Tuning: Challenges, Baselines, and Connections to Weight-Sharing",
+  "year": 2021,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Mikhail Khodak",
+   "Renbo Tu",
+   "Li, Tian",
+   "Liam Li",
+   "Maria-Florina Balcan",
+   "Virginia Smith",
+   "Ameet Talwalkar"
+  ],
+  "volume": "34",
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 231,
+  "doi": "10.48550/arxiv.2002.06352",
+  "title": "Federated Neural Architecture Search",
+  "year": 2020,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Yuan, Jinliang",
+   "Mengwei Xu",
+   "Yuxin Zhao",
+   "Kaigui Bian",
+   "Gang Huang",
+   "Xuanzhe Liu",
+   "Wang, Shangguang"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 232,
+  "doi": "10.48550/arxiv.2101.11896",
+  "title": "Self-supervised Cross-silo Federated Neural Architecture Search",
+  "year": 2021,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Xinle Liang",
+   "Yang Liu",
+   "Jiahuan Luo",
+   "Yuanqin He",
+   "Tianjian Chen",
+   "Qiang Yang"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 235,
+  "doi": "10.1109/tnse.2023.3344850",
+  "title": "ENASFL: A Federated Neural Architecture Search Scheme for Heterogeneous Deep Models in Distributed Edge Computing Systems",
+  "year": 2023,
+  "type": "article",
+  "venue": "IEEE Transactions on Network Science and Engineering",
+  "authors": [
+   "Zitong Zhang",
+   "Zhicheng Liu",
+   "Yunfeng Zhao",
+   "Chao Qiu",
+   "Cheng Zhang",
+   "Xiaofei Wang"
+  ],
+  "volume": "11",
+  "issue": "3",
+  "pages": "2610--2620",
+  "crossref_ok": true,
+  "crossref_title": "ENASFL: A Federated Neural Architecture Search Scheme for Heterogeneous Deep Models in Distributed Edge Computing Systems"
+ },
+ {
+  "idx": 236,
+  "doi": "10.1109/tbdata.2022.3227403",
+  "title": "Resource-Aware Federated Neural Architecture Search over Heterogeneous Mobile Devices",
+  "year": 2022,
+  "type": "article",
+  "venue": "IEEE Transactions on Big Data",
+  "authors": [
+   "Jinliang Yuan",
+   "Mengwei Xu",
+   "Yuxin Zhao",
+   "Kaigui Bian",
+   "Gang Huang",
+   "Xuanzhe Liu",
+   "Shangguang Wang"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "1--11",
+  "crossref_ok": true,
+  "crossref_title": "Resource-Aware Federated Neural Architecture Search over Heterogeneous Mobile Devices"
+ },
+ {
+  "idx": 237,
+  "doi": "10.48550/arxiv.2211.05716",
+  "title": "Resource-Aware Heterogeneous Federated Learning using Neural Architecture Search",
+  "year": 2022,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Sixing Yu",
+   "Mu\u00f1oz, J. Pablo",
+   "Ali Jannesari"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 238,
+  "doi": "",
+  "title": "Neural Architecture Search over Decentralized Data",
+  "year": 2020,
+  "type": "article",
+  "venue": null,
+  "authors": [
+   "Mengwei Xu",
+   "Yuxin Zhao",
+   "Kaigui Bian",
+   "Gang Huang",
+   "Qiaozhu Mei",
+   "Xuanzhe Liu"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 239,
+  "doi": "10.48550/arxiv.2206.11239",
+  "title": "FedorAS: Federated Architecture Search under system heterogeneity",
+  "year": 2022,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "\u0141ukasz Dudziak",
+   "Stefanos Laskaridis",
+   "Javier Fern\u00e1ndez-Marqu\u00e9s"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 246,
+  "doi": "10.48550/arxiv.2206.12342",
+  "title": "FEATHERS: Federated Architecture and Hyperparameter Search",
+  "year": 2022,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Jonas Seng",
+   "Pooja Prasad",
+   "Martin Mundt",
+   "Devendra Singh Dhami",
+   "Kristian Kersting B"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 247,
+  "doi": "10.48550/arxiv.2312.17430",
+  "title": "LEFL: Low Entropy Client Sampling in Federated Learning",
+  "year": 2023,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Waqwoya Mesfin Abebe",
+   "Munoz, Pablo",
+   "Ali Jannesari"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 249,
+  "doi": "10.48550/arxiv.2506.15923",
+  "title": "PNCS:Power-Norm Cosine Similarity for Diverse Client Selection in Federated Learning",
+  "year": 2025,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Li, Liangyan",
+   "Liu, Yangyi",
+   "Ning, Yimo",
+   "Stefano Rini",
+   "Chen, Jun"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 255,
+  "doi": "10.48550/arxiv.2608.14359",
+  "title": "Designing Sustainable Federated Learning as a Service using Neural Architecture Search",
+  "year": 2026,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Keya Patel",
+   "Sajib Mistry",
+   "Sheik Mohammad Mostakim Fattah",
+   "Deepak Kanneganti",
+   "Aneesh Krishna",
+   "M M Hassan Mahmud",
+   "Monowar H. Bhuyan"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 259,
+  "doi": "10.48550/arxiv.2305.07135",
+  "title": "Divide-and-Conquer the NAS puzzle in Resource Constrained Federated Learning Systems",
+  "year": 2023,
+  "type": "preprint",
+  "venue": "arXiv (Cornell University)",
+  "authors": [
+   "Yeshwanth Venkatesha",
+   "Youngeun Kim",
+   "Hyoungseob Park",
+   "Priyadarshini Panda"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": false,
+  "crossref_title": null
+ },
+ {
+  "idx": 260,
+  "doi": "10.36227/techrxiv.176964091.16274890/v1",
+  "title": "Neural Architecture Search in Federated Learning: A Unified Design Concept",
+  "year": 2026,
+  "type": "preprint",
+  "venue": null,
+  "authors": [
+   "Nick Henze",
+   "Sascha Rank",
+   "Difan Deng",
+   "Marius Lindauer",
+   "Ali Sunyaev",
+   "Niclas Kannengie\u00dfer"
+  ],
+  "volume": null,
+  "issue": null,
+  "pages": "",
+  "crossref_ok": true,
+  "crossref_title": "Neural Architecture Search in Federated Learning: A Unified Design Concept"
+ }
+]

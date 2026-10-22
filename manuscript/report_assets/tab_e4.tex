@@ -1,0 +1,13 @@
+\begin{table}[H]\centering\small\caption{E4: HV del frente final en test antes y después del refinamiento multifidelidad ($C=40$ sobre $\leq 12$ candidatos).}\label{tab:e4}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+Método & HV original & HV refinado & Cambio pareado & IC 95 \% & Mejoran \\
+\midrule
+CS-NSGA (clusters $\Delta$ + NSGA-II) & 0.795 & 0.794 & -0.001 & [-0.010, 0.004] & 4/5 \\
+Clusters $\Delta$ + búsqueda aleatoria & 0.794 & 0.798 & 0.005 & [0.001, 0.009] & 5/5 \\
+Nodos aleatorios + NSGA-II & 0.804 & 0.812 & 0.009 & [0.001, 0.017] & 4/5 \\
+Nodos aleatorios + búsqueda aleatoria & 0.795 & 0.794 & -0.001 & [-0.026, 0.017] & 3/5 \\
+\bottomrule
+\end{tabular}}
+\end{table}
