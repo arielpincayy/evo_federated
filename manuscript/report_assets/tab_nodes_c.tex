@@ -1,0 +1,17 @@
+\begin{table}[H]\centering\small\caption{Proporción de nodos que mejoran en el diagnóstico de entrenamiento (una arquitectura y una partición, $n=1$) y en el estudio de ruido (media $\pm$ DE entre arquitecturas y sorteos).}\label{tab:nodesc}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+Comparación & Mejoró \% & Igual \% & Empeoró \% & Cambio medio (pp) & n \\
+\midrule
+Entrenamiento $\alpha=0.1$: Adam $10^{-3}$/5 r. → Adam $10^{-2}$/5 ép./20 r. & 86 & 4 & 10 & +27.3 & 1 \\
+Entrenamiento $\alpha=0.1$: 10 nodos → todos & 66 & 1 & 33 & +17.8 & 1 \\
+Entrenamiento $\alpha=0.5$: Adam $10^{-3}$/5 r. → Adam $10^{-2}$/5 ép./20 r. & 100 & 0 & 0 & +51.9 & 1 \\
+Entrenamiento $\alpha=0.5$: 10 nodos → todos & 75 & 4 & 21 & +3.1 & 1 \\
+Muestreo $C=10$: nodos aleat. → clusters & 44 $\pm$ 12 & 5 $\pm$ 4 & 51 $\pm$ 10 & -1.8 & 20 \\
+Nodos aleat.: $C=10\to20$ & 55 $\pm$ 14 & 8 $\pm$ 8 & 37 $\pm$ 12 & +6.6 & 20 \\
+Nodos aleat.: $C=10\to40$ & 57 $\pm$ 13 & 4 $\pm$ 4 & 39 $\pm$ 12 & +10.2 & 20 \\
+Nodos aleat.: $C=10\to$ todos & 65 $\pm$ 15 & 4 $\pm$ 6 & 30 $\pm$ 11 & +13.8 & 20 \\
+\bottomrule
+\end{tabular}}
+\end{table}

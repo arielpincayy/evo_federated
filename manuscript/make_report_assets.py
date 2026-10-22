@@ -138,6 +138,53 @@ for al in (0.1, 0.5):
                      "Pureza": x.purity_dominant_class.mean(), "Var. relativa del estimador": x.var_ratio_vs_random.mean()})
 tex_table(pd.DataFrame(rows), "tab_clusters", "Cohesión de las agrupaciones con $C=10$ (Fashion-MNIST, $N=100$, media de 5 semillas). Dist. etiquetas: distancia de Hellinger entre distribuciones de clases; Var. relativa: varianza de un proxy del estimador (distribución de etiquetas) frente a $C$ nodos al azar.", "tab:clusters", "rlcrcrr")
 
+
+# --- 7. proporción de nodos que mejoran ---------------------------------------------------------------------
+NL = "runs/node_level"
+e3n = pd.read_csv(f"{NL}/summary_e3_per_seed.csv"); trn = pd.read_csv(f"{NL}/summary_train.csv"); nz = pd.read_csv(f"{NL}/summary_noise_per_arch.csv")
+MN = {"cs_nsga": "CS-NSGA", "rand_nsga": "NSGA-II nodos aleat.", "cs_rand": "búsq. aleat. clusters", "rand_rand": "búsq. aleat. nodos aleat."}
+bars = {"A": [], "B": [], "C": []}
+for m in ("cs_nsga", "rand_nsga", "cs_rand", "rand_rand"):
+    for how in ("media", "mejor"):
+        x = e3n[(e3n["comparación"].str.startswith("evolución")) & (e3n.método == m) & (e3n.agregación == how)]
+        bars["A"].append((f"{MN[m]} ({how})", x))
+for A_, B_ in (("cs_nsga", "rand_nsga"), ("rand_nsga", "rand_rand"), ("cs_nsga", "cs_rand"), ("cs_rand", "rand_rand"), ("cs_nsga", "rand_rand"), ("rand_nsga", "cs_rand")):
+    x = e3n[(e3n["comparación"] == f"entre métodos: {A_} → {B_}") & (e3n.agregación == "mejor")]
+    bars["B"].append((f"{MN[A_]} → {MN[B_]}", x))
+for al in (0.1, 0.5):
+    bars["C"].append((f"Entrenamiento $\\alpha={al}$: Adam $10^{{-3}}$/5 r. → Adam $10^{{-2}}$/5 ép./20 r.", trn[(trn.alpha == al) & (trn["comparación"] == "adam1e-3_e2_R5_C10 → adam1e-2_e5_R20_C10")]))
+    bars["C"].append((f"Entrenamiento $\\alpha={al}$: 10 nodos → todos", trn[(trn.alpha == al) & trn["comparación"].str.contains("full")][lambda t: t["comparación"].str.startswith("adam1e-2_e2_R20_C10")]))
+for lab, key in (("Muestreo $C=10$: nodos aleat. → clusters", "muestreo, C=10: nodos aleatorios → clusters"), ("Nodos aleat.: $C=10\\to20$", "random: C=10 → C=20"), ("Nodos aleat.: $C=10\\to40$", "random: C=10 → C=40"), ("Nodos aleat.: $C=10\\to$ todos", "random: C=10 → todos los nodos")):
+    bars["C"].append((lab, nz[nz["comparación"] == key]))
+fig, axs = plt.subplots(3, 1, figsize=(7.2, 6.0), gridspec_kw={"height_ratios": [len(bars["A"]), len(bars["B"]), len(bars["C"])]})
+ttl = {"A": "Evolución: población inicial $\\to$ hall of fame (por nodo)", "B": "Entre métodos: hall of fame A $\\to$ B (mejor modelo del conjunto por nodo)", "C": "Entrenamiento y número de nodos (un modelo por nodo)"}
+for ax, k in zip(axs, "ABC"):
+    for i, (lab, x) in enumerate(bars[k]):
+        v = [x["mejoró"].mean(), x["igual"].mean(), x["empeoró"].mean()]
+        ax.barh(i, v[0], color="#0072B2"); ax.barh(i, v[1], left=v[0], color="#BBBBBB"); ax.barh(i, v[2], left=v[0] + v[1], color="#D55E00")
+        ax.text(0.01, i, f"{100*v[0]:.0f}%", va="center", color="white", fontsize=7); ax.text(0.99, i, f"{100*v[2]:.0f}%", va="center", ha="right", color="white", fontsize=7)
+    ax.set_yticks(range(len(bars[k]))); ax.set_yticklabels([l for l, _ in bars[k]], fontsize=6.5); ax.invert_yaxis(); ax.set_xlim(0, 1); ax.set_title(ttl[k], fontsize=8)
+axs[-1].set_xlabel("Proporción de nodos (azul: mejoró; gris: igual; naranja: empeoró)")
+plt.tight_layout(); plt.savefig(f"{OUT}/fig_nodes.pdf"); plt.close()
+
+def ms(x, c): return f"{100*x[c].mean():.0f}" if len(x) < 2 else f"{100*x[c].mean():.0f} $\\pm$ {100*x[c].std():.0f}"
+rows = []
+for k in "AB":
+    for lab, x in bars[k]:
+        rows.append({"Comparación": lab, "Mejoró \\%": ms(x, "mejoró"), "Igual \\%": ms(x, "igual"), "Empeoró \\%": ms(x, "empeoró"), "Cambio medio (pp)": f"{x.cambio_medio_pp.mean():+.1f}", "n": len(x)})
+tex_table(pd.DataFrame(rows), "tab_nodes_e3", "Proporción de nodos que mejoran, quedan igual o empeoran en E3 (media $\\pm$ DE entre las 5 semillas; accuracy por nodo en prueba con modelos entrenados con los 100 nodos). ``media'' y ``mejor'': accuracy media o máxima del nodo sobre el conjunto de modelos.", "tab:nodese3", "lrrrrr")
+rows = []
+for lab, x in bars["C"]:
+    rows.append({"Comparación": lab, "Mejoró \\%": ms(x, "mejoró"), "Igual \\%": ms(x, "igual"), "Empeoró \\%": ms(x, "empeoró"), "Cambio medio (pp)": f"{x.cambio_medio_pp.mean():+.1f}", "n": len(x)})
+tex_table(pd.DataFrame(rows), "tab_nodes_c", "Proporción de nodos que mejoran en el diagnóstico de entrenamiento (una arquitectura y una partición, $n=1$) y en el estudio de ruido (media $\\pm$ DE entre arquitecturas y sorteos).", "tab:nodesc", "lrrrrr")
+
+# --- 8. hall of fame: ¿alguna arquitectura mejora a todos los nodos? -----------------------------------------
+hf = pd.read_csv(f"{NL}/hof_per_model.csv")
+REFN = {"media_inicial": "Accuracy media de la población inicial (por nodo)", "mejor_modelo_inicial": "Mejor modelo inicial (por accuracy media)", "mejor_inicial_por_nodo": "Mejor modelo inicial de cada nodo"}
+rows = [{"Referencia": v, "Mejoran a todos los nodos": int(hf[k + "_todos_mejoran"].sum()), "Ningún nodo peor": int(hf[k + "_ningun_peor"].sum()),
+         "Mediana de nodos que mejoran": f"{100 * hf[k + '_prop_mejora'].median():.0f}\\%", "Máximo": f"{100 * hf[k + '_prop_mejora'].max():.0f}\\%", "$\\geq 90\\%$ de nodos": int((hf[k + "_prop_mejora"] >= .9).sum())} for k, v in REFN.items()]
+tex_table(pd.DataFrame(rows), "tab_hof", f"Arquitecturas del hall of fame ({len(hf)} en 20 corridas, {int(hf.en_inicial.sum())} ya presentes en la población inicial) frente a distintas referencias de la población inicial, por nodo.", "tab:hof", "lrrrrr")
+
 # --- números sueltos para el texto --------------------------------------------------------------------------
 d = pd.read_csv("runs/training_diagnostic.csv")
 num = {"trainAdamLow": d[(d.name == "adam_0.001") & (d.epochs == 2) & (d.rounds == 5)].set_index("alpha").acc_mean.to_dict(),
