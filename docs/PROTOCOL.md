@@ -60,3 +60,9 @@ replicación; individuos y generaciones no son réplicas independientes.
 ## Pendiente (no implementado)
 Linaje padre-hijo, FEMNIST, estudio de fidelidad con FedAvg completo en N=100 (entrenar con todos vs con reps),
 análisis estadístico agregado entre corridas.
+
+
+## Adenda E5 (2026-10-22): un objetivo por cluster con NSGA-III
+`evolution.objectives` = `per_node` (una accuracy por cluster, del nodo evaluador) o `per_cluster_mean` (media de los miembros no entrenados del cluster, ablación) con
+`evolution.search = nsga3` (direcciones de Das–Dennis, población = nº de direcciones). El tamaño de la red deja de ser objetivo. Hall of fame con C objetivos:
+`final.hof = select_hof` (ver `docs/E5_DESIGN.md`). Diseño, métricas y riesgos en `docs/E5_DESIGN.md`.
