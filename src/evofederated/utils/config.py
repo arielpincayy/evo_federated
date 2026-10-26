@@ -68,7 +68,9 @@ class FederatedConfig:
 
 @dataclasses.dataclass
 class EvolutionConfig:
-    search: str = "nsga2"  # nsga2 | random
+    search: str = "nsga2"  # nsga2 | nsga3 | random
+    objectives: str = "mean_params"  # mean_params (acc media, parámetros) | per_node (un objetivo por cluster) | per_cluster_mean
+    ref_partitions: int = 2  # nsga3: particiones de Das-Dennis (nº de direcciones = población)
     pop_size: int = 12
     n_generations: int = 10
     crossover_prob: float = 0.9
@@ -83,7 +85,9 @@ class FinalConfig:
     enabled: bool = True
     n_seeds: int = 3  # reentrenamientos independientes del frente final
     participation: str = "full"  # full | reps
-    max_front: int = 10
+    max_front: int = 10  # nº de arquitecturas del hall of fame que se reentrenan
+    hof: str = "front_top"  # front_top (E3: mejores por accuracy del frente 2D) | select_hof (C objetivos: max-media, max-min, farthest-first)
+    initial_k: int = 0  # >0: también se mide, por nodo, un subconjunto fijo de la población inicial (solo con hof=select_hof)
 
 
 @dataclasses.dataclass

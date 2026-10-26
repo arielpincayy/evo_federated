@@ -8,3 +8,4 @@ pymoo>=0.6
 pyyaml>=6.0
 scipy>=1.9
 pytest>=7
+cloudpickle>=2.0

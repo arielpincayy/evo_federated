@@ -1,7 +1,11 @@
 """Evaluador por muestreo estratificado: un representante al azar por cluster y por generación.
 
-Fitness de búsqueda (minimización): (-acc_estimada, n_params / n_params_max).
-  acc_estimada = sum_c W_c * acc_val(eval_c), W_c = |cluster c| / N  (estimador estratificado de la accuracy media por nodo).
+Fitness de búsqueda (minimización), según `objectives`:
+  mean_params      (-acc_estimada, n_params / n_params_max); acc_estimada = sum_c W_c * acc_val(eval_c), W_c = |cluster c| / N.
+  per_node         (-acc_val(eval_1), ..., -acc_val(eval_C)): un objetivo por cluster = accuracy del nodo evaluador de ese cluster.
+  per_cluster_mean (-m_1, ..., -m_C), m_c = media de la accuracy en TODOS los miembros del cluster c que no entrenaron
+                   (solo inferencia; ablación de menor ruido que relaja la premisa de no evaluar a todos los nodos).
+En todos los modos se registra `obj_acc` (accuracies por objetivo), `acc_rep` (su media ponderada) y el nº de parámetros.
 
 Los representantes se sortean con un RNG derivado de (seed, generación): todos los individuos de una generación
 (padres e hijos) se evalúan con los mismos representantes. La búsqueda solo toca `val` de representantes y evaluadores;
@@ -53,6 +57,7 @@ class ClusterSampleEvaluator:
         device: str = "cpu",
         monitor: bool = True,
         eval_holdout: bool = True,
+        objectives: str = "mean_params",  # mean_params | per_node | per_cluster_mean
     ):
         self.clients = clients
         self.ids = sorted(clients)
@@ -67,6 +72,12 @@ class ClusterSampleEvaluator:
         self.seed = int(seed)
         self.init_seed = self.seed if init_seed is None else int(init_seed)
         self.device, self.monitor, self.eval_holdout = device, bool(monitor), bool(eval_holdout)
+        if objectives not in ("mean_params", "per_node", "per_cluster_mean"):
+            raise ValueError(f"objectives desconocido: {objectives}")
+        if objectives == "per_cluster_mean":
+            assert sampler == "cluster", "per_cluster_mean requiere sampler=cluster"
+        self.objectives = objectives
+        self.n_objective_node_evals = 0
         self.history: List[dict] = []
         self.n_evals = 0
         self.n_local_trainings = 0
@@ -109,6 +120,21 @@ class ClusterSampleEvaluator:
         w = np.array(sizes, dtype=float)
         return reps, evals, (w / w.sum()).tolist()
 
+    def n_objectives(self) -> int:
+        """Nº de objetivos del vector de fitness (2 en mean_params; C en los modos por cluster)."""
+        return 2 if self.objectives == "mean_params" else len(self.assignment(0)[0])
+
+    def _cluster_mean_acc(self, model, reps: List[int]) -> List[float]:
+        """Accuracy media en val de los miembros de cada cluster que no entrenaron (si no hay otro, el propio representante)."""
+        valid, out, groups = set(self.valid), [], []
+        for c, r in zip(np.unique(self.labels), reps):
+            members = [self.ids[i] for i in np.where(self.labels == c)[0] if self.ids[i] in valid and self.ids[i] != r]
+            groups.append(members or [r])
+        nodes = sorted({m for g_ in groups for m in g_})
+        res = evaluate_global_on_split(model, {m: self.clients[m] for m in nodes}, split="val", device=self.device)
+        self.n_objective_node_evals += len(nodes)
+        return [float(np.mean([res[m]["accuracy"] for m in g_])) for g_ in groups]
+
     def representatives(self, generation: int):
         reps, _, w = self.assignment(generation)
         return reps, w
@@ -130,18 +156,21 @@ class ClusterSampleEvaluator:
 
     def evaluate_population(self, X: np.ndarray, generation: int) -> np.ndarray:
         reps, evals, w = self.assignment(generation)
-        F = np.zeros((len(X), 2))
+        F = np.zeros((len(X), self.n_objectives()))
         for i, vec in enumerate(X):
             g = CNNGenome.from_vector(vec, self.space)
             t0 = time.time()
             fed = self._train(g, reps, w, self.init_seed)
             sub = {e: self.clients[e] for e in set(evals)}
             per_eval = evaluate_global_on_split(fed["model"], sub, split="val", device=self.device)
-            acc = float(sum(wi * per_eval[e]["accuracy"] for e, wi in zip(evals, w)))
+            obj = [float(per_eval[e]["accuracy"]) for e in evals]
+            if self.objectives == "per_cluster_mean":
+                obj = self._cluster_mean_acc(fed["model"], reps)
+            acc = float(sum(wi * oi for oi, wi in zip(obj, w)))
             npar = n_params(fed["model"])
             rec = {"generation": int(generation), "individual_idx": i, "genome": json.dumps(g.to_dict()),
                    "vector": json.dumps([float(x) for x in vec]),
-                   "acc_rep": acc, "n_params": npar, "n_params_norm": npar / self.param_ref,
+                   "acc_rep": acc, "obj_acc": json.dumps(obj), "n_params": npar, "n_params_norm": npar / self.param_ref,
                    "reps": json.dumps(reps), "eval_nodes": json.dumps(evals),
                    "n_eval_fallback": int(sum(e == r for e, r in zip(evals, reps))), "n_local_trainings": int(fed["n_local_trainings"])}
             if self.monitor:  # solo reporte: mismo modelo, todos los nodos (inferencia), jamás entra al fitness
@@ -155,18 +184,23 @@ class ClusterSampleEvaluator:
             self.n_local_trainings += int(fed["n_local_trainings"])
             self.train_time += time.time() - t0
             self.history.append(rec)
-            F[i] = (-acc, npar / self.param_ref)
+            F[i] = (-acc, npar / self.param_ref) if self.objectives == "mean_params" else -np.array(obj)
         return F
 
-    def evaluate_test(self, genome: CNNGenome, init_seed: int, participation: str = "full") -> Dict[str, float]:
-        """Evaluación final fuera de la búsqueda: reentrena desde cero con otra semilla y mide en `test`."""
+    def evaluate_test(self, genome: CNNGenome, init_seed: int, participation: str = "full", return_nodes: bool = False):
+        """Evaluación final fuera de la búsqueda: reentrena desde cero con otra semilla y mide en `test`.
+
+        Con `return_nodes` devuelve además la lista (nodo, accuracy, n) por nodo."""
         if participation == "full":
             reps = list(self.valid)
             w = [1.0 / len(reps)] * len(reps)
         else:
             reps, w = self.representatives(10_000_000 + init_seed)
         fed = self._train(genome, reps, w, init_seed)
-        res = _summ(evaluate_global_on_split(fed["model"], self.clients, split="test", device=self.device))
+        per = evaluate_global_on_split(fed["model"], self.clients, split="test", device=self.device)
+        res = _summ(per)
         res["n_params"] = n_params(fed["model"])
         res["n_local_trainings"] = int(fed["n_local_trainings"])
+        if return_nodes:
+            return res, [(int(c), v["accuracy"], v["n"]) for c, v in sorted(per.items())]
         return res

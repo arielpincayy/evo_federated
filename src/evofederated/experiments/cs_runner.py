@@ -1,6 +1,8 @@
 """Una corrida completa: datos -> probe/clusters -> búsqueda -> reevaluación final del frente en test."""
 import dataclasses
 import json
+import os
+import pickle
 import time
 from pathlib import Path
 
@@ -11,6 +13,7 @@ import torch
 from ..data.federated_split import build_federated_clients
 from ..evolution.cs_evaluator import ClusterSampleEvaluator
 from ..evolution.cs_nas import HV_REF, _hv, output_front, run_search
+from ..evolution.refine import select_hof
 from ..federated.characterization import probe_deltas
 from ..federated.clustering import cluster_delta, cluster_labels_oracle, cluster_quality, cluster_random
 from ..models.cnn_genome import CNNGenome, CNNSpace, cnn_to_model, max_n_params
@@ -54,15 +57,48 @@ def run_cs(cfg: ExperimentConfig, output_dir=None, log=print) -> dict:
     ev = ClusterSampleEvaluator(
         clients, input_shape, n_classes, space, dataclasses.asdict(cfg.train),
         {**dataclasses.asdict(cfg.federated), "weight_by_cluster": S.weight_by_cluster}, param_ref,
-        labels=labels, sampler=_SAMPLERS[S.sampler], n_reps=S.n_clusters, seed=cfg.seed, device=device, monitor=cfg.monitor, eval_holdout=S.eval_holdout)
+        labels=labels, sampler=_SAMPLERS[S.sampler], n_reps=S.n_clusters, seed=cfg.seed, device=device, monitor=cfg.monitor, eval_holdout=S.eval_holdout,
+        objectives=cfg.evolution.objectives)
     E = cfg.evolution
     hist, rows = run_search(ev, space, E.pop_size, E.n_generations, E.search, E.seed, E.crossover_prob, E.crossover_eta,
-                            E.mutation_prob, E.mutation_eta, log=log)
+                            E.mutation_prob, E.mutation_eta, ref_partitions=E.ref_partitions, checkpoint=str(out / "search_checkpoint.pkl"), log=log)
     pd.DataFrame(hist).to_csv(out / "population.csv", index=False)
     pd.DataFrame(rows).to_csv(out / "generation_metrics.csv", index=False)
 
-    final_trainings = 0
-    if cfg.final.enabled:
+    final_trainings, hv_test = 0, float("nan")
+    if cfg.final.enabled and cfg.final.hof == "select_hof":
+        # C objetivos: hall of fame de K representantes (regla fija) y, opcionalmente, un subconjunto fijo de la población inicial;
+        # todos se reentrenan con los 100 nodos y se guarda la accuracy en test de cada nodo
+        hof = select_hof(hist, cfg.final.max_front)
+        gen0 = list(dict.fromkeys(r["genome"] for r in hist if r["generation"] == 0))
+        ini = []
+        if cfg.final.initial_k > 0:
+            pick = np.random.RandomState(cfg.seed).permutation(len(gen0))[: cfg.final.initial_k]
+            ini = [gen0[i] for i in sorted(pick)]
+        roles = {}
+        for g_ in ini:
+            roles.setdefault(g_, []).append("initial")
+        for h in hof:
+            roles.setdefault(h["genome"], []).append("hof")
+        meta = {h["genome"]: h for h in hof}
+        frows, nrows = [], []
+        prog_path = out / "final_progress.pkl"  # modelos ya reentrenados: una interrupción no los pierde
+        prog = pickle.load(open(prog_path, "rb")) if prog_path.exists() else {}
+        for k, (gj, rl) in enumerate(roles.items()):
+            if gj not in prog:
+                prog[gj] = ev.evaluate_test(CNNGenome(**json.loads(gj)), 1000, cfg.final.participation, return_nodes=True)
+                with open(str(prog_path) + ".tmp", "wb") as f_:
+                    pickle.dump(prog, f_)
+                os.replace(str(prog_path) + ".tmp", prog_path)
+            res, nodes = prog[gj]
+            final_trainings += res["n_local_trainings"]
+            frows.append({"genome": gj, "roles": "|".join(rl), "n_params_norm": res["n_params"] / param_ref, **{f"test_{k_}": v for k_, v in res.items()},
+                          "acc_rep_mean": meta[gj]["acc_rep_mean"] if gj in meta else float("nan"), "reason": meta[gj]["reason"] if gj in meta else ""})
+            nrows += [{"genome": gj, "roles": "|".join(rl), "node": c, "acc": a_, "n": n_} for c, a_, n_ in nodes]
+            log(f"final {k + 1}/{len(roles)}")
+        pd.DataFrame(frows).to_csv(out / "final_front.csv", index=False)
+        pd.DataFrame(nrows).to_csv(out / "final_nodes.csv", index=False)
+    elif cfg.final.enabled:
         front = {r["genome"]: r for r in sorted(output_front(hist), key=lambda r: -r["acc_rep"])}  # dedup por genoma
         front = list(front.values())[: cfg.final.max_front]
         frows = []
@@ -77,13 +113,11 @@ def run_cs(cfg: ExperimentConfig, output_dir=None, log=print) -> dict:
         fdf.to_csv(out / "final_front.csv", index=False)
         m = fdf.groupby("genome").agg(a=("test_acc_mean", "mean"), p=("n_params_norm", "first"))
         hv_test = _hv(np.stack([-m.a.values, m.p.values], axis=1))
-    else:
-        hv_test = float("nan")
 
     cost = {"probe_local_trainings": probe_trainings, "search_local_trainings": ev.n_local_trainings,
             "search_evals": ev.n_evals, "monitor_node_evals": ev.n_monitor_node_evals,
             "final_local_trainings": final_trainings, "elapsed_sec": time.time() - t_start,
             "n_clients": len(ids), "n_reps_per_eval": len(ev.representatives(0)[0]), "eval_fallback_gen0": int(sum(e == r for e, r in zip(ev.assignment(0)[1], ev.assignment(0)[0]))), "hv_ref": HV_REF.tolist(),
-            "hv_test_front": hv_test, "cluster_quality": quality}
+            "hv_test_front": hv_test, "objective_node_evals": ev.n_objective_node_evals, "cluster_quality": quality}
     (out / "cost.json").write_text(json.dumps(cost, indent=1))
     return cost

@@ -1,0 +1,13 @@
+# Smoke test de E5 (Fashion-MNIST, 30 nodos, C=5 -> 15 direcciones de referencia, 2 generaciones).
+name: cs_e5_smoke
+output_dir: runs/e5_smoke
+seed: 0
+monitor: true
+dataset: {name: fashion-mnist, n_clients: 30, alpha: 0.5, val_ratio: 0.3, min_samples_per_client: 20, seed: 0}
+train: {optimizer: adam, lr: 0.001, batch_size: 32, device: cpu, num_threads: 2}
+space: {max_blocks: 2, channels: [8, 16], kernels: [3], activations: [relu]}
+probe: {k_epochs: 1, seed: 0}
+sampling: {sampler: cluster, n_clusters: 5, method: kmeans, weight_by_cluster: true, eval_holdout: true}
+federated: {rounds: 1, local_epochs: 1}
+evolution: {search: nsga3, objectives: per_node, pop_size: 15, ref_partitions: 2, n_generations: 2, seed: 0}
+final: {enabled: true, hof: select_hof, max_front: 3, initial_k: 3, participation: full, n_seeds: 1}

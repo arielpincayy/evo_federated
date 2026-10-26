@@ -1,0 +1,15 @@
+# E5: NSGA-III con un objetivo por cluster (accuracy del nodo evaluador de cada cluster). Ver docs/E5_DESIGN.md.
+# Brazo por defecto = n3_cs (propuesta). Los demás brazos se obtienen con overrides: ver run_e5.sh.
+name: cs_e5
+output_dir: runs/e5/n3_cs
+seed: 0
+monitor: true
+dataset: {name: fashion-mnist, n_clients: 100, alpha: 0.1, val_ratio: 0.3, min_samples_per_client: 50, seed: 0}
+train: {optimizer: adam, lr: 0.01, batch_size: 32, device: cpu, num_threads: 2}
+space: {max_blocks: 3, channels: [8, 16, 32, 64], kernels: [3, 5], activations: [relu, elu]}
+probe: {k_epochs: 1, seed: 0}
+sampling: {sampler: cluster, n_clusters: 10, method: kmeans, weight_by_cluster: true, eval_holdout: true}
+federated: {rounds: 20, local_epochs: 2}
+# 10 objetivos -> 55 direcciones de Das-Dennis (p=2) -> población 55; 55 + 3*110 = 385 evaluaciones
+evolution: {search: nsga3, objectives: per_node, pop_size: 55, ref_partitions: 2, n_generations: 4, seed: 0}
+final: {enabled: true, hof: select_hof, max_front: 12, initial_k: 12, participation: full, n_seeds: 1}
