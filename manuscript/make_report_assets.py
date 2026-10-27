@@ -186,6 +186,19 @@ rows = [{"Referencia": v, "Mejoran a todos los nodos": int(hf[k + "_todos_mejora
 tex_table(pd.DataFrame(rows), "tab_hof", f"Arquitecturas del hall of fame ({len(hf)} en 20 corridas, {int(hf.en_inicial.sum())} ya presentes en la población inicial) frente a distintas referencias de la población inicial, por nodo.", "tab:hof", "lrrrrr")
 
 # --- números sueltos para el texto --------------------------------------------------------------------------
+# --- E5: NSGA-III con un objetivo por cluster ----------------------------------------------------------
+E5 = {"n3_cs": "NSGA-III, clusters (propuesta)", "n3_rand": "NSGA-III, nodos aleatorios", "n3_cs_lownoise": "NSGA-III, clusters, menor ruido",
+      "rs_cs": "Búsqueda aleatoria, clusters", "n2_cs": "NSGA-II 2 obj., clusters", "n2_rand": "NSGA-II 2 obj., nodos aleatorios"}
+r = pd.read_csv("runs/e5/per_run.csv").groupby("arm")[["best_acc_media", "best_peor_cluster", "best_peor_decil", "best_params_norm", "media_mejoró"]].agg(["mean", "std"]).reindex(list(E5))
+e5 = pd.DataFrame({"Brazo": [E5[a] for a in E5]})
+for c, n in [("best_acc_media", "Acc. media"), ("best_peor_cluster", "Peor cluster"), ("best_peor_decil", "Peor decil"), ("best_params_norm", "Params. norm."), ("media_mejoró", "Nodos que mejoran")]:
+    e5[n] = [f"{m:.3f} $\\pm$ {s:.3f}" for m, s in zip(r[(c, "mean")], r[(c, "std")])]
+tex_table(e5, "tab_e5", "E5: mejor modelo del hall of fame (media $\\pm$ desv. de 5 semillas; prueba, 100 nodos). ``Nodos que mejoran'' no es comparable entre familias.", "tab:e5", "lccccc")
+c5 = pd.read_csv("runs/e5/paired_contrasts.csv"); c5 = c5[c5.métrica.isin(["best_acc_media", "best_peor_cluster", "best_params_norm"])]
+c5["Contraste"] = c5.contraste.str.replace("_", "\\_"); c5["Métrica"] = c5.métrica.str.replace("_", "\\_")
+c5["Dif. [IC 95\\%]"] = [f"{d:+.3f} [{lo:+.3f}, {hi:+.3f}]" for d, lo, hi in zip(c5.diferencia, c5.ic_bajo, c5.ic_alto)]
+tex_table(c5[["Contraste", "Métrica", "Dif. [IC 95\\%]"]], "tab_e5c", "E5: contrastes pareados por semilla (bootstrap sobre 5 semillas, descriptivo).", "tab:e5c", "llc")
+
 d = pd.read_csv("runs/training_diagnostic.csv")
 num = {"trainAdamLow": d[(d.name == "adam_0.001") & (d.epochs == 2) & (d.rounds == 5)].set_index("alpha").acc_mean.to_dict(),
        "trainBest": d[(d.name == "adam_0.01") & (d.epochs == 5) & (d.rounds == 20)].set_index("alpha").acc_mean.to_dict()}
