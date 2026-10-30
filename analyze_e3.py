@@ -35,8 +35,11 @@ print("\ncoste de búsqueda (entrenamientos locales) por método:", per.groupby(
 
 rng = np.random.RandomState(0)
 out = []
-for metric in ("hv_test", "hv_monitor_final"):
-    piv = per.pivot(index="seed", columns="method", values=metric)
+_hv = pd.concat(curves).pivot_table(index=["seed", "generation"], columns="method", values="hv_monitor")
+# ganancia desde la gen. 0: media de HV(g) - HV(0) por semilla; descuenta la ventaja de partida (poblaciones iniciales distintas entre métodos)
+per_gain = _hv.groupby("seed").apply(lambda d: (d.iloc[1:] - d.iloc[0]).mean())
+for metric in ("hv_test", "hv_monitor_final", "hv_gain_from_gen0"):
+    piv = per_gain if metric == "hv_gain_from_gen0" else per.pivot(index="seed", columns="method", values=metric)
     for x, y in (("cs_nsga", "rand_nsga"), ("cs_nsga", "cs_rand"), ("rand_nsga", "rand_rand"), ("cs_rand", "rand_rand"), ("cs_nsga", "rand_rand"), ("rand_nsga", "cs_rand")):
         if x in piv and y in piv:
             d = (piv[x] - piv[y]).dropna().values

@@ -83,6 +83,7 @@ rows = [{"Método": MET[m], "HV test": f"{g.hv_test.mean():.3f} $\\pm$ {g.hv_tes
 tex_table(pd.DataFrame(rows), "tab_e3", "E3: frente final reevaluado en test (media $\\pm$ DE, 5 semillas) y calidad del estimador durante la búsqueda.", "tab:e3", "lllrrr")
 NM = {"cs_nsga": "CS-NSGA", "rand_nsga": "NSGA-II nodos aleat.", "cs_rand": "búsq. aleat. clusters", "rand_rand": "búsq. aleat. nodos aleat."}
 ac = cv.pivot_table(index=["seed", "generation"], columns="method", values="hv_monitor").groupby("seed").mean()
+gain = cv.pivot_table(index=["seed", "generation"], columns="method", values="hv_monitor").groupby("seed").apply(lambda d: (d.iloc[1:] - d.iloc[0]).mean())
 rngb = np.random.RandomState(0)
 
 
@@ -94,10 +95,10 @@ def bci(d):
 rows = []
 for x, y in (("cs_nsga", "rand_nsga"), ("rand_nsga", "rand_rand"), ("cs_nsga", "cs_rand"), ("cs_rand", "rand_rand"), ("rand_nsga", "cs_rand")):
     pt = p.pivot(index="seed", columns="method", values="hv_test"); pm = p.pivot(index="seed", columns="method", values="hv_monitor_final")
-    for lab, d in (("HV test", (pt[x] - pt[y]).values), ("HV todos (final)", (pm[x] - pm[y]).values), ("Área bajo la curva", (ac[x] - ac[y]).values)):
+    for lab, d in (("HV test", (pt[x] - pt[y]).values), ("HV todos (final)", (pm[x] - pm[y]).values), ("Área bajo la curva", (ac[x] - ac[y]).values), ("Ganancia desde gen. 0", (gain[x] - gain[y]).values)):
         m_, lo, hi, w, n_ = bci(d)
         rows.append({"Contraste": f"{NM[x]} $-$ {NM[y]}", "Métrica": lab, "Diferencia": m_, "IC 95 \\%": f"[{lo:.3f}, {hi:.3f}]", "A favor": f"{w}/{n_}"})
-tex_table(pd.DataFrame(rows), "tab_e3c", "E3: diferencias pareadas por semilla (IC bootstrap sobre 5 semillas; descriptivo).", "tab:e3c", "llrrr")
+tex_table(pd.DataFrame(rows), "tab_e3c", "E3: diferencias pareadas por semilla (IC bootstrap sobre 5 semillas; descriptivo). ``Ganancia desde gen. 0'' resta el HV de la generación 0, que difiere por la población inicial.", "tab:e3c", "llrrr")
 
 # --- 4. ruido ------------------------------------------------------------------------------------------------------
 n = pd.read_csv("runs/noise/summary.csv")
