@@ -18,9 +18,10 @@ ORDER = list(LAB)
 MET = {"cs_nsga": "CS-NSGA (clusters $\\Delta$ + NSGA-II)", "rand_nsga": "Nodos aleatorios + NSGA-II", "cs_rand": "Clusters $\\Delta$ + búsqueda aleatoria", "rand_rand": "Nodos aleatorios + búsqueda aleatoria"}
 
 
-def tex_table(df, name, caption, label, colfmt):
+def tex_table(df, name, caption, label, colfmt, fit=True):
     body = df.to_latex(index=False, escape=False, column_format=colfmt, float_format=lambda v: f"{v:.3f}")
-    body = body.replace("\\begin{tabular}", "\\resizebox{\\linewidth}{!}{%\n\\begin{tabular}", 1).replace("\\end{tabular}", "\\end{tabular}}", 1)
+    if fit:  # sin resizebox las tablas angostas conservan el tamaño de letra normal
+        body = body.replace("\\begin{tabular}", "\\resizebox{\\linewidth}{!}{%\n\\begin{tabular}", 1).replace("\\end{tabular}", "\\end{tabular}}", 1)
     open(f"{OUT}/{name}.tex", "w").write(f"\\begin{{table}}[H]\\centering\\small\\caption{{{caption}}}\\label{{{label}}}\n{body}\\end{{table}}\n")
 
 
@@ -196,9 +197,11 @@ for c, n in [("best_acc_media", "Acc. media"), ("best_peor_cluster", "Peor clust
     e5[n] = [f"{m:.3f} $\\pm$ {s:.3f}" for m, s in zip(r[(c, "mean")], r[(c, "std")])]
 tex_table(e5, "tab_e5", "E5: mejor modelo del hall of fame (media $\\pm$ desv. de 5 semillas; prueba, 100 nodos). ``Nodos que mejoran'' no es comparable entre familias.", "tab:e5", "lccccc")
 c5 = pd.read_csv("runs/e5/paired_contrasts.csv"); c5 = c5[c5.métrica.isin(["best_acc_media", "best_peor_cluster", "best_params_norm"])]
-c5["Contraste"] = c5.contraste.str.replace("_", "\\_"); c5["Métrica"] = c5.métrica.str.replace("_", "\\_")
+E5S = {"n3_cs": "N-III clusters", "n3_rand": "N-III aleat.", "n3_cs_lownoise": "N-III menor ruido", "rs_cs": "búsq. aleat.", "n2_cs": "N-II clusters", "n2_rand": "N-II aleat."}
+c5["Contraste"] = [" $-$ ".join(E5S[k.strip()] for k in c.split(" - ")) for c in c5.contraste]
+c5["Métrica"] = c5.métrica.map({"best_acc_media": "Acc. media", "best_peor_cluster": "Peor cluster", "best_params_norm": "Params. norm."})
 c5["Dif. [IC 95\\%]"] = [f"{d:+.3f} [{lo:+.3f}, {hi:+.3f}]" for d, lo, hi in zip(c5.diferencia, c5.ic_bajo, c5.ic_alto)]
-tex_table(c5[["Contraste", "Métrica", "Dif. [IC 95\\%]"]], "tab_e5c", "E5: contrastes pareados por semilla (bootstrap sobre 5 semillas, descriptivo).", "tab:e5c", "llc")
+tex_table(c5[["Contraste", "Métrica", "Dif. [IC 95\\%]"]], "tab_e5c", "E5: contrastes pareados por semilla (bootstrap sobre 5 semillas, descriptivo). N-III/N-II: NSGA-III/NSGA-II; búsq. aleat.: búsqueda aleatoria con clusters.", "tab:e5c", "llc", fit=False)
 
 d = pd.read_csv("runs/training_diagnostic.csv")
 num = {"trainAdamLow": d[(d.name == "adam_0.001") & (d.epochs == 2) & (d.rounds == 5)].set_index("alpha").acc_mean.to_dict(),
