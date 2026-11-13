@@ -1,0 +1,88 @@
+\relax 
+\providecommand \babel@aux [2]{\global \let \babel@toc \@gobbletwo }
+\@nameuse{bbl@beforestart}
+\catcode `"\active 
+\catcode `<\active 
+\catcode `>\active 
+\@nameuse{es@quoting}
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{zhu2021realtime}
+\citation{yuan2022resourceaware}
+\citation{bhope2023flips}
+\citation{khodak2021federated}
+\babel@aux{spanish}{}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Contexto y objetivo}{1}{section.1}\protected@file@percent }
+\citation{deb2002nsga2}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Método: CS-NAS}{2}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Protocolo experimental}{2}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Flujo de cada experimento}{3}{section.4}\protected@file@percent }
+\newlabel{sec:flujos}{{4}{3}{Flujo de cada experimento}{section.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Resultados}{5}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}El régimen de entrenamiento condicionaba todo}{5}{subsection.5.1}\protected@file@percent }
+\newlabel{sec:diag}{{5.1}{5}{El régimen de entrenamiento condicionaba todo}{subsection.5.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Accuracy media en todos los nodos de una arquitectura fija según la configuración de FedAvg ($C=10$ nodos aleatorios, salvo ``todos los nodos''). Una sola partición.}}{5}{figure.1}\protected@file@percent }
+\newlabel{fig:training}{{1}{5}{Accuracy media en todos los nodos de una arquitectura fija según la configuración de FedAvg ($C=10$ nodos aleatorios, salvo ``todos los nodos''). Una sola partición}{figure.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Calidad del estimador de fitness}{6}{subsection.5.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces RMSE del estimador por variante y régimen (media $\pm $ DE entre semillas; $C=10$). Fashion-MNIST con Adam $10^{-2}$ y 20 rondas (5 semillas por $\alpha $); CIFAR-10 con Adam $10^{-3}$ y 8 rondas (5 semillas), donde los modelos casi no aprenden (accuracy $\approx $0.21).}}{6}{figure.2}\protected@file@percent }
+\newlabel{fig:e2}{{2}{6}{RMSE del estimador por variante y régimen (media $\pm $ DE entre semillas; $C=10$). Fashion-MNIST con Adam $10^{-2}$ y 20 rondas (5 semillas por $\alpha $); CIFAR-10 con Adam $10^{-3}$ y 8 rondas (5 semillas), donde los modelos casi no aprenden (accuracy $\approx $0.21)}{figure.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Estimador de fitness frente a la accuracy del mismo modelo en todos los nodos (media sobre semillas; DE = desviación entre semillas; $\tau $: Kendall dentro de cada sorteo).}}{6}{table.1}\protected@file@percent }
+\newlabel{tab:e2}{{1}{6}{Estimador de fitness frente a la accuracy del mismo modelo en todos los nodos (media sobre semillas; DE = desviación entre semillas; $\tau $: Kendall dentro de cada sorteo)}{table.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Búsqueda de frentes (E3)}{7}{subsection.5.3}\protected@file@percent }
+\newlabel{sec:e3}{{5.3}{7}{Búsqueda de frentes (E3)}{subsection.5.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Izquierda: HV del frente final en test por semilla (líneas: medias). Centro: HV del archivo con la accuracy de todos los nodos por generación (media $\pm $ DE). Derecha: diferencia pareada por semilla de ese HV entre NSGA-II y la búsqueda aleatoria con el mismo muestreo de nodos (azul: clusters; naranja: nodos aleatorios), por generación (banda: IC bootstrap al 95\,\% sobre 5 semillas; 0 = sin diferencia). La búsqueda aleatoria parte de otra población inicial, por lo que las diferencias de las primeras generaciones reflejan en parte el azar de esa población.}}{7}{figure.3}\protected@file@percent }
+\newlabel{fig:e3}{{3}{7}{Izquierda: HV del frente final en test por semilla (líneas: medias). Centro: HV del archivo con la accuracy de todos los nodos por generación (media $\pm $ DE). Derecha: diferencia pareada por semilla de ese HV entre NSGA-II y la búsqueda aleatoria con el mismo muestreo de nodos (azul: clusters; naranja: nodos aleatorios), por generación (banda: IC bootstrap al 95\,\% sobre 5 semillas; 0 = sin diferencia). La búsqueda aleatoria parte de otra población inicial, por lo que las diferencias de las primeras generaciones reflejan en parte el azar de esa población}{figure.3}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces E3: frente final reevaluado en test (media $\pm $ DE, 5 semillas) y calidad del estimador durante la búsqueda.}}{7}{table.2}\protected@file@percent }
+\newlabel{tab:e3}{{2}{7}{E3: frente final reevaluado en test (media $\pm $ DE, 5 semillas) y calidad del estimador durante la búsqueda}{table.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces E3: diferencias pareadas por semilla (IC bootstrap sobre 5 semillas; descriptivo). ``Ganancia desde gen. 0'' resta el HV de la generación 0, que difiere por la población inicial.}}{8}{table.3}\protected@file@percent }
+\newlabel{tab:e3c}{{3}{8}{E3: diferencias pareadas por semilla (IC bootstrap sobre 5 semillas; descriptivo). ``Ganancia desde gen. 0'' resta el HV de la generación 0, que difiere por la población inicial}{table.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Por qué: paisaje con estructura y fitness ruidoso}{9}{subsection.5.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Izquierda: desviación de la accuracy de una misma arquitectura al cambiar los nodos de entrenamiento. Derecha: Kendall $\tau $ frente a la accuracy con participación completa (un sorteo).}}{9}{figure.4}\protected@file@percent }
+\newlabel{fig:noise}{{4}{9}{Izquierda: desviación de la accuracy de una misma arquitectura al cambiar los nodos de entrenamiento. Derecha: Kendall $\tau $ frente a la accuracy con participación completa (un sorteo)}{figure.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Ruido por nodos de entrenamiento (20 arquitecturas $\times $ 4 sorteos, Fashion-MNIST, $\alpha =0.1$).}}{9}{table.4}\protected@file@percent }
+\newlabel{tab:noise}{{4}{9}{Ruido por nodos de entrenamiento (20 arquitecturas $\times $ 4 sorteos, Fashion-MNIST, $\alpha =0.1$)}{table.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5}Cohesión de los clusters y alternativas de agrupación}{10}{subsection.5.5}\protected@file@percent }
+\newlabel{sec:clusters}{{5.5}{10}{Cohesión de los clusters y alternativas de agrupación}{subsection.5.5}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Cohesión de las agrupaciones con $C=10$ (Fashion-MNIST, $N=100$, media de 5 semillas). Dist. etiquetas: distancia de Hellinger entre distribuciones de clases; Var. relativa: varianza de un proxy del estimador (distribución de etiquetas) frente a $C$ nodos al azar.}}{10}{table.5}\protected@file@percent }
+\newlabel{tab:clusters}{{5}{10}{Cohesión de las agrupaciones con $C=10$ (Fashion-MNIST, $N=100$, media de 5 semillas). Dist. etiquetas: distancia de Hellinger entre distribuciones de clases; Var. relativa: varianza de un proxy del estimador (distribución de etiquetas) frente a $C$ nodos al azar}{table.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.6}Refinamiento multifidelidad (E4)}{10}{subsection.5.6}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces E4: HV del frente final en test antes y después del refinamiento multifidelidad ($C=40$ sobre $\leq 12$ candidatos).}}{11}{table.6}\protected@file@percent }
+\newlabel{tab:e4}{{6}{11}{E4: HV del frente final en test antes y después del refinamiento multifidelidad ($C=40$ sobre $\leq 12$ candidatos)}{table.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.7}Proporción de nodos que mejoran}{11}{subsection.5.7}\protected@file@percent }
+\newlabel{sec:nodos}{{5.7}{11}{Proporción de nodos que mejoran}{subsection.5.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Proporción de nodos que mejoran, quedan igual o empeoran en E3 (media $\pm $ DE entre las 5 semillas; accuracy por nodo en prueba con modelos entrenados con los 100 nodos). ``media'' y ``mejor'': accuracy media o máxima del nodo sobre el conjunto de modelos.}}{11}{table.7}\protected@file@percent }
+\newlabel{tab:nodese3}{{7}{11}{Proporción de nodos que mejoran, quedan igual o empeoran en E3 (media $\pm $ DE entre las 5 semillas; accuracy por nodo en prueba con modelos entrenados con los 100 nodos). ``media'' y ``mejor'': accuracy media o máxima del nodo sobre el conjunto de modelos}{table.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Proporción de nodos que mejoran (azul), quedan igual (gris) o empeoran (naranja). Arriba y centro: E3, media de 5 semillas por método; abajo: diagnóstico de entrenamiento (una arquitectura, una partición) y estudio de ruido (media sobre arquitecturas y sorteos).}}{12}{figure.5}\protected@file@percent }
+\newlabel{fig:nodos}{{5}{12}{Proporción de nodos que mejoran (azul), quedan igual (gris) o empeoran (naranja). Arriba y centro: E3, media de 5 semillas por método; abajo: diagnóstico de entrenamiento (una arquitectura, una partición) y estudio de ruido (media sobre arquitecturas y sorteos)}{figure.5}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces Proporción de nodos que mejoran en el diagnóstico de entrenamiento (una arquitectura y una partición, $n=1$) y en el estudio de ruido (media $\pm $ DE entre arquitecturas y sorteos).}}{12}{table.8}\protected@file@percent }
+\newlabel{tab:nodesc}{{8}{12}{Proporción de nodos que mejoran en el diagnóstico de entrenamiento (una arquitectura y una partición, $n=1$) y en el estudio de ruido (media $\pm $ DE entre arquitecturas y sorteos)}{table.8}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Arquitecturas del hall of fame (205 en 20 corridas, 20 ya presentes en la población inicial) frente a distintas referencias de la población inicial, por nodo.}}{13}{table.9}\protected@file@percent }
+\newlabel{tab:hof}{{9}{13}{Arquitecturas del hall of fame (205 en 20 corridas, 20 ya presentes en la población inicial) frente a distintas referencias de la población inicial, por nodo}{table.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.8}NSGA-III con un objetivo por cluster (E5)}{13}{subsection.5.8}\protected@file@percent }
+\newlabel{sec:e5}{{5.8}{13}{NSGA-III con un objetivo por cluster (E5)}{subsection.5.8}{}}
+\citation{yuan2022resourceaware}
+\citation{khodak2021federated}
+\citation{dudziak2022fedoras}
+\@writefile{lot}{\contentsline {table}{\numberline {10}{\ignorespaces E5: mejor modelo del hall of fame (media $\pm $ desv. de 5 semillas; prueba, 100 nodos). ``Nodos que mejoran'' no es comparable entre familias.}}{14}{table.10}\protected@file@percent }
+\newlabel{tab:e5}{{10}{14}{E5: mejor modelo del hall of fame (media $\pm $ desv. de 5 semillas; prueba, 100 nodos). ``Nodos que mejoran'' no es comparable entre familias}{table.10}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {11}{\ignorespaces E5: contrastes pareados por semilla (bootstrap sobre 5 semillas, descriptivo). N-III/N-II: NSGA-III/NSGA-II; búsq. aleat.: búsqueda aleatoria con clusters.}}{14}{table.11}\protected@file@percent }
+\newlabel{tab:e5c}{{11}{14}{E5: contrastes pareados por semilla (bootstrap sobre 5 semillas, descriptivo). N-III/N-II: NSGA-III/NSGA-II; búsq. aleat.: búsqueda aleatoria con clusters}{table.11}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Discusión}{14}{section.6}\protected@file@percent }
+\citation{khodak2021federated}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Relación con los vacíos de la revisión sistemática}{15}{section.7}\protected@file@percent }
+\newlabel{sec:vacios}{{7}{15}{Relación con los vacíos de la revisión sistemática}{section.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {12}{\ignorespaces Vacíos de la revisión y lo que aportan los experimentos de este informe.}}{15}{table.12}\protected@file@percent }
+\newlabel{tab:vacios}{{12}{15}{Vacíos de la revisión y lo que aportan los experimentos de este informe}{table.12}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Limitaciones y amenazas a la validez}{15}{section.8}\protected@file@percent }
+\bibstyle{unsrt}
+\bibdata{references_included,background}
+\bibcite{zhu2021realtime}{1}
+\bibcite{yuan2022resourceaware}{2}
+\bibcite{bhope2023flips}{3}
+\bibcite{khodak2021federated}{4}
+\bibcite{deb2002nsga2}{5}
+\bibcite{dudziak2022fedoras}{6}
+\@writefile{toc}{\contentsline {section}{\numberline {9}Conclusiones y trabajo futuro}{16}{section.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {10}Reproducibilidad}{16}{section.10}\protected@file@percent }
+\gdef \@abspage@last{17}

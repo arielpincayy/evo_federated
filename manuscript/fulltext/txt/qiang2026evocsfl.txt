@@ -1,0 +1,1431 @@
+EvoCSFL: Surrogate-Assisted Evolutionary Client Selection for Efficient and
+Robust Federated Learning
+Lin Qiang , 1 Sun Xiaoyan* , 2 Hu Yao* , 1 Fang Wei
+1
+Jiangnan University
+2
+The Hong Kong Polytechnic University
+6243115013@stu.jiangnan.edu.cn, {xysun78, fangwei}@jiangnan.edu.cn, echo-yao.hu@polyu.edu.hk
+
+arXiv:2606.07702v1 [cs.LG] 5 Jun 2026
+
+1
+
+Abstract
+The heterogeneity of client data and systems makes
+it difficult to achieve satisfactory convergence
+speed and robustness in federated learning with
+random client selection. To address this issue,
+this paper proposes a surrogate-assisted client evolutionary selection framework for federated learning. In this framework, some typical client selection strategies are first used to generate candidate sets, and a metric function that integrates
+model performance, communication latency, and
+energy consumption is developed to formulate the
+client selection problem as a combinatorial optimization one. Subsequently, a surrogate model is
+constructed using the candidate selections and metric to efficiently approximate the performance of
+selected client subsets. An evolutionary algorithm
+is employed to search the combinatorial space of
+client selections, guided by the surrogate model to
+accelerate convergence. Experiments on MNIST,
+CIFAR10, CINIC10, and TinyImageNet demonstrate that the proposed algorithm achieves faster
+convergence, lower energy consumption, and improved robustness compared to existing methods.
+
+1
+
+Introduction
+
+Federated learning (FL) [McMahan et al., 2017], proposed
+by Google, is a privacy-preserving framework where clients
+train local models on private data and iteratively share only
+model updates with a central server. The server aggregates
+these updates to improve a global model, which is then sent
+back to clients to avoid sharing raw data and leverage edge resources. However, there are significant challenges to the practical deployment of FL, stemming from the diversity among
+clients. First, the data possessed by different clients is usually
+non-independent and non-identically distributed (Non-IID).
+This disparity in data distribution leads to inconsistent model
+update directions among clients [Karimireddy et al., 2020],
+which severely affects the convergence speed and final performance of the global model [Zhao et al., 2018]. Second,
+clients vary significantly in computing power, network bandwidth, memory capacity, and battery life. These differences
+result in great differences in the time and energy required for
+
+local training [Shi, 2023], significantly prolonging the overall
+training cycle.
+The random client selection strategy is simple, but it
+is known to be ineffective in identifying high-performance
+clients and weakens the performance of global aggregated
+models, which greatly impedes rapid model convergence and
+hinders the achievement of the desired final accuracy. This
+insufficiency is particularly pronounced in data and local system heterogeneity environments. Additionally, random selection may select resource-limited clients, known as the ”straggler problem” [Imteaj et al., 2022; Lim et al., 2020], which
+require extended periods to complete local training and model
+uploads. This significantly reduces the efficiency of the training process and leads to inefficient allocation of time and
+computational resources. Accordingly, designing intelligent
+client selection algorithms in FL to overcome data and system
+heterogeneity is quite important.
+Current client selection methods typically require real-time
+or historical status information of client devices, including local training loss, model update quality, training duration, and
+energy consumption. Clearly, accurately obtaining this information in real-time is computationally expensive in the dynamic, heterogeneous environment of FL. For example, FedRank [Tian et al., 2024] requires all clients to perform at
+least one round of local training to submit their status. In
+contrast, Oort [Lai et al., 2021] uses historical client status
+information, but its decision mechanism essentially calculates a sampling probability based on clients’ historical performance to randomly sample clients. These methods fail to
+capture the combinatorial nature of FL. In particular, evaluating each candidate client subset in FL is time-consuming and
+resource-limited, making client selection a typical expensive
+optimization problem. For FL, client selection is a combinatorial optimization problem with an exponentially growing
+search space; simple random sampling or probabilistic selection cannot effectively explore the vast solution space and is
+prone to local optima.
+Motivated by the above, we propose a surrogate-assisted
+evolutionary client selection framework for federated learning, named EvoCSFL(Evolutionary Client Selection for FL).
+EvoCSFL formulates client selection as a combinatorial optimization problem and solves it using surrogate-assisted
+evolutionary algorithms (SAEAs). Compared to traditional
+methods, EvoCSFL offers three key advantages: (1) it treats
+
+client selection as a multi-objective combinatorial optimization problem, capturing collective subset characteristics that
+existing approaches overlook; (2) the surrogate model enables low-cost, high-efficiency prediction of any selection’s
+future composite score, avoiding the computational and communication overhead of real-time status acquisition; and (3)
+it harnesses the global search capability of evolutionary algorithms to efficiently explore the exponentially large combinatorial space, identifying near-optimal client sets with high
+convergence speed and robustness in dynamic, heterogeneous
+settings.
+
+2
+
+Background and Related Work
+
+2.1
+
+Client Selection in FL
+
+In federated learning, the client selection strategy is crucial
+to achieve high-performance global models. Existing methods can be categorized into three groups based on how device
+status information is obtained, i.e., random-based methods,
+history-based methods and probe-based methods.
+Random-based Methods. This is the most typical approach, like FedAvg [McMahan et al., 2017], which selects
+clients uniformly at random, ensuring fairness and zero overhead but offering no adaptation to data or system heterogeneity.
+History-based methods. These algorithms leverage past
+client performance. AFL [Goetz et al., 2019] uses historical local loss to set sampling probabilities. Oort [Lai et
+al., 2021] prioritizes clients with higher loss, shorter training time, and fewer prior selections. FedSAE [Li et al., 2021]
+adjusts participation likelihoods dynamically using historical
+stats. FedMCCS [AbdulRahman et al., 2020] incorporates
+location, resources, and data characteristics. TiFL [Chai et
+al., 2020] clusters clients according to the training duration,
+and Favor [Wang et al., 2020] applies Q-learning to infer data
+distributions from model weights, boosting convergence and
+energy efficiency. These methods do not need extra computing cost but may struggle in highly changed settings.
+Probe-based methods. These methods require capturing
+the real-time status of each client via preliminary training.
+FedRank [Tian et al., 2024] uses a one-cycle “early exit”
+probe and a pre-trained ranking model to score clients; FedMarl [Zhang et al., 2022] employs multi-agent reinforcement
+learning with lightweight probe rounds to gather loss and performance data in each round. Clearly, these approaches need
+extra resources to achieve probing.
+
+2.2
+
+Combinatorial Optimization in FL
+
+The client selection problem is inherently a combinatorial
+optimization task: selecting the best subset of clients to
+optimize a multi-objective function involving model performance, training latency, and energy consumption. As the
+number of clients grows, the search space expands exponentially, rendering exact solutions intractable and necessitating
+efficient approximation strategies.
+Common approaches include greedy algorithms, dynamic programming, integer programming, and heuristics.
+FedCS [Nishio and Yonetani, 2019] uses a greedy method
+
+based on pre-collected resource data, but is easy to fall into
+local optimum. Dynamic and integer programming become
+infeasible when the size of clients fast increases [Omori and
+Kashima, 2023; Xu and Wang, 2020]. FedGCS [Ning et al.,
+2024] maps selection into a continuous space and applies gradient descent, yet still risks local optima. Another study [Xu
+and Wang, 2020] proposes an online heuristic to jointly optimize client count and bandwidth under energy constraints.
+Since such problem is NP-hard [Ching et al., 2020], exact
+polynomial-time solutions are generally impossible, making
+heuristic methods the practical choice.
+Evolutionary algorithms (EAs), inspired by natural selection, maintain a population of candidate solutions and iteratively improve them via evolutionary operators, e.g., selection, crossover, and mutation. They excel at navigating complex, high-dimensional spaces and offer tunable trade-offs between solution quality and computational cost. For example,
+FedCSGA [Wu et al., 2025] uses a genetic algorithm to maximize a weighted sum of client count and model accuracy under a time budget. However, it requires pre-training all clients
+to estimate accuracy, which incurs significant computational
+overhead and creates costly optimization subproblems.
+
+2.3
+
+Surrogate-assisted Evolutionary Algorithms
+
+Evaluating the performance of each combination of selected
+clients in FL is very time consuming, and is especially challenging for using EAs to find the optimal solution, i.e., it is
+a typical expensive optimization problem. Such problems involve objective or constraint evaluations that demand significant time, resources, or physical experiments. Traditional
+EAs are often impractical for such problems due to their reliance on numerous costly function evaluations. SAEAs address this by using a cheap-to-evaluate surrogate model to approximate the true objective, drastically reducing the need for
+expensive evaluations and improving efficiency. The basic
+workflow of SAEAs typically follows the iterative steps: (1)
+Generate an initial population and evaluate individuals using
+the true objective. (2) Train or update a surrogate model with
+evaluated data. (3) Apply evolutionary operators to generate
+offspring, whose fitness is estimated by the surrogate. (4) Select promising candidates via an infill criterion for true evaluation and augment the training set. (5) Repeat above steps
+until convergence, yielding an approximate optimum.
+In constructing surrogate models, researchers have extensively explored various machine learning techniques to approximate expensive true objective functions. Commonly
+used surrogate models include Kriging interpolation [Zhou
+et al., 2006], radial basis function (RBF) models [Isaacs et
+al., 2007], Gaussian process (GP) models [Feng et al., 2015],
+support vector machines (SVMs) [Kong et al., 2013], and
+ensembles of multiple surrogate models. These models are
+widely adopted due to their strong performance in approximating nonlinear functions and providing predictive uncertainty estimates. Despite the wide variety of available models, selecting the most suitable surrogate model for a specific
+optimization problem remains challenging and often relies on
+empirical experience rather than clear theoretical guidance.
+For instance, traditional surrogate models struggle to capture
+sequential dependencies or temporal correlations inherent in
+
+complex optimization problems with time-series or historydependent characteristics.
+SAEAs have been successfully applied to both single- and
+multi-objective optimization. In single objective settings,
+Yang et al. [Yang et al., 2020] use a surrogate to classify
+and select promising subpopulations for faster convergence.
+In multi-objective optimization, [Tian et al., 2023] employs
+surrogates for pairwise solution comparisons instead of direct fitness prediction, [Lv et al., 2019] integrates Pareto
+active learning with surrogate-assisted particle swarm optimization and a simulated evolution-inspired mutation strategy to enhance solution quality. Recent advances include
+decomposition-based local learning [Shen et al., 2024] and
+interpretable machine learning for acceleration [Li et al.,
+2024], further expanding SAEAs to address complex optimization challenges.However, the application of SAEAs to
+client selection in federated learning remains unexplored.
+Our work is the first to introduce SAEAs into this domain,
+proposing the EvoCSFL framework to efficiently solve the
+expensive multi-objective combinatorial optimization problem of client selection.
+
+3
+
+Framework of EvoCSFL
+
+The framework of the proposed EvoCSFL is demonstrated
+in Figure 1 and includes four main components: (1) obtaining candidate client selections; (2) calculating the evaluation
+metric on each candidate; (3) constructing a surrogate model
+based on the evaluated candidates; and (4) searching for optimal client selections using SAEAs. These components are
+detailed in the following subsections.
+
+3.1
+
+Problem Definition
+
+Consider a candidate pool of U client devices C =
+{c1 , c2 , . . . , cU }, where client ci possesses its own dataset
+Di . A client selection is defined as S = {s1 , s2 , . . . , sV }
+where S ⊆ C. We guide client selection based on the following perspectives: (1) impact on the global model; (2) lower
+latency; (3) lower energy consumption. The corresponding
+comprehensive metric function M (S) for evaluating the selected client solution S is defined as follows:
+
+M (S) = Ppref (S) ·
+
+L
+PL (S)
+
+I(L<PL (S))·α 
+·
+
+E
+PE (S)
+
+I(E<PE (S))·β
+
+• L and E denote the latency and energy consumption
+budgets, respectively. I(·) is the indicator function that
+imposes a penalty when the actual resource usage exceeds these budgets.
+For clients that have not participated in training, the aforementioned state information can only be obtained after they
+actually engage in training. Therefore, predicting the state of
+these devices during the pre-selection phase in a more costeffective manner becomes a key challenge. Using surrogate
+models to replace actual evaluations can significantly reduce
+the computational resources required.
+
+3.2
+
+M (sj ) − Mextmin
+× θs ,
+(2)
+Mextmax − Mextmin
+, where M (sj ) is the original score computed with the comprehensive metric function for the client selection sj , Mextmax
+and Mextmin are the maximum and minimum values of M (sj )
+among all client selection sets in the current communication
+round. θs is a scaling factor used to map the score into the
+range [0, θs ]. The value of yj depends on the performance of
+the clients combination in its last training session. For clients
+that have never been selected in FL, the average performance
+of those selected clients is adopted here.
+The final dataset Dgi obtained in communication round i
+is constructed by combining Dhi with sampled historical data
+(1∼i−1)
+Dh
+, where Nhist denotes the number of randomly selected samples. The specific formulas are given as follows:
+yj =
+
+(1∼i−1)
+
+(1)
+
+The formula consists of four main components:
+
+
+q
+P
+P
+2
+1
+1
+• Ppref (S) = |S|
+|D
+|
+Loss
+(k)
+,
+j
+j∈S
+k∈Dj
+|Dj |
+representing the performance of S on downstream tasks,
+where Dj denotes the local training dataset of client j,
+and Loss2 (k) represents the squared loss computed on
+data sample k.
+
+• PL (S) = maxi∈S Titrain + Ticomm , representing the
+actual latency of S, which is determined by the maximum training and communication time among all clients
+in the selected subset.
+
+• PE (S) = maxi∈S Eitrain + Eicomm , representing the
+actual energy consumption of S, defined as the maximum sum of local training and communication energy
+consumption across the selected clients.
+
+Candidate Client Selections Generation
+
+We use three typical client selection methods discussed in
+subsection 2.1, i.e., TiFL, FedAvg and Oort, to generate initial client selections for the subsequent SAEAs process, i.e.,
+surrogate modeling and evolutionary searching. Therefore,
+client selection sets together with performance evaluations
+are obtained here. With the above strategies, the dataset of
+selected clients during the i-th communication round is denoted as Dhi = {(sj , yj )}N
+j=1 . The performance evaluation yj
+for sj is calculated by normalizing the comprehensive metric
+function M (S):
+
+Dh
+
+=
+
+i−1
+[
+
+Dhk
+
+(3)
+
+k=1
+
+
+
+(1∼i−1)
+Dgi = Dhi ∪ Sample Dh
+, Nhist
+
+3.3
+
+(4)
+
+Design of Surrogate Model
+
+In EvoCSFL, a surrogate model is designed to predict the
+performance of client selection strategies, guiding the subsequent evolutionary search. The model is trained on the historical dataset Dg to learn the mapping between client selection sequences and their observed performance. Federated
+learning is inherently dynamic client performance and states
+change continuously due to device network fluctuations. Importantly, the performance depends on the set of selected
+clients, not the order of selection. To enforce this order invariance, we augment the training data by randomly shuffling
+each client selection sequence multiple times.
+
+Server
+
+Optimal Selection
+{C2,C3,C5}
+Yes
+
+Client
+Device
+Pool
+
+C1
+
+C2
+
+Cn
+
+Selection:{C2,C3}
+
+(1) Classical Client Selection Methods
+History-based
+AFL
+
+Termination Criteria
+Satisfied?
+
+Selection:{C1,C3,C5}
+
+Oort
+
+⋯
+
+Random-based
+
+Probing-based
+
+FedAvg
+
+FedRank FedMarl
+
+⋯
+
+⋯
+
+Evaluate
+
+Surrogate
+
+(2) Comprehensive
+
+(3) Model
+
+metric function M(S)
+
+Selection:{C1,C3,C5}
+Score:0.74
+Selection:{C2,C3}
+Score:0.37
+
+⋯
+
+Offspring
+Crossover&
+Mutation
+
+Lmse
+50%
+
+No
+
+⋯
+
+GRU
+
+Selection:{C1,C3,C5}
+Selection:{C2,C4,C5}
+
+50%
+
+(4) Initial Population
+
+Figure 1: The EvoCSFL framework involves four main steps: (1) Collect good client selections using existing algorithms. (2) Score them
+each round with a comprehensive metric. (3) Train a surrogate model on half the data to predict selection performance. (4) Use remianing
+data to initialize and evolve toward the best selection.
+
+At the model level, we employ a gated recurrent unit
+(GRU) [Chung et al., 2014] as the encoder. The given sequence of a clients-combination S = {s1 , s2 , . . . , sN } is sequentially fed into the encoder, producing an output embedding sequence ES = [h1 , h2 , . . . , hN ] ∈ RN ×d , where N is
+the length of the sequence S, and d is the embedding dimension. We then compute the mean pooling over ES to obtain
+PN
+a unified embedding representation Ē = N1 i=1 hi with
+Ē ∈ Rd . Finally, Ē is passed through a non-linear layer to
+estimate the score ŷ.
+To minimize the discrepancy between the estimated score
+and the true score, we adopt the mean squared error (MSE)
+loss, defined as:
+Lmse = MSE(y, ŷ) = (y − ŷ)2 .
+
+(5)
+
+Algorithm 1 Procedure of SAGA
+Require: Heuristic-based Initialization P0 = {S1 , S2 , . . . , SN },
+where Si ⊆ C, population size N , maximum iterations T ,
+mutation rate µ, surrogate model f (·), candidate clients C =
+{c1 , c2 , . . . , cU }
+1: Initial Evaluation: V0 ← {f (Si ) | Si ∈ P0 }
+2: for t = 1 to T do
+3:
+Selection: Pt ∼ RouletteWheelSelect(Pt−1 , Vt−1 , N )
+4:
+for j = 1 to N/2 do
+′
+′
+5:
+Crossover: S2j−1
+, S2j
+← OX(Sr1 , Sr2 )
+′
+′
+6:
+Mutation:(For each S ′ ∈ {S2j−1
+, S2j
+}
+Swap(S ′ )
+with prob. µ
+Replace(S ′ ) with prob. µ/2
+′
+′
+′
+′
+)
+← f (S2j
+), v2j
+← f (S2j−1
+Evaluation: v2j−1
+end for
+Elitist Preservation: Sbest ← arg max f (S)
+S′ ←
+
+7:
+8:
+9:
+
+S∈Pt−1
+
+3.4
+
+Searching by Genetic Algorithm
+
+Although the surrogate model maps client selections into a
+continuous space where gradient descent [Ning et al., 2024]
+could be applied, such local search methods are prone to getting trapped in suboptimal solutions due to their reliance on
+local gradient information and lack of global exploration. To
+address this, EvoCSFL employs a surrogate-assisted genetic
+algorithm (SAGA) for global combinatorial optimization and
+its procedure is illustrated in Algorithm 1.
+At the beginning, each client selection scheme is encoded
+as an individual using an integer sequence representation,
+where a sequence of unique client IDs denotes the selected
+subset. Given the exponential 2|C| search space of possible
+combinations, random population initialization is inefficient,
+risking slow convergence or failure. To resolve this, the algorithm starts evolutionary iterations from a heuristic-based
+initial population built with high-quality historical selection
+sets stored in Dg . Such an initial population focuses search
+in the most promising subspaces.
+In the evolutionary loop, a GRU-based surrogate model
+f (·) serves as a low-cost fitness evaluator. It quickly as-
+
+′
+} ∪ {Sbest },
+Update Population: Pt ← Pt−1 ∪ {S1′ , . . . , SN
+′
+′
+Vt ← Vt−1 ∪ {v1 , . . . , vN } ∪ {f (Sbest )}
+11: end for
+12: Return S ∗ = arg max f (S)
+
+10:
+
+S∈PT
+
+sesses each potential client combination in the population by
+predicting its comprehensive score, enabling the GA to efficiently explore the large solution space without costly training evaluations.
+For selection, we use roulette wheel selection to calculate
+each individual’s fitness proportion relative to the total fitness
+sum. This approach retains high fitness individuals while still
+allowing lower fitness ones to be chosen, preserving population diversity. For crossover, we replace conventional SinglePoint Crossover (SPX) [Kora and Yadlapalli, 2017] with Ordered Crossover (OX) [Katoch et al., 2021] as the primary
+operator. OX preserves a contiguous segment from one parent and fills remaining positions of the other parent’s order,
+ensuring no duplicate clients IDs in offspring and avoid con-
+
+=1
+
+Client_0
+Client_1
+Client_2
+
+Client_3
+
+Client_4
+
+=0.1
+
+=0.01
+
+1.0
+
+1.0
+
+1.0
+
+0.8
+
+0.8
+
+0.8
+
+0.6
+0.4
+0.2
+0.0
+
+0.6
+0.4
+0.2
+0.0
+
+0.6
+0.4
+0.2
+0.0
+
+Label_9
+Label_8
+Label_7
+Label_6
+Label_5
+Label_4
+Label_3
+Label_2
+Label_1
+Label_0
+
+Client_0
+Client_1
+Client_2
+
+Client_3
+
+Client_4
+
+Label_9
+Label_8
+Label_7
+Label_6
+Label_5
+Label_4
+Label_3
+Label_2
+Label_1
+Label_0
+
+Client_0
+Client_1
+Client_2
+
+Client_3
+
+Label_9
+Label_8
+Label_7
+Label_6
+Label_5
+Label_4
+Label_3
+Label_2
+Label_1
+Label_0
+
+Client_4
+
+Figure 2: The distribution of labels under varying concentration levels, where lower concentration results in more extreme label distributions.
+
+4
+
+Experiment
+
+4.1
+
+Experiment Setup
+
+Simulation setup. We use the Plato framework [Li et al.,
+2023], an open-source FL platform built on PyTorch, to implement the experimental simulation. On this platform, an
+FL system with 100 mobile clients and a central model aggregation server is considered. To capture heterogeneous
+client training time, a Pareto distribution with shape parameter γ = 1, denoted as pk ∼ Pareto(γ = 1) is applied to
+simulate the per-client computation time. For energy consumption, we assume a normal distribution with mean 1 and
+standard deviation 0.2 to describe the per-minute energy usage (in joules). To ensure realistic values, all generated samples are clipped to lie within the interval [0.5, 1.5].
+Datasets and models. We adopt typical models and
+datasets from the computer vision domain to evaluate the
+proposed algorithm, including: LeNet5 [LeCun et al.,
+2002] trained on MNIST [LeCun, 1998], ResNet18 [He
+et al., ] trained on CIFAR10 [Krizhevsky and Hinton,
+2009], VGG16 [Simonyan and Zisserman, 2015] trained
+on CINIC10 [Darlow et al., 2018], ShuffleNet [Zhang et
+al., ] trained on TinyImageNet [Deng et al., 2009]. Each
+dataset contains 10 classes, and the classification difficulty
+increases progressively across these datasets. To simulate
+data heterogeneity, we model the local data label distribution at each client using a Dirichlet distribution. For a Kclass classification task, each client’s label distribution pi =
+(pi,1 , pi,2 , . . . , pi,K ) is sampled from pi ∼ Dirichlet(δ · 1K ),
+where 1K is a K-dimensional vector of ones and the concentration parameter δ controls the level of data heterogeneity, as
+shown in Figure 2.
+Baselines. We compare EvoCSFL with six state-of-the-art
+client selection methods: FedAvg [McMahan et al., 2017],
+
+AFL [Goetz et al., 2019], TiFL [Chai et al., 2020], Oort [Lai
+et al., 2021], FedRank [Tian et al., 2024], and FedGcs [Ning
+et al., 2024]. We use Time to Accuracy (ToA), a metric that
+measures how long it takes for federated learning to reach
+a target accuracy. Our experiments aim to demonstrate that
+EvoCSFL: (1) converges faster under both IID and Non-IID
+data; (2) reduces energy use and minimizes straggler effects
+in heterogeneous systems; and (3) remains robust in dynamic,
+resource-limited federated settings thanks to its surrogateassisted evolutionary search.
+Parameter Settings. At the beginning of each communication round, K = 10 clients are selected from the device pool
+of size N = 100. Each client performs 5 epochs of training with a learning rate of 0.01 and batch size of 32. For
+dataset Dg , we generate 100 distinct client-combinations for
+each of the three methods, resulting in 300 candidates in total. The scaling factor θs is set to 0.95, with α = 1, β = 1,
+and Nhist = 200. To simulate order invariance, we randomly
+shuffle the order of each group of data twice. For the surrogate model, the hidden layer size is set to 64, trained for
+100 epochs with batch size 32 and learning rate 0.001. The
+remaining 50% of the data are used to initialize the heuristic
+population of size 300 with 150 evolutionary iterations and
+mutation probability µ = 0.1 to ensure the evolution diversity.
+90
+80
+70
+
+Accuracy (%)
+
+flict detection.
+To boost the algorithm’s exploration ability, we design a
+hybrid mutation strategy: with probability µ, swap mutation exchanges two clients’ positions within an individual;
+with probability µ/2, replacement mutation swaps an existing
+client for a random candidate pool member. This dual mechanism balances local search precision and population diversity.
+Finally, an elite preservation strategy is implemented.
+
+60
+50
+
+FedAvg
+FedProx
+AFL
+TiFL
+Oort
+FedRank
+FedGCS
+EvoCSFL
+
+40
+30
+20
+10
+0
+
+10
+
+20
+
+30
+
+Training Time (hours)
+
+40
+
+Figure 3: Performance on the ToA metric when training ResNet18
+on CIFAR10 (IID) dataset.
+
+Non-IID2
+
+IID
+
+Dataset & Model
+FedAvg
+AFL
+TiFL
+Oort
+FedRank
+FedGCS
+EvoCSFL
+FedAvg
+AFL
+TiFL
+Oort
+FedRank
+FedGCS
+EvoCSFL
+
+MNIST-LeNet5
+Acc(%)↑ Energy↓ Speed↑
+98.75
+100%
+1×
+98.80
+61.3%
+1.62×
+98.86
+60.0%
+1.72×
+98.97
+44.2%
+2.12×
+99(32) 1
+40.1%
+1.56×
+99(28) 1
+99(44) 1
+41.4%
+2.28×
+87.61
+100%
+1×
+90.23
+63.5%
+1.53×
+91.59
+58.7%
+1.77×
+93.18
+51.4%
+1.84×
+93.67
+47.4%
+1.48×
+95.83
+96.52
+45.5%
+1.92×
+
+CIFAR10-ResNet18
+Acc(%)↑ Energy↓ Speed↑
+87.30
+100%
+1×
+86.85
+74.4%
+1.32×
+87.28
+49.5%
+1.99×
+86.68
+43.3%
+2.08×
+87.69
+44.4%
+1.67×
+88.42
+88.72
+35.8%
+2.49×
+52.93
+100%
+1×
+50.78
+62.0%
+1.51×
+56.15
+52.8%
+1.88×
+61.02
+46.1%
+1.95×
+59.11
+50.8%
+1.78×
+61.62
+63.31
+38.0%
+2.37×
+
+CINIC10-VGG16
+Acc(%)↑ Energy↓ Speed↑
+66.01
+100%
+1×
+66.75
+74.3%
+1.31×
+67.41
+46.1%
+2.08×
+67.38
+48.0%
+1.87×
+68.58
+52.9%
+2.01×
+69.09
+68.76
+31.5%
+2.70×
+39.07
+100%
+1×
+40.88
+65.6%
+1.45×
+42.10
+51.7%
+1.88×
+45.15
+46.1%
+1.95×
+47.07
+55.2%
+1.75×
+46.27
+48.25
+33.9%
+2.51×
+
+TinyImageNet-ShuffleNet
+Acc(%)↑ Energy↓ Speed↑
+41.27
+100%
+1×
+42.66
+75.8%
+1.29×
+41.96
+60.6%
+1.62×
+43.26
+68.1%
+1.42×
+43.54
+63.3%
+1.81×
+43.35
+44.68
+48.0%
+1.87×
+26.65
+100%
+1×
+29.00
+64.4%
+1.48×
+28.43
+64.5%
+1.54×
+29.07
+47.1%
+1.92×
+30.04
+67.4%
+1.83×
+29.51
+30.83
+40.6%
+2.23×
+
+Table 1: Comparison of EvoCSFL with other client selection methods, including energy consumption and training speed metrics. 1 Training
+is terminated early upon reaching a target accuracy(99%). 2 For the MNIST dataset, δ = 0.01, for other dataset, δ = 0.1.
+
+4.2
+
+Overall Performance
+
+Table 1 presents prediction accuracy, system energy consumption and training speed under IID and Non-IID configurations. Compared with FedGCS adopting gradient-based
+continuous optimization prone to local optima, EvoCSFL obtains superior performance via surrogate-assisted global evolutionary searching. In IID scenarios, EvoCSFL achieves the
+fastest convergence on all four benchmarks, reaching 2.49×
+and 2.70× speedup against FedAvg on CIFAR10-ResNet18
+and CINIC10-VGG16 respectively. Such acceleration originates from carefully selecting high-quality clients and mitigating straggler overhead. As plotted in Figure 3, EvoCSFL
+exhibits a far steeper accuracy ascent than all baselines including FedGCS, verifying that the surrogate model combined with evolutionary optimization rapidly identifies optimal client subsets to expedite convergence. Meanwhile, its
+energy cost is lowered to only 35.8% and 31.5% of FedAvg
+on the above two datasets. EvoCSFL gains an average IID accuracy improvement of 1.95% over FedAvg. In challenging
+Non-IID environments, it outperforms all competitors across
+all datasets: the average accuracy rises by 7.5% against FedAvg and surpasses the suboptimal FedGCS by 1.69% on
+CIFAR10. These observations validate that the surrogate
+model exploits historical client statistics for precise performance prediction, supporting adaptive, robust client selection
+to cope with data heterogeneity and stabilize global training
+convergence.
+
+4.3
+
+Performance on Different Heterogeneous setup
+
+Figure 4 compares the ToA performance of EvoCSFL and FedAvg on CIFAR10-ResNet18 under varying data heterogeneity controlled by δ. EvoCSFL consistently achieves higher
+training efficiency and robustness across all settings. Under low (δ = 1) and moderate (δ = 0.5) heterogeneity
+(Figures 4a and 4b), it converges significantly faster, with
+steeper early accuracy gains and sustained superiority, leading to shorter time-to-target accuracy. Even under extreme
+heterogeneity (δ = 0.1, Figure 4c), where both methods suffer high fluctuations due to severe label imbalance, EvoCSFL
+exhibits smaller variance and a clearer upward trend, demonstrating greater stability. This underscores its robustness: the
+
+surrogate model leverages historical client behavior to predict combination performance, enabling adaptive, informed
+selection that mitigates Non-IID challenges and supports stable global convergence.
+
+4.4
+
+Analysis of Important Operators
+
+Convergence of crossover operators. As shown in Figure 5, we compare crossover operators under varying mutation rates via repeated trials. The OX operator stands out by
+ensuring that offspring do not have duplicate clients, thereby
+avoiding costly conflict checks. In contrast, the SPX operator
+often generates invalid offspring with duplicates due to random segment swapping, severely slowing convergence. OX
+converges in approximately 150 rounds, whereas SPX fails
+to converge even after 300 rounds. A heuristic initialization strategy quickly directs the search toward high-quality
+regions, reducing the search space and enabling strong performance without high mutation rates.
+Ablation study. We further illustrate the effectiveness of
+key components of EvoCSFL by removing corresponding
+modules. Two variants are tested: (1) EvoCSFL−c with
+only random-based methods to construct training data Dg ; (2)
+EvoCSFL−s , which removes the surrogate model and uses a
+greedy strategy based solely on the current composite fitness,
+i.e., arg maxS∈Dg M (S).
+As shown in Figure 6, EvoCSFL outperforms both variants. The improvement over EvoCSFL−c , which omits the
+heuristic-based population initialization, underscores the effectiveness of this design in constructing a high-quality initial
+population and guiding the evolutionary search toward superior solutions. EvoCSFL−s ’s inferior performance shows
+that greedy selection fails to capture historical client behavior or adapt to dynamics. In contrast, the surrogate model
+leverages historical data to predict selection performance efficiently, enabling robust, adaptive decisions under client-side
+uncertainty.
+Sensitivity Analysis of α and β We analyze hyperparameters α and β as show in table 2. α controls the penalty weight
+for clients exceeding latency threshold L, and β penalizes devices surpassing energy limit E. Larger α or β introduces
+
+60
+
+50
+
+50
+
+50
+
+40
+30
+20
+
+Accuracy (%)
+
+60
+
+Accuracy (%)
+
+Accuracy (%)
+
+60
+
+40
+30
+20
+
+FedAvg
+EvoCSFL
+
+10
+0
+
+5
+
+10
+
+15
+
+20
+
+25
+
+30
+
+Training Time (hours)
+
+35
+
+20
+
+0
+
+(a) CIFAR10-ResNet18 (δ = 1)
+
+30
+
+FedAvg
+EvoCSFL
+
+FedAvg
+EvoCSFL
+
+10
+
+40
+
+40
+
+5
+
+10
+
+15
+
+20
+
+25
+
+30
+
+Training Time (hours)
+
+35
+
+0
+
+40
+
+(b) CIFAR10-ResNet18 (δ = 0.5)
+
+10
+
+20
+
+30
+
+40
+
+50
+
+60
+
+Training Time (hours)
+
+70
+
+(c) CIFAR10-ResNet18 (δ = 0.1)
+
+Figure 4: ToA performance under different levels of data heterogeneity.
+1.00
+
+0.16
+
+0.94
+
+SPX (mr=0.1)
+SPX (mr=0.3)
+SPX (mr=0.5)
+OX (mr=0.1)
+OX (mr=0.3)
+OX (mr=0.5)
+
+0.92
+0
+
+50
+
+100
+
+150
+
+Generation
+
+200
+
+250
+
+300
+
+Figure 5: Comparison of convergence performance between SPX and OX crossover operators.
+
+Extra Time (hours)
+
+0.96
+
+Accuracy (%)
+
+Score
+
+0.98
+
+0.90
+
+0.14
+
+60
+50
+40
+30
+EvoCSFL c
+EvoCSFL s
+EvoCSFL
+
+20
+10
+
+0.0
+
+2.5
+
+5.0
+
+Value
+
+Vary α (β = 1)
+Vary β (α = 1)
+Acc(%)↑ Energy↓ Speed↑ Acc(%)↑ Energy↓ Speed↑
+
+0
+0.5
+1
+2
+4
+
+62.18
+62.94
+63.31
+63.05
+60.42
+
+1.87×
+2.05×
+2.37×
+2.41×
+2.68×
+
+62.55
+63.02
+63.31
+62.88
+60.07
+
+10.0
+
+12.5
+
+15.0
+
+17.5
+
+Figure 6: Ablation study of EvoCSFL, comparing its variants to a ResNet18 model
+trained on CIFAR10 with δ = 0.5.
+
+Table 2: Sensitivity of EvoCSFL to α and β on CIFAR10–ResNet18
+(Non-IID, δ = 0.1). β = 1 when varying α; α = 1 when varying β.
+
+44.9%
+39.1%
+38.0%
+34.7%
+37.1%
+
+7.5
+
+Training Time (hours)
+
+43.5%
+47.5%
+38.0%
+33.1%
+32.4%
+
+2.08×
+2.15×
+2.37×
+2.25×
+2.09×
+
+heavier punishment for clients violating corresponding constraints, while the values of L and E are determined by practical engineering requirements on maximum tolerable training
+time and device energy consumption. With fixed β = 1, increasing α consistently improves overall training speed owing to stricter latency punishment against stragglers. Accuracy peaks at α = 1 (63.31%), whereas an over-large α excessively excludes high-quality clients and deteriorates model
+accuracy despite further speed gains.When fixing α = 1, the
+rise of β continuously reduces system energy consumption
+via enhanced penalty on high-power clients. Optimal accuracy is obtained at β = 1, and overly enlarged β sacrifices
+
+Model
+
+MSE
+(mean±std)
+
+0.12
+0.10
+0.08
+0.06
+0.04
+0.02
+0.00
+101
+
+102
+
+Client Size
+
+104
+
+103
+
+Figure 7: Average extra time overhead of
+EvoCSFL under different client scales, with
+a fixed client selection rate of 10%.
+
+MAE
+(mean±std)
+
+R2
+(mean±std)
+
+RBF 0.0267±0.0038 0.1235±0.0091 0.6356±0.0506
+GRU 0.0103±0.0012 0.0756±0.0040 0.8577±0.0163
+LSTM 0.0121±0.0014 0.0820±0.0045 0.8312±0.0207
+
+Time (ms)
+0.054
+0.716
+0.796
+
+Table 3: Comparison of Different Surrogate Models
+
+classification performance to pursue lower energy usage.In
+practical engineering, FL requires balanced optimization on
+training time L and device energy E. The setting α = β = 1
+strikes the optimal trade-off among accuracy, speed and energy cost.
+Surrogate model fitting ability. Table 3 shows the fitting
+ability of different surrogate models using Mean Squared Error (MSE), Mean Absolute Error (MAE), coefficient of determination (R2 ) and single inference latency. It can be
+concluded that the GRU model excels in both accuracy and
+stability with the smallest standard deviations, demonstrating strong consistency across trials. Long short-term memory (LSTM) [Graves, 2012] model performs adequately but
+falls slightly behind. Despite its fast inference, the RBF
+
+model shows poor fitting capability and significant performance variability.
+
+4.5
+
+Extra Cost Analysis
+
+To evaluate the system overhead, Figure 7 examines the time
+and memory costs of EvoCSFL. Experiments are conducted
+on the cinic10 by training a VGG16 model on an NVIDIA
+RTX 3090 GPU and an Intel Core i5 14600KF CPU. With
+100 clients, EvoCSFL introduces an average additional runtime of only 3.98 seconds per communication round, which
+corresponds to just 70% of the average training time of 9.2
+minutes per round, satisfying stringent performance requirements. Memory consumption is primarily determined by the
+model itself, with VGG16 occupying 56.25 MB. In contrast,
+EvoCSFL incurs a negligible memory footprint of only 0.667
+MB even when scaled to 10,000 clients, amounting to 1.2%
+of the total memory overhead.
+
+5
+
+Conclusion
+
+We present EvoCSFL, a surrogate-assisted evolutionary
+client selection framework to enhance federated learning with
+system and data heterogeneity. EvoCSFL formulates client
+selection as a combinatorial optimization problem and uses
+a surrogate model to efficiently evaluate candidate client subsets. Furthermore, EvoCSFL employs evolutionary algorithm
+to explore the solution space. Our framework contributes to
+federated learning by demonstrating that client selection can
+be treated as a dynamic combinatorial optimization task. Extensive experiments show that EvoCSFL outperforms existing methods with minimal computational overhead. Its application in practical problems will be further studied.
+
+References
+[AbdulRahman et al., 2020] Sawsan AbdulRahman, Hanine
+Tout, Azzam Mourad, and Chamseddine Talhi. Fedmccs:
+Multicriteria client selection model for optimal iot federated learning. IEEE Internet of Things Journal, 8(6):4723–
+4735, 2020.
+[Chai et al., 2020] Zheng Chai, Ahsan Ali, Syed Zawad,
+Stacey Truex, Ali Anwar, Nathalie Baracaldo, Yi Zhou,
+Heiko Ludwig, Feng Yan, and Yue Cheng. Tifl: A tierbased federated learning system. In Proceedings of the
+29th International Symposium on High-Performance Parallel and Distributed Computing, pages 125–136, 2020.
+[Ching et al., 2020] Cheng-Wei Ching, Yu-Chun Liu,
+Chung-Kai Yang, Jian-Jhih Kuo, and Feng-Ting Su.
+Optimal device selection for federated learning over
+mobile edge networks. In 2020 IEEE 40th International
+Conference on Distributed Computing Systems (ICDCS),
+pages 1298–1303. IEEE, 2020.
+[Chung et al., 2014] Junyoung Chung, Caglar Gulcehre,
+KyungHyun Cho, and Yoshua Bengio. Empirical Evaluation of Gated Recurrent Neural Networks on Sequence
+Modeling. arXiv e-prints, page arXiv:1412.3555, December 2014.
+[Darlow et al., 2018] Luke N Darlow, Elliot J Crowley,
+Antreas Antoniou, and Amos J Storkey. Cinic-10 is not
+
+imagenet or cifar-10. arXiv preprint arXiv:1810.03505,
+2018.
+[Deng et al., 2009] Jia Deng, Wei Dong, Richard Socher, LiJia Li, Kai Li, and Li Fei-Fei. Imagenet: A large-scale
+hierarchical image database. In 2009 IEEE Conference on
+Computer Vision and Pattern Recognition, pages 248–255,
+2009.
+[Feng et al., 2015] Zhiwei Feng, Qingbin Zhang, Qingfu
+Zhang, Qiangang Tang, Tao Yang, and Yang Ma. A multiobjective optimization based framework to balance the
+global exploration and local exploitation in expensive optimization. Journal of Global Optimization, 61(4):677–694,
+2015.
+[Goetz et al., 2019] Jack Goetz, Kshitiz Malik, Duc Bui, Seungwhan Moon, Honglei Liu, and Anuj Kumar. Active federated learning. arXiv preprint arXiv:1909.12641,
+2019.
+[Graves, 2012] Alex Graves. Long short-term memory. Supervised Sequence Labelling with Recurrent Neural Networks, pages 37–45, 2012.
+[He et al., ] Kaiming He, Xiangyu Zhang, Shaoqing Ren,
+and Jian Sun. Deep residual learning for image recognition. In Proceedings of the IEEE Conference on Computer
+Vision and Pattern Recognition, pages 770–778.
+[Imteaj et al., 2022] Ahmed Imteaj,
+Khandaker Mamun Ahmed, Urmish Thakker, Shiqiang Wang, Jian Li,
+and M Hadi Amini. Federated learning for resourceconstrained iot devices: Panoramas and state of the art.
+Federated and transfer learning, pages 7–27, 2022.
+[Isaacs et al., 2007] Amitay Isaacs, Tapabrata Ray, and Warren Smith. An evolutionary algorithm with spatially distributed surrogates for multiobjective optimization. In
+Australian Conference on Artificial Life, pages 257–268.
+Springer, 2007.
+[Karimireddy et al., 2020] Sai
+Praneeth
+Karimireddy,
+Satyen Kale, Mehryar Mohri, Sashank Reddi, Sebastian Stich, and Ananda Theertha Suresh.
+Scaffold:
+Stochastic controlled averaging for federated learning. In
+International Conference on Machine Learning, pages
+5132–5143. PMLR, 2020.
+[Katoch et al., 2021] Sourabh Katoch,
+Sumit Singh
+Chauhan, and Vijay Kumar. A review on genetic algorithm: past, present, and future. Multimedia Tools and
+Applications, 80(5):8091–8126, 2021.
+[Kong et al., 2013] Weijian Kong, Tianyou Chai, Shengxiang Yang, and Jinliang Ding. A hybrid evolutionary multiobjective optimization strategy for the dynamic power supply problem in magnesia grain manufacturing. Applied
+Soft Computing, 13(5):2960–2969, 2013.
+[Kora and Yadlapalli, 2017] Padmavathi Kora and Priyanka
+Yadlapalli. Crossover operators in genetic algorithms: A
+review. International Journal of Computer Applications,
+162(10), 2017.
+
+[Krizhevsky and Hinton, 2009] Alex Krizhevsky and Geoffrey Hinton. Learning multiple layers of features from tiny
+images. 2009.
+[Lai et al., 2021] Fan Lai, Xiangfeng Zhu, Harsha V Madhyastha, and Mosharaf Chowdhury. Oort: Efficient federated learning via guided participant selection. In 15th
+USENIX Symposium on Operating Systems Design and
+Implementation, OSDI 2021, pages 19–35. USENIX Association, 2021.
+[LeCun et al., 2002] Yann LeCun, Léon Bottou, Yoshua
+Bengio, and Patrick Haffner. Gradient-based learning applied to document recognition. Proceedings of the IEEE,
+86(11):2278–2324, 2002.
+[LeCun, 1998] Yann LeCun. The mnist database of handwritten digits. http://yann. lecun. com/exdb/mnist/, 1998.
+[Li et al., 2021] Li Li, Moming Duan, Duo Liu, Yu Zhang,
+Ao Ren, Xianzhang Chen, Yujuan Tan, and Chengliang
+Wang. Fedsae: A novel self-adaptive federated learning framework in heterogeneous systems. In 2021 International Joint Conference on Neural Networks (IJCNN),
+pages 1–10. IEEE, 2021.
+[Li et al., 2023] Baochun Li, Ningxin Su, Chen Ying, and
+Fei Wang. Plato: An open-source research framework for
+production federated learning. In Proceedings of the ACM
+Turing Award Celebration Conference-China 2023, pages
+1–2, 2023.
+[Li et al., 2024] Bingdong Li, Yanting Yang, Dacheng Liu,
+Yan Zhang, Aimin Zhou, and Xin Yao. Accelerating surrogate assisted evolutionary algorithms for expensive multiobjective optimization via explainable machine learning.
+Swarm and Evolutionary Computation, 88:101610, 2024.
+[Lim et al., 2020] Wei Yang Bryan Lim, Nguyen Cong Luong, Dinh Thai Hoang, Yutao Jiao, Ying-Chang Liang,
+Qiang Yang, Dusit Niyato, and Chunyan Miao. Federated learning in mobile edge networks: A comprehensive survey. IEEE Communications Surveys & Tutorials,
+22(3):2031–2063, 2020.
+[Lv et al., 2019] Zhiming Lv, Linqing Wang, Zhongyang
+Han, Jun Zhao, and Wei Wang. Surrogate-assisted particle swarm optimization algorithm with pareto active learning for expensive multi-objective optimization. IEEE/CAA
+Journal of Automatica Sinica, 6(3):838–849, 2019.
+[McMahan et al., 2017] Brendan McMahan, Eider Moore,
+Daniel Ramage, Seth Hampson, and Blaise Aguera y Arcas. Communication-efficient learning of deep networks
+from decentralized data. In Artificial Intelligence and
+Statistics, pages 1273–1282. PMLR, 2017.
+[Ning et al., 2024] Zhiyuan Ning, Chunlin Tian, Meng Xiao,
+Wei Fan, Pengyang Wang, Li Li, Pengfei Wang, and
+Yuanchun Zhou. Fedgcs: a generative framework for efficient client selection in federated learning via gradientbased optimization. pages 4760–4768, 2024.
+[Nishio and Yonetani, 2019] Takayuki Nishio and Ryo Yonetani. Client selection for federated learning with heterogeneous resources in mobile edge. In ICC 2019-
+
+2019 IEEE International Conference on Communications
+(ICC), pages 1–7. IEEE, 2019.
+[Omori and Kashima, 2023] Tomohito Omori and Kenji
+Kashima. Combinatorial optimization approach to client
+scheduling for federated learning. IEEE Control Systems
+Letters, 7:2203–2208, 2023.
+[Shen et al., 2024] Jiangtao Shen, Peng Wang, Huachao
+Dong, Wenxin Wang, and Jinglu Li. Surrogate-assisted
+evolutionary algorithm with decomposition-based local
+learning for high-dimensional multi-objective optimization. Expert Systems with Applications, 240:122575, 2024.
+[Shi, 2023] Lingyu Shi. A survey on federated learning: evolution, applications and challenges. Applied and Computational Engineering, 22:106–111, 10 2023.
+[Simonyan and Zisserman, 2015] K Simonyan and A Zisserman. Very deep convolutional networks for large-scale
+image recognition. In 3rd International Conference on
+Learning Representations (ICLR 2015). Computational
+and Biological Learning Society, 2015.
+[Tian et al., 2023] Ye Tian, Jiaxing Hu, Cheng He, Haiping
+Ma, Limiao Zhang, and Xingyi Zhang. A pairwise comparison based surrogate-assisted evolutionary algorithm
+for expensive multi-objective optimization. Swarm and
+Evolutionary Computation, 80:101323, 2023.
+[Tian et al., 2024] Chunlin Tian, Zhan Shi, Xinpeng Qin,
+Li Li, and Chengzhong Xu. Ranking-based client imitation
+selection for efficient federated learning. In Proceedings
+of the 41st International Conference on Machine Learning, ICML’24. JMLR.org, 2024.
+[Wang et al., 2020] Hao Wang, Zakhary Kaplan, Di Niu,
+and Baochun Li. Optimizing federated learning on noniid data with reinforcement learning. In IEEE INFOCOM 2020-IEEE conference on computer communications, pages 1698–1707. IEEE, 2020.
+[Wu et al., 2025] Jiagao Wu, Hongyan Ji, Jing Yi, and Linfeng Liu. Optimizing client selection in federated learning
+base on genetic algorithm. Cluster Computing, 28(6):400,
+2025.
+[Xu and Wang, 2020] Jie Xu and Heqiang Wang. Client
+selection and bandwidth allocation in wireless federated
+learning networks: A long-term perspective. IEEE Transactions on Wireless Communications, 20(2):1188–1200,
+2020.
+[Yang et al., 2020] Zan Yang, Haobo Qiu, Liang Gao, Xiwen
+Cai, Chen Jiang, and Liming Chen. Surrogate-assisted
+classification-collaboration differential evolution for expensive constrained optimization problems. Information
+Sciences, 508:50–63, 2020.
+[Zhang et al., ] Xiangyu Zhang, Xinyu Zhou, Mengxiao Lin,
+and Jian Sun. Shufflenet: An extremely efficient convolutional neural network for mobile devices. In Proceedings
+of the IEEE Conference on Computer Vision and Pattern
+Recognition, pages 6848–6856.
+[Zhang et al., 2022] Sai Qian Zhang, Jieyu Lin, and
+Qi Zhang. A multi-agent reinforcement learning approach
+
+for efficient client selection in federated learning. In Proceedings of the AAAI conference on artificial intelligence,
+volume 36, pages 9091–9099, 2022.
+[Zhao et al., 2018] Yue Zhao, Meng Li, Liangzhen Lai,
+Naveen Suda, Damon Civin, and Vikas Chandra. Federated learning with non-iid data.
+arXiv preprint
+arXiv:1806.00582, 2018.
+[Zhou et al., 2006] Zongzhao Zhou, Yew Soon Ong, Prasanth B Nair, Andy J Keane, and Kai Yew Lum. Combining global and local surrogate models to accelerate evolutionary optimization. IEEE Transactions on Systems,
+Man, and Cybernetics, Part C (Applications and Reviews),
+37(1):66–76, 2006.
+
+

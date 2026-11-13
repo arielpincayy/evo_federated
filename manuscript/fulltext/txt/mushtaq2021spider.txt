@@ -1,0 +1,1517 @@
+arXiv:2112.13939v1 [cs.LG] 27 Dec 2021
+
+SPIDER: Searching Personalized Neural Architecture for Federated Learning
+Erum Mushtaq
+University of Southern California
+
+Chaoyang He
+University of Southern California
+
+emushtaq@usc.edu
+
+chaoyang.he@usc.edu
+
+Jie Ding
+University of Minnesota
+
+Salman Avestimehr
+University of Southern California
+
+dingj@umn.edu
+
+avestime@usc.edu
+
+Abstract
+
+(non-I.I.D) distributed. The non-I.I.D distributions result in
+the varying performance of a globally learned model across
+different clients. In addition to data heterogeneity, data invisibility is another challenge in FL. Since clients’ private
+data remain invisible to the server, from the server’s perspective, it is unclear how to select a pre-defined architecture from a pool of all available candidates. In practice,
+it may require extensive experiments and hyper-parameter
+tuning over different architectures, a procedure that can be
+prohibitively expensive.
+
+Federated learning (FL) is an efficient learning framework that assists distributed machine learning when data
+cannot be shared with a centralized server due to privacy
+and regulatory restrictions. Recent advancements in FL use
+predefined architecture-based learning for all the clients.
+However, given that clients’ data are invisible to the server
+and data distributions are non-identical across clients, a
+predefined architecture discovered in a centralized setting
+may not be an optimal solution for all the clients in FL.
+Motivated by this challenge, in this work, we introduce
+SPIDER, an algorithmic framework that aims to Search
+PersonalIzed neural architecture for feDERated learning. SPIDER is designed based on two unique features:
+(1) alternately optimizing one architecture-homogeneous
+global model (Supernet) in a generic FL manner and one
+architecture-heterogeneous local model that is connected
+to the global model by weight sharing-based regularization
+(2) achieving architecture-heterogeneous local model by a
+novel neural architecture search (NAS) method that can select optimal subnet progressively using operation-level perturbation on the accuracy value as the criterion. Experimental results demonstrate that SPIDER outperforms other
+state-of-the-art personalization methods, and the searched
+personalized architectures are more inference efficient.
+
+To address the data-heterogeneity challenge, variants of
+the standard FedAvg have been proposed to train a global
+model, including the FedProx [17], FedOPT [23], and
+FedNova [31]. In addition to training of a global model,
+frameworks that focus on training personalized models
+have also gained a lot of popularity. The Ditto [16],
+PerFedAvg [4], and pFedMe [3] are some of the recent
+works that have shown promising results to obtain improved
+performance across clients. However, all these works exploit pre-defined architectures and operate at the optimization layer. Consequently, in addition to their inherent hyperparameters tuning, these personalization frameworks often
+encounter the data-invisibility challenge that one has to select a suitable model architecture involving a lot of hyperparameter tuning.
+In this work, we adopt a different and complementary technique to address the data heterogeneity challenge
+for FL. We introduce SPIDER, an algorithmic framework
+that aims to Search PersonalIzed neural architecture for
+feDERated learning. Recall that in a centralized setting,
+the neural architecture search (NAS) aims to search for
+optimal architecture to address system design challenges
+such as lower latency [34], lesser memory cost [15], and
+smaller energy consumption [36]. For architecture search,
+there are three well known methods explored in literature,
+gradient-based [21], evolutionary search [22], and reinforcement learning [12]. Out of these, gradient-based meth-
+
+1. Introduction
+Federated Learning (FL) is a promising decentralized
+machine learning framework that facilitates data privacy
+and low communication costs. It has been extensively explored in various machine learning domains such as computer vision, natural language processing, and data mining.
+Despite many benefits of FL, one major challenge involved
+in FL is data heterogeneity, meaning that the data distributions across clients are not identically or independently
+1
+
+ods are generally considered more efficient because of their
+ability to yield higher performance in comparatively lesser
+time [25].
+To achieve personalization at the architecture level in
+FL, we propose a unified framework, SPIDER. This framework essentially deploys two models, local and global models, on each client. Initially, both models use the DARTS
+search space-based Supernet [21], an over-parameterized
+architecture. In the proposed framework, the global model
+is shared with the server for the FL updates and, therefore,
+stays the same in the architecture design. On the other
+hand, the local model stays completely private and performs personalized architecture search, therefore, gets updated. To search for the personalized child model, SPIDER
+deploys SPIDER-Searcher on each client’s local model.
+The SPIDER-Searcher is built upon a well-known gradientbased NAS method, named perturbation-based NAS [33].
+The main objective of the SPIDER framework is to allow
+each client to search and optimize their local models while
+benefiting from the global model. To achieve this goal, we
+propose an alternating bi-level optimization-based SPIDER
+Trainer that trains local and global models in an alternate
+fashion. However, the main challenge here is the optimization of an evolving local model architecture while benefiting
+from a fixed global architecture. To address this challenge,
+SPIDER Trainer performs weight sharing-based regularization that regularizes the common connections between the
+global model’s Supernet and the local model’s child model.
+This aids clients in searching and training heterogeneous
+architectures tailored for their local data distributions. In
+a nutshell, this approach not only yields architecture personalization in FL but also facilitates model privacy (in the
+sense that the derived child local model is not shared with
+the server at all).
+To evaluate the performance of the proposed algorithm,
+we consider a cross-silo FL setting and use Dirichlet distribution to create non-I.I.D data distribution across clients.
+For evaluation, we report test accuracy at each client on the
+20% of training data kept as test data for each client. We
+show that the architecture personalization yields better results than state-of-the-art personalization algorithms based
+solely on the optimization layer, such as Ditto [16], perFedAvg [4], and local adaptation [1].
+To summarize, the following are the key contributions of
+our work.
+• We propose and formulate a personalized neural architecture search framework for FL named SPIDER, from a perspective complementary to the state-of-the-arts to address
+data heterogeneity challenges in FL.
+• SPIDER is designed based on two unique features: (1)
+maintaining two models at each client, one to communicate
+with the server and the other to perform a local progressive search, and (2) operating local search and training at
+
+each client by an alternating bilevel optimization and weight
+sharing-based regularization along the FL updates.
+• We run extensive experiments to demonstrate the benefit of SPIDER compared with state-of-the-art personalized
+FL approaches such as Ditto [16], perFedAvg [4] and Local
+Adaptation [1]. In particular, on the CIFAR10 dataset with
+heterogeneous distribution, we demonstrate an increase of
+the average local accuracy by 2.8%, 1.7%, and 5.5%, over
+Ditto, PerFedAvg, and Local Adaption, respectively.
+• We also demonstrate that SPIDER learns smaller personalized architectures of average size around 14MB, which is
+three times smaller than a pre-defined architecture Resnet18
+(of size 44MB).
+
+2. Related works
+Heterogeneous Neural Architecture for FL. Heterogeneous neural architecture is one way to personalize the
+model in FL. For personalization, the primal-dual framework [29], clustering [26], fine-tuning with transfer learning
+[37], meta-learning [4], regularization-based method [7,16]
+are among the popular methods explored in the FL literature. Although these techniques achieve improved personalized performance, all of them use a pre-defined architecture for each client. HeteroFL [2] is a recent work that accomplishes the aggregation of heterogeneous models by assigning sub-parts of the global model based on their computation budget and aggregating the parameters common between different clients. Another work [19] accomplishes
+this task by forming clusters of clients of the same model
+and allowing for heterogeneous models across clusters. On
+the server-side, the aggregation is based on cluster-wise aggregation followed by a knowledge distillation from the aggregated models into the global model. Given data invisibility in FL, deciding which pre-defined architecture would
+work for which client is a challenging task and requires exploration. As such, our proposed method aims to achieve
+personalized architecture automatically.
+Neural Architecture Search for FL. Neural Architecture
+Search (NAS) has gained momentum in recent literature to
+search for a global model in a federated setting. FedNAS [8]
+explores the compatibility of MileNAS solver with Fed averaging algorithm to search for a global model. Direct Federated NAS [11] is another work in this direction that explores the compatibility of a one-shot NAS method, DSNAS
+[11], with Fed averaging algorithm with the same application, in search of a global model. [40] uses evolutionary NAS to design a master (global) model. [28] explores
+the concept of differential privacy using DARTs solver [21]
+to explore the trade-off between accuracy and privacy of a
+global model. [35] starts with a pre-trained handcraft model
+and continues pruning the model until it satisfies the effi2
+
+ciency budget. Where all these models search for a unified global model, a key distinction of our work with these
+works is that we aim to search for a personalized model for
+each client.
+
+Second, a personalized architecture search can result in a
+more compressed model for each client that will reduce
+inference latency and efficiency. Third, a personalized architecture search allows the clients to even keep their local
+model architectures private in a sense the server and other
+clients neither know the architecture nor the weights of that
+architecture. This further enhances the privacy guarantees
+of FL and is helpful in business cases that each client hopes
+to also protect its model architecture.
+
+3. Preliminaries, Motivation, and Design Goals
+In this section, we introduce the state-of-the-art methods
+for personalized federated learning, discuss the motivation
+for personalizing model architectures, and summarize our
+design goals.
+
+Design Goals. Our goal is to enable personalized neural
+architecture search for all clients in FL. In this context,
+the limitation of existing personalized FL methods is obvious: Local-FL and MAML-FL need every client to have the
+same architecture to perform local adaptations; In CFL, the
+clustering step requires all clients to share a homogeneous
+model architecture; PL-FL can only obtain heterogeneous
+architectures for a small portion of personalized layers, but
+it does not provide an architecture-agnostic method to determine the boundary of personalized layers in an automated
+mechanism; FMTL is a regularization-based method which
+cannot perform regularization when architectures are heterogeneous across clients; KD has an unrealistic assumption that the server has enough public dataset as the auxiliary data for knowledge distillation. In addition, an ideal FL
+framework for deployment is the one that can jointly optimize the inference latency/efficiency during training. However, after federated training, none of these PFL clearly
+specify the method for efficient inference. An additional
+model compression procedure (e.g., pruning or KD-based)
+may be required, but it is impractical to perform a remote
+model compression client by client.
+To circumvent these limitations, our goal is to design an
+architecture-personalized FL framework with the following
+requirements:
+
+Personalized Federated Learning. A natural formulation
+of FL is to assume that among K distinct clients, each client
+k has its own distribution Pi , draws data observations (samples) from Pi , and aims to solve a supervised learning task
+(e.g., image classification) by optimizing a global model w
+with other clients collaboratively. At a high-level abstraction, the optimization objective is then defined as:
+
+min
+G (F1 (w), ..., FK (w)) ,
+∗
+w
+
+(1)
+
+where Fk (w) measures the performance of the model global
+w on the private dataset at client k (local objective), and
+G is the global model aggregation function that aggregates
+each client’s local objectives. For example, for FedAvg,
+G(.) would be weighted aggregation of the local objectives,
+PK
+PK
+k=1 pk Fk (w), where
+k=1 pk = 1.
+However, as distributions across individual clients are
+typically heterogeneous (i.e., non-I.I.D.), there is a growing
+line of research that advocates to reformulate FL as a personalization framework, dubbed as personalized FL (PFL).
+In PFL, the objective is redirected to find a personalized
+model vk for device k that performs well on the local data
+distribution:
+min (F1 (v1 ), ..., FK (vK )) ,
+
+∗
+v1∗ ,...,vK
+
+• R1: allowing heterogeneous architectures for all
+clients, which can capture fine-grained data heterogeneity;
+
+(2)
+
+To solve this challenging problem, various PFL methods are proposed, including FedAvg with local adaptation
+(Local-FL) [1, 32, 38], MAML-based PFL (MAML-FL)
+[5,13], clustered FL (CFL) [6,27], personalized layer-based
+FL (PL-FL) [18], federated multitask learning (FMTL)
+[30], and knowledge distillation (KD) [9, 20].
+
+• R2: searching and personalizing the entire architecture space, to avoid the heuristic search for the boundary of personalized layers;
+• R3: requiring no auxiliary data at the client- or serverside (unlike knowledge distillation-based PFL);
+
+Motivation for Neural Architecture Personalization.
+Distinct from these existing works on PFL, we propose a
+new approach to instead personalize model architecture for
+each client. We are motivated by three key potential benefits. First, the searched architecture at each client is expected to fit its own distinct distribution, which has the potential to provide a substantial improvement over the existing PFL baselines that only personalize model weights.
+
+• R4: resulting in models with practical inference latency and efficiency, to avoid the need for an additional
+model compression procedure at each client.
+We now introduce SPIDER that meets the above requirements in a unified framework.
+3
+
+4. Methodology: SPIDER
+min
+
+4.1. Overview
+
+vk ,ak ⊆A
+
+s.t.
+
+The overall framework of SPIDER is illustrated in Figure 1. Essentially, each client maintains two models
+in this framework: one architecture-homogeneous global
+model for collaborative training with other clients, and one
+architecture-heterogeneous local model that initially shares
+the same super architecture space as the global model. At
+a high-level, SPIDER is formulated as an architecturepersonalized bi-level optimization problem (Section 4.2)
+and proposes the solver as the orchestration of SPIDER
+Trainer (Section 4.3) and SPIDER-Searcher (Section
+4.4). SPIDER Trainer is an architecture-personalized
+training framework that can collaboratively train heterogeneous neural architectures across clients. To allow federated training on the expected heterogeneous local architectures, it enables regularization between an arbitrary personalized architecture and the global model via weight sharing. With this support, SPIDER-Searcher is designed
+to dynamically adjust the architecture of each client’s local model on the way. To search a personalized architecture for the local data distribution of each client, SPIDERSearcher is built on a novel neural architecture search
+(NAS) method that searches optimal local Subnet progressively using operation-level perturbation on the accuracy
+value as the criterion. Overall, each client’s local model
+goes through three phases (also shown in Figure 1): pretraining to warm up the initial local model, progressive neural architecture search, and final training of the searched
+architecture-personalized model.
+
+w∗ ∈ arg min G (F1 (w, A), ..., FK (w, A)) ,
+w
+
+(3)
+(4)
+
+where Fk is the local objective of the client k; w, vk , and ak
+are all learnable parameters; w denotes the parameter of the
+global model architecture A, vk is the weight parameter of
+the local personalized architecture ak of the client k. Here,
+ak is a child neural architecture of a Supernet A, denoted
+by ak ⊆ A. Note that in Eq.(4), we aim to learn a global
+model A in a federated learning setting, which formulates
+our outer optimization. However, in the inner optimization
+given in Eq.(3), the objective of each client is to optimize its
+local model’s architecture ak and its associated parameters
+vk while benefiting from the global model w∗ .
+Definition of Supernet A and Child Neural Architecture ak . As a tractable, yet general case study, SPIDER
+reuses the DARTS architecture space as Supernet A: there
+are 8 cells, and each cell consists of multiple edges; each
+edge connects two intermediate representations (node) by
+a mixture of multiple operations frequently used in various
+modern CNNs (e.g., sep convolution 3x3, sep convolution
+5x5, dil convolution 3x3, skip connection, max pool 3x3,
+avg pool 3x3); the mixture uses softmax over all possible
+operations to relax the categorical discrete candidate to a
+continuous search space. More precisely, A contains a set
+of edges {e1 , ..., eE }, and each edge e has multiple operations {o1 , ..., oO }. Based on this definition, ak maintains
+the operation-level granularity: ak ’s edge set space is a subset of A’s edge set space, and the operation set in ak ’s each
+edge may also be a subset space.
+
+SPIDER can meet the design goals R1-R4 introduced in
+Section 3 because 1) each client performs independent architecture personalization with its own private data (R1), 2)
+the search space is not restricted to a portion of the model
+(R2), 3) no auxiliary data is used to assist the search and
+train process (R3), and 4) progressive operation selection
+gradually reduces the number of candidate architectures,
+leading to a sparse and efficient model for inference (R4).
+
+4.2.
+
+Fk (vk , ak ; w∗ , A)
+
+The difficulty of jointly optimizing the architecture ak
+and related weight parameters vk . The key difference of
+our formulation from existing bi-level optimization for FL
+(e.g., [16]) is that in our case, ak is also a learnable parameter (Eq.(3)). We assume each client can have an evolving architecture ak , i.e., Eq.(3) has to optimize the architecture ak and its related weight parameters vk jointly, while
+using complete Supernet-based global model weights, w.
+SPIDER addresses this challenge by the orchestration of
+SPIDER-Trainer and SPIDER-Searcher.
+
+SPIDER Formulation:
+Architecturepersonalized Bi-level Optimization
+
+4.3. SPIDER Trainer: Federated Training on Heterogeneous Architectures
+
+SPIDER aims to personalize (weave) a different neural architecture (web) for each client. To generate heterogeneous architectures across clients, we use two models, a local model (ak ) and a global model (Supernet A)
+at each client, and formulate SPIDER as an architecturepersonalized bi-level optimization problem for each client
+k ∈ [K]:
+
+In this section, we describe SPIDER trainer, an
+architecture-personalized training framework that can collaboratively train heterogeneous neural architectures across
+clients.
+To clearly show how SPIDER handles the optimization
+difficulty of Eq.(3), we first downgrade the objective to the
+4
+
+SPIDER Trainer:
+Architecture-Heterogeneous
+Bi-level Optimization Framework
+
+SPIDER Searcher:
+each client search its own neural architecture
+on the fly progressively
+
+1
+
+2
+
+4
+
+Local model
+(Child)
+
+1
+
+1
+
+2
+
+3
+
+weight sharing-based
+Regularization
+
+4
+
+2
+
+3
+
+4
+
+FL Server
+Client K
+
+2
+
+Global model
+(Supernet)
+
+Client 1
+
+…
+
+3
+
+2
+
+1
+
+replace
+on the fly
+
+1
+
+weight sharing-based
+Regularization
+
+1
+
+3
+
+2
+
+1
+
+3
+
+…
+
+2
+
+1
+
+3
+
+2
+
+3
+
+4
+
+4
+
+4
+
+4
+
+1
+
+1
+
+1
+
+1
+
+…
+replace
+on the fly
+2
+
+3
+
+3
+
+4
+
+4
+
+SPIDER Weave (search) a Diﬀerent Web QHXUDODUFKLWHFWXUH for Each Client
+
+Phase 1:
+Fixing architecture
+for warming up
+
+2
+
+3
+
+4
+
+…
+
+2
+
+3
+
+4
+
+Phase 2:
+Progressive Searching
+Personalized Architecture
+
+2
+
+3
+
+4
+
+Phase 3:
+Fixing
+Architecture
+Time
+
+Figure 1. Illustration of SPIDER framework. SPIDER is weaving (searching) a different web (neural architecture) for each client.
+
+Algorithm 1 SPIDER Trainer
+
+case that all clients use predefined (fixed) heterogeneous architectures (derived from the Supernet A). More specially,
+we reduce the aforementioned optimization framework in
+Eq.(3) and Eq.(4) to the following:
+min hk (vk , ak ; w∗ , A) = Fk (vk ) +
+vk
+
+s.t.
+
+∗
+
+global model wk using Supernet A, and a local model vk using subnet ak (set ak = A at the begining); E is the number of
+local epochs; T is the number of rounds; Ts number of rounds
+to start search; τ is the recovery periods in the units of rounds.
+
+λ
+∗
+||vk − wshare
+||2
+2
+(5)
+
+w ∈ arg min G (F1 (w, A), ..., FK (w, A)) ,
+w
+
+1: Initialization: initialize K clients with the k-th client has a
+
+2: Server executes:
+3:
+for each round t = 0, 1, 2, ..., T − 1 do
+4:
+for each client k in parallel do
+5:
+wkt+1 ←
+wt , t)
+PClientLocalSearch(k,
+Nk t+1
+6:
+wt+1 ← K
+w
+k
+k=1 N
+7:
+8: function ClientLocalSearch(k, w t , t): // Run on client k
+9:
+for e in epoch do
+10:
+for minibatch in training and validation data do
+11:
+atk = ProgressiveNAS(atk , Ts , τ, t)
+12:
+Update Global model: wt+1 = wt − ηw ∇w Fktr (wt )
+t+1
+13:
+wshare
+= wt+1 atk //weight sharing
+14:
+Update Local Model:
+vkt+1 =
+vkt −
+
+(6)
+
+where local model’s weights vk are regularized towards the
+∗
+∗
+global model wshare
+, where wshare
+= w∗ ak (i.e., only
+using the weight parameters of the operation set space overlapping (sharing) with ak ). Also, λ is the regularization
+hyper-parameter. Note that, now, only vk needs to be optimized in Eq.5, while ak is fixed during the optimization.
+We then solve Eq.5 and Eq.6 alternately. We summarize
+this optimization procedure as SPIDER-Trainer with a detailed pseudo code illustrated in Algorithm 1. In this algorithm, we can note that the global model (line #12) and the
+local model (line #14) are updated alternately. The strength
+of this algorithm lies in its elaborate design, which provides
+the following key benefits:
+
+15:
+
+t+1
+ηv ∇v Fktr (vkt ) + λ(vkt − wshare
+)
+return w to server
+
+essentially used to regularize a subnet (ak ) model parameters vk towards the global model shared/common parame∗
+ters wshare
+, as shown in Eq. 6.
+
+(1) Enabling regularization between an arbitrary personalized architecture and the global model. Most
+importantly, SPIDER-Trainer connects each personalized
+model with the global model by enabling the regularization
+between two different architectures: an arbitrary personalized architecture for the local model ak of client k and the
+global model with Supernet A. This is done by weight shar∗
+ing. More specially, in Eq.6, wshare
+= w∗ ak , which
+provides us the global model’s weight parameters for the
+connections/edges common between the child neural archi∗
+tecture ak and the global model’s Supernet A. wshare
+is
+
+(2) Avoiding heterogeneous aggregation.
+SPIDERTrainer avoids the aggregation of heterogeneous model architectures at the server side. As such, no sophisticated and
+unstable aggregation methods are required (e.g., masking,
+knowledge distillation [20], etc.), and it is flexible to use
+other aggregation methods beyond FedAvg (e.g., [14, 24])
+to update the global model.
+5
+
+Algorithm 2 SPIDER-Searcher
+
+(3) Enabling architecture privacy. In this algorithm,
+only the global model is transmitted between the client and
+the server. This enables architecture privacy because each
+client’s architecture is hidden from server and other clients.
+
+1: Search Space: in the architecture atk ⊆ A, E is the super set
+
+of all edges {e1 , ..., eE }, Es is the remaining subset of edges
+that have not been searched, and each edge e has multiple operations {o1 , ..., oO }.
+2: function ProgressiveNAS(ak , Ts , τ , t)
+3:
+if t ≥ Ts and t % τ == 0 and LEN(Es ) > 0 then
+4:
+ei = RANDOM (E) // random selection
+5:
+// searching without training
+6:
+for all operation oj on edge ei do
+7:
+evaluate validation accuracy of atk when oj is
+removed(ACC\o )
+8:
+in ei , keep only one operation corresponding to the lowest value of (ACC\o ), i.e., highest impact.
+9:
+remove ei from E
+10:
+else
+11:
+return atk directly
+12:
+return updated atk after selection
+
+(4) Potential robustness to adversarial attacks. The
+weight sharing-based regularization not only yields the benefit of personalization in FL, but also makes the FL framework more robust to adversarial attacks. Its robustness advantage comes from its ability to keep the local model private and regularizing towards the global model based on its
+regularization parameter, as shown before by architecturehomogeneous bi-level optimization [16].
+
+4.4. SPIDER-Searcher: Personalizing Architecture
+Although SPIDER trainer is able to collaboratively train
+heterogeneous architectures, manual design of the architecture for each client is impractical or suboptimal. As such,
+we further add a neural architecture search (NAS) component, SPIDER-Searcher, in Algorithm 1 (line #11) to adapt
+ak to its local data distribution in a progressive manner. We
+now present the details of SPIDER-Searcher.
+
+an operation on the local validation accuracy (perturbation) as a criterion to search on the edge. This simplified
+method is much more efficient given that it only requires
+evaluation-based search rather than training-based search
+(optimizing α). In addition, it avoids inserting another bilevel optimization for NAS inside a bi-level optimization
+for FL, making the framework stable and easy to tune. Finally, this method avoids suboptimal architecture [33] lead
+by magnitude-based selection in differentiable NAS.
+
+Progressive Neural Architecture Search. Essentially,
+SPIDER-Searcher dynamically changes the architecture of
+ak during the entire federated training process. This is feasible because the weight sharing-based regularization can
+handle an arbitrary personalized architecture (introduced in
+Section 4.3). Due to this characteristic, SPIDER-Searcher
+can search ak in a progressive manner (shown in Figure 1):
+Phase 1: At the beginning, ak is set equal to Supernet A.
+The intention of SPIDER-Searcher in this phase is to warm
+up the training of the initial ak so it does not change ak
+for a few rounds; Phase 2: After warming up, SPIDERSearcher performs edge-by-edge search gradually. In each
+edge search, only the operation with the highest impact to
+the accuracy is kept. It also uses a few rounds of training as a recovery time before proceeding the next round of
+search. This process continues until all edges finish searching; Phase 3: After all edges finish searching, SPIDERSearcher does not change ak . This serves as a final training of the searched architecture-personalized model. This
+three-phase procedure is summarized as Algorithm 2. Now,
+we proceed to elaborate how we calculate the impact of an
+operation on the Supernet.
+
+5. Experiments
+This section presents the experimental results of the proposed method, SPIDER. All our experiments are based on
+a non-IID data distribution among FL clients. We have
+used latent Dirichlet Distribution (LDA), which is a common data distribution in FL to generate non-IID data across
+clients [10], [39].
+
+5.1. Experimental Setup
+Implementation and Deployment. We implement the proposed method for distributed computing with nine nodes,
+each equipped with GPUs. We set this as a cross-silo FL setting with one node representing the server and eight nodes
+representing the clients. These clients nodes can represent
+real-world organizations such as hospitals and clinics that
+aim to collaboratively search for personalized architectures
+for local benefits in a privacy-preserving FL manner.
+
+Operation-level perturbation-based selection. In phase
+2, we specify selecting the operation with the highest impact
+using operation-level perturbation. More specially, instead
+of optimizing the mixed operation architecture parameters
+α using another bi-level optimization as DARTS (a.k.a.
+gradient-based search) to pick optimal operation according
+to magnitude of α parameters (magnitude-based selection),
+we fix a uniform distribution for α and use the impact of
+
+Task and Dataset. We perform an image classification task
+on the CIFAR10 dataset that consists of 60000 32x32 color
+images in 10 classes, with 6000 images per class. We generate non-IID data across clients by exploiting LDA distribution with parameter (α = 0.2) for the training data of
+6
+
+label distribution
+
+approach of architecture personalization outperforms the
+other state-of-the-art personalization methods; Ditto, perFedAvg, and local adaptation. Among these personalization
+schemes, perFedAvg yields the highest performance. Although in Figure 3 the performance curve is lower, it gains
+90.9% accuracy around 1500 rounds. We have added its accuracy plot for 1500 rounds in Appendix C.2. Compared
+with perFedAvg, we obtain 1.4% higher average accuracy.
+Moreover, Ditto and local adaptation yield a 90% and 87%
+average accuracy, respectively.
+We also analyze the performance of these methods on a
+client basis. We plot validation accuracy of each client, accuracy distribution of each method, and accuracy improvement of the proposed method SPIDER with the other personalization methods in Figure 4. In the first sub-figure, we
+observe that out of 8 total clients, our method yields higher
+accuracy for 7 clients. For the other one clients (client number 0), perFedAvg outperforms our method, respectively. In
+the second sub-figure, we plot accuracy distribution. The
+motivation behind this plot is to observe the standard deviation of these methods and their concentration of accuracy values. We note that SPIDER dominates the right side,
+higher accuracy region, and it has almost the same spread
+as perFedAvg and local adaptation baselines.
+The third sub-figure illustrates the accuracy improvement, subtraction of the proposed method’s accuracy values from the other personalized methods on a client-basis.
+In comparison to perFedAvg, for 4 client, the accuracy improvement with the proposed method is within 0-2.5% region, and for 3 clients, it is between 2.5-5% regions. There
+is only one client for which perFedAvg outperforms our
+method in the region of 2.5-5%. For the rest of the methods,
+our method yields higher performance for all the clients.
+For personalization, in addition to average accuracy, the
+standard deviation (std) is considered an important metric.
+Therefore, we also report the standard deviation for each
+method in Table 2. Besides the local adaptation with Supernet that yields 0.01 standard deviation, our method yields
+0.02 std, which is the same for the other two personalization baselines; PerFedAvg and local adaptation (resnet18).
+However, Ditto has the highest deviation (0.03) among
+clients. Although we achieve the same standard deviation
+as other baselines but with the benefit of providing higher
+average validation accuracy.
+
+Min = 3951, Max = 8526
+8000
+
+6
+
+5
+
+0.3
+
+7
+
+0.2
+
+9
+
+8
+
+0.1
+0
+
+1
+
+2
+
+3
+4
+5
+Client number
+
+6
+
+7
+
+0.0
+
+(a) Label distribution per client
+
+7000
+local training dataset size
+
+2
+
+0.4
+
+4
+
+0.5
+
+3
+
+1
+
+0
+
+0.6
+
+6000
+5000
+4000
+3000
+2000
+1000
+0
+
+0
+
+1
+
+2
+
+3
+4
+Client number
+
+5
+
+6
+
+7
+
+(b) Image distribution per client
+
+Figure 2. CIFAR10: LDA distribution
+
+CIFAR10. The actual data distribution has been shown in
+figure 9. Sub-figure 2a represents the label distribution
+across clients, where a darker color indicates more images
+of that class/label. The other sub-figure 2b represents the
+total number of data samples preset at each client. We explore other datasets in the Appendix D.
+For personalized architecture experiments with SPIDER,
+we split the total training data samples present at each
+client into training (50%), validation (30%), and testing sets
+(20%). For other personalization schemes used for comparison, we do not need validation data. Therefore, we split
+the data samples of each client with training (80%) and test
+(20%) for a fair comparison. In addition, we fix the non-IID
+dataset distribution in all experiments for a fair comparison.
+We provide Hyperparameter search details in Appendix B.
+
+5.2. Results on Average Validation Accuracy
+Here, we report the comparison of our proposed method
+SPIDER with the other state-of-the-art personalized methods; Ditto, perFedAvg, and local adaptation. Since these
+schemes use a pre-defined architecture, we use the Reset18
+model because of its comparable model size. We also explore local adaptation with the complete Supernet. This exploration will help us investigate how much performance
+drop we get if we use a smaller but personalized model compared with a locally adapted complete Supernet.
+Average Accuracy In Figure 3, we report average of
+the validation accuracy calculated on client’s test dataset
+using the personalized architectures (architecture visualizations provided in Appendix C.1). The right sub-figure in
+Fig. 3 illustrates the comparison of the proposed method
+with the state-of-art methods; Ditto, local adaptation, and
+perFedAvg. We note that local adaptation with Supernet
+provides the highest average accuracy. We expect it from
+the Supernet because of its 7 operations-based mixed operation formulations. This result helps us investigate the performance reduction with our proposed method. We observe
+that our proposed method shows a performance reduction
+of 2.7% in average validation accuracy with the benefit of
+a reduced average number of FLOPs and model size. The
+models we use during training are much smaller and require
+less memory as well as computation.
+From empirical results, we observe that the proposed
+
+5.3. Results on Efficiency
+Average FLOPs. In Figure 3, we report average flops to
+gauge the architecture search and train phase. Following
+Algorithm 1, Phase 1 continues for 60 rounds, Phase 2 for
+another 260 rounds, Phase 3 for the next 680 rounds. We
+used a recovery time of around 20 rounds. In centralized
+perturbation-based NAS [33], it was empirically found that
+7
+
+Architecture SearchArchitecture Train
+
+Architecture Search
+
+(a) Average Validation Accuracy comparison
+
+Architecture Train
+
+(b) Architecture search vs. Architecture train Phase
+
+Figure 3. Comparison of our proposed method, SPIDER, with other state-of-the-art personalization methods (perFedAvg, Ditto, and local
+adaptation). The left figure shows the average validation accuracy comparison between our proposed method SPIDER and the other stateof-the-art methods; perFedAvg, Ditto, and local adaptation. The right figure illustrates the architecture search (progressive perturbation of
+the Supernet) and derived child model’s architecture train phase of the proposed method.
+Validation Accuracy (x: client index; y: accuracy)
+
+Accuracy Distribution
+3.0
+2.5
+
+0.6
+
+Client number
+
+Validation Accuracy
+
+0.8
+
+0.4
+SPIDER (Mean = 0.92, STD = 0.02)
+Ditto (Mean = 0.9, STD = 0.03)
+PerFedAvg (Mean = 0.91, STD = 0.02)
+Local Adaptation - Resnet18 (Mean = 0.87, STD = 0.02)
+
+0.2
+0.0
+
+0
+
+1
+
+2
+
+3
+4
+Client Index
+
+5
+
+6
+
+7
+
+(a) Average Validation Accuracy per client
+
+6
+
+SPIDER (Mean = 0.92, STD = 0.02)
+Ditto (Mean = 0.9, STD = 0.03)
+PerFedAvg (Mean = 0.91, STD = 0.02)
+Local Adaptation - Resnet18 (Mean = 0.87, STD = 0.02)
+Architecture Search
+
+2.0
+
+2
+
+0.5
+
+1
+0.86
+
+0.88
+0.90
+0.92
+Validation Accuracy (%)
+
+0.94
+
+0
+
+0.96
+
+(b) Average Validation Accuracy distribution
+
+Architecture Train
+
+3
+
+1.0
+
+0.84
+
+SPIDER - Local Adaptation (Mean = 5.148)
+SPIDER - Ditto (Mean = 2.516)
+SPIDER - PerFedAvg (Mean = 1.414)
+
+Architecture SearchArchitecture
+Train
+4
+
+1.5
+
+0.0
+
+Accuracy Improvement Distribution
+
+5
+
+Client number
+
+1.0
+
+5.0
+2.5 0.0
+2.5
+5.0
+7.5 10.0 12.5 15.0
+Validation Accuracy Improvement (%) (FedNAS - FedAvg Accuracy)
+
+(c) Accuracy improvement of SPIDER
+
+Figure 4. Validation Accuracy Analysis
+Table 1. Average local validation Accuracy Comparison of Personalized Federated NAS with other personalization techniques
+Method
+
+Average Accuracy
+
+Parameter Size
+
+FLOPs
+
+Estimated Model Size
+
+Local Adapation - Supernet
+
+0.95±0.01
+
+1.9M
+
+319M
+
+104MB
+
+SPIDER
+
+0.92±0.02
+
+345K
+
+62M
+
+14MB
+
+Local Adaptation - ResNet18
+
+0.87±0.02
+
+11M
+
+76M
+
+44MB
+
+Ditto - ResNet18
+
+0.90±0.03
+
+11M
+
+76M
+
+44MB
+
+perFedAvg - ResNet18
+
+0.91±0.02
+
+11M
+
+76M
+
+44MB
+
+5 epochs are sufficient for fine-tuning the Supernet. However, from empirical results in FL, we found 20-30 communication rounds to be a reasonable number of rounds for
+recovery. The Average FLOPs vs. number of rounds figure illustrates the reduction in the size of computations as
+the search proceeds. The reduction in the average size of
+computations has been from 319M to 62M. However, for
+the local adaptation, the average FLOPs remain the same.
+Likewise, the average parameter size drops from 1.9M to
+345K.
+
+It essentially corresponds to how much memory a trained
+model with trained weights would occupy to obtain inference. Supernet takes the highest amount of space, 104MB,
+ResNet18 takes 44MB, and the average model size from our
+proposed method occupies 14MB space. The reason we report this number is that even if Supernet has less parameter
+size, 1.9M (due to many non-parameterized operations, i.e.,
+skip connection, max pool, avg pool), it requires a vast number of FLOPs to compute mixed operations on the feature
+maps of all the operations used in our search space. Therefore, the estimated model size can better represent the actual
+memory/compute of these models. Since we are working on
+a cross-silo setting, search cost (two models on each client)
+
+Model Size. Estimated model size includes the memory
+size of a forward pass and parameter size of that model.
+8
+
+may not be a concern since devices in cross-silo are rich in
+resources. However, the proposed search yields architectures that are smaller in size and inference efficient, which
+can be beneficial for many business models.
+
+chitecture search: A review. Image and Vision Computing,
+89:57–66, 2019. 1
+[13] Yihan Jiang, Jakub Konecný, Keith Rush, and Sreeram Kannan. Improving federated learning personalization via model
+agnostic meta learning. ArXiv, abs/1909.12488, 2019. 3
+[14] Sai Praneeth Karimireddy, Satyen Kale, Mehryar Mohri,
+Sashank J. Reddi, Sebastian U. Stich, and Ananda Theertha
+Suresh. Scaffold: Stochastic controlled averaging for federated learning. In ICML, 2020. 5
+[15] Chaojian Li, Zhongzhi Yu, Yonggan Fu, Yongan Zhang,
+Yang Zhao, Haoran You, Qixuan Yu, Yue Wang, and
+Yingyan Lin. Hw-nas-bench: Hardware-aware neural architecture search benchmark. arXiv preprint arXiv:2103.10584,
+2021. 1
+[16] Tian Li, Shengyuan Hu, Ahmad Beirami, and Virginia
+Smith. Ditto: Fair and robust federated learning through
+personalization. In International Conference on Machine
+Learning, pages 6357–6368. PMLR, 2021. 1, 2, 4, 6
+[17] Tian Li, Anit Kumar Sahu, Manzil Zaheer, Maziar Sanjabi, Ameet Talwalkar, and Virginia Smith. Federated
+optimization in heterogeneous networks. arXiv preprint
+arXiv:1812.06127, 2018. 1
+[18] Paul Pu Liang, Terrance Liu, Liu Ziyin, Ruslan Salakhutdinov, and Louis-Philippe Morency. Think locally, act globally: Federated learning with local and global representations. ArXiv, abs/2001.01523, 2020. 3
+[19] Tao Lin, Lingjing Kong, Sebastian U Stich, and Martin
+Jaggi. Ensemble distillation for robust model fusion in federated learning. arXiv preprint arXiv:2006.07242, 2020. 2
+[20] Tao Lin, Lingjing Kong, Sebastian U. Stich, and Martin
+Jaggi. Ensemble distillation for robust model fusion in federated learning. ArXiv, abs/2006.07242, 2020. 3, 5
+[21] Hanxiao Liu, Karen Simonyan, and Yiming Yang.
+Darts: Differentiable architecture search. arXiv preprint
+arXiv:1806.09055, 2018. 1, 2
+[22] Yuqiao Liu, Yanan Sun, Bing Xue, Mengjie Zhang, Gary G
+Yen, and Kay Chen Tan. A survey on evolutionary neural
+architecture search. IEEE Transactions on Neural Networks
+and Learning Systems, 2021. 1
+[23] Sashank Reddi, Zachary Charles, Manzil Zaheer, Zachary
+Garrett, Keith Rush, Jakub Konečnỳ, Sanjiv Kumar, and
+H Brendan McMahan. Adaptive federated optimization.
+arXiv preprint arXiv:2003.00295, 2020. 1, 2
+[24] Sashank J. Reddi, Zachary B. Charles, Manzil Zaheer,
+Zachary Garrett, Keith Rush, Jakub Konecný, Sanjiv Kumar,
+and H. Brendan McMahan. Adaptive federated optimization.
+ArXiv, abs/2003.00295, 2021. 5
+[25] Santanu Santra, Jun-Wei Hsieh, and Chi-Fang Lin. Gradient
+descent effects on differential neural architecture search: A
+survey. IEEE Access, 9:89602–89618, 2021. 2
+[26] Felix Sattler, Klaus-Robert Müller, and Wojciech Samek.
+Clustered federated learning: Model-agnostic distributed
+multitask optimization under privacy constraints. IEEE
+transactions on neural networks and learning systems, 2020.
+2
+
+6. Conclusion
+We proposed SPIDER, an algorithmic framework that
+can search personalized neural architecture for FL. SPIDER
+specializes a weight-sharing-based global regularization to
+perform progressive neural architecture search. Experimental results demonstrate that SPIDER outperforms other
+state-of-the-art personalization methods, and the searched
+personalized architectures are more inference efficient.
+
+References
+[1] Gary Cheng, Karan N. Chadha, and John C. Duchi. Finetuning in federated learning: a simple but tough-to-beat baseline. 2021. 2, 3
+[2] Enmao Diao, Jie Ding, and Vahid Tarokh. Heterofl: Computation and communication efficient federated learning for
+heterogeneous clients. arXiv preprint arXiv:2010.01264,
+2020. 2
+[3] Canh T Dinh, Nguyen H Tran, and Tuan Dung Nguyen. Personalized federated learning with moreau envelopes. arXiv
+preprint arXiv:2006.08848, 2020. 1
+[4] Alireza Fallah, Aryan Mokhtari, and Asuman Ozdaglar. Personalized federated learning: A meta-learning approach.
+arXiv preprint arXiv:2002.07948, 2020. 1, 2
+[5] Alireza Fallah, Aryan Mokhtari, and Asuman E. Ozdaglar.
+Personalized federated learning: A meta-learning approach.
+ArXiv, abs/2002.07948, 2020. 3
+[6] Avishek Ghosh, Jichan Chung, Dong Yin, and Kannan Ramchandran. An efficient framework for clustered federated
+learning. ArXiv, abs/2006.04088, 2020. 3
+[7] Filip Hanzely and Peter Richtárik. Federated learning of
+a mixture of global and local models. arXiv preprint
+arXiv:2002.05516, 2020. 2
+[8] Chaoyang He, Murali Annavaram, and Salman Avestimehr.
+Fednas: Federated deep learning via neural architecture
+search. arXiv e-prints, pages arXiv–2004, 2020. 2
+[9] Chaoyang He, Murali Annavaram, and Salman Avestimehr.
+Group knowledge transfer: Federated learning of large cnns
+at the edge. arXiv: Learning, 2020. 3
+[10] Chaoyang He, Songze Li, Jinhyun So, Xiao Zeng, Mi Zhang,
+Hongyi Wang, Xiaoyang Wang, Praneeth Vepakomma, Abhishek Singh, Hang Qiu, et al. Fedml: A research library and
+benchmark for federated machine learning. arXiv preprint
+arXiv:2007.13518, 2020. 6
+[11] Shoukang Hu, Sirui Xie, Hehui Zheng, Chunxiao Liu, Jianping Shi, Xunying Liu, and Dahua Lin. Dsnas: Direct neural
+architecture search without parameter retraining. In Proceedings of the IEEE/CVF Conference on Computer Vision and
+Pattern Recognition, pages 12084–12092, 2020. 2
+[12] Yesmina Jaafra, Jean Luc Laurent, Aline Deruyver, and Mohamed Saber Naceur. Reinforcement learning for neural ar-
+
+9
+
+Jia, and Kurt Keutzer. Fbnet: Hardware-aware efficient convnet design via differentiable neural architecture search. In
+Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 10734–10742, 2019. 1
+[35] Mengwei Xu, Yuxin Zhao, Kaigui Bian, Gang Huang,
+Qiaozhu Mei, and Xuanzhe Liu. Federated neural architecture search. arXiv preprint arXiv:2002.06352, 2020. 2
+[36] Lei Yang, Zheyu Yan, Meng Li, Hyoukjun Kwon, Liangzhen
+Lai, Tushar Krishna, Vikas Chandra, Weiwen Jiang, and
+Yiyu Shi. Co-exploration of neural architectures and heterogeneous asic accelerator designs targeting multiple tasks.
+In 2020 57th ACM/IEEE Design Automation Conference
+(DAC), pages 1–6. IEEE, 2020. 1
+[37] Tao Yu, Eugene Bagdasaryan, and Vitaly Shmatikov. Salvaging federated learning by local adaptation. arXiv preprint
+arXiv:2002.04758, 2020. 2
+[38] Tao Yu, Eugene Bagdasaryan, and Vitaly Shmatikov. Salvaging federated learning by local adaptation. ArXiv,
+abs/2002.04758, 2020. 3
+[39] Mikhail Yurochkin, Mayank Agarwal, Soumya Ghosh,
+Kristjan Greenewald, Nghia Hoang, and Yasaman Khazaeni. Bayesian nonparametric federated learning of neural
+networks. In International Conference on Machine Learning, pages 7252–7261. PMLR, 2019. 6
+[40] Hangyu Zhu and Yaochu Jin. Real-time federated evolutionary neural architecture search. IEEE Transactions on Evolutionary Computation, 2021. 2
+
+[27] Felix Sattler, Klaus-Robert Müller, and Wojciech Samek.
+Clustered federated learning: Model-agnostic distributed
+multitask optimization under privacy constraints. IEEE
+Transactions on Neural Networks and Learning Systems,
+32:3710–3722, 2021. 3
+[28] Ishika Singh, Haoyi Zhou, Kunlin Yang, Meng Ding, Bill
+Lin, and Pengtao Xie. Differentially-private federated neural
+architecture search. arXiv preprint arXiv:2006.10559, 2020.
+2
+[29] Virginia Smith, Chao-Kai Chiang, Maziar Sanjabi, and
+Ameet Talwalkar. Federated multi-task learning. arXiv
+preprint arXiv:1705.10467, 2017. 2
+[30] Virginia Smith, Chao-Kai Chiang, Maziar Sanjabi, and
+Ameet S. Talwalkar. Federated multi-task learning. In NIPS,
+2017. 3
+[31] Jianyu Wang, Qinghua Liu, Hao Liang, Gauri Joshi, and
+H Vincent Poor. Tackling the objective inconsistency problem in heterogeneous federated optimization. arXiv preprint
+arXiv:2007.07481, 2020. 1
+[32] Kangkang Wang, Rajiv Mathews, Chloé Kiddon, Hubert
+Eichner, Franccoise Beaufays, and Daniel Ramage. Federated evaluation of on-device personalization. ArXiv,
+abs/1910.10252, 2019. 3
+[33] Ruochen Wang, Minhao Cheng, Xiangning Chen, Xiaocheng Tang, and Cho-Jui Hsieh. Rethinking architecture selection in differentiable nas.
+arXiv preprint
+arXiv:2108.04392, 2021. 2, 6, 7
+[34] Bichen Wu, Xiaoliang Dai, Peizhao Zhang, Yanghan Wang,
+Fei Sun, Yiming Wu, Yuandong Tian, Peter Vajda, Yangqing
+
+1
+
+Appendix
+A. Search Space
+
+achieve better performance in a statistical non-I.I.D data setting, and model privacy, in a sense that these heterogeneous
+architectures are not shared with the server.
+
+As mentioned in Section 4.2, we have used DARTs
+search space [21] in our proposed work. During the search,
+we are using a total of 8 cells. In this search space, there are
+two types of cells, normal cell, and reduction cell. For the
+Supernet A construction, there are two normal cells accompanied by one reduction cell and so on, as shown in Figure 5. In our construction, the reduction cell is used at positions 3 and 6, and at the remaining positions, 1,2,4,5,7,8,
+normal cell is placed. Furthermore, when we perform perturbation, we perturb both of the cells, normal and reduction
+cells, one by one at that particular communication round. In
+addition, the same cells follow the same construction; therefore, if one operation is selected for one normal cell at a
+particular edge, the same operation will be selected for the
+same edge at all normal cells.
+
+Figure 6. perFedAvg validation accuracy versus number of rounds
+for CIFAR10 dataset.
+Figure 5. Supernet A search space. Note that since we have 8 cell
+based search space, N = 2 for our construction.
+
+C.2. perFedAvg results for CIFAR10.
+Since perFedAvg took longer to converge, and the results
+presented in Table 2 are different from the accuracy value
+shown in Figure 3. Therefore we report its accuracy curve
+in Figure 6 to show its superior performance over Ditto and
+Local adaptation with resnet18.
+
+B. Hyperparameters
+B.1. Hyper-parameters for CIFAR10.
+For empirical results of CIFAR10, we use a batch size
+of 32 for all our experiments. Furthermore, we use a learning rate in the search range of {0.1, 0.3, 0.01, 0.01} for SPIDER and local adaptation with Supernet. For SPIDER, we
+used λ search from the set of {0.01, 0.1, 1}. For the other
+personalized schemes such as Ditto, perFedAvg, and local
+adaptation with Resnet18, we searched learning rate over
+the set {0.1, 0.3, 0.01, 0.03, 0.001, 0.003}. The reason for
+having a larger set of learning rates for these methods is that
+we found 0.001 and 0.003 work better for these methods.
+For SPIDER and local adaptation with Supernet, a learning rate of 0.001 and 0.003 did not seem a better choice in
+early stop explorations. For Ditto, we used λ from the set
+{0.01, 0.1, 1}. We used 1000 rounds for the reported results
+except for perFedAvg, for which we observed convergence
+for 1400 rounds.
+
+D. Experiments on CIFAR100 Dataset
+This section presents the experimental results of the proposed method, SPIDER in comparison to local adaptation, perFedAvg and Ditto with CIFAR100 dataset, another
+dataset explored by researchers for Federated learning [23].
+All our experiments are based on a non-IID data distribution
+among FL clients. To generate non-I.I.D data distribution,
+we have used latent Dirichlet Distribution (LDA).
+
+D.1. Experimental Setup
+Implementation and Deployment.. We implement SPIDER for distributed computing with nine nodes, each
+equipped with a GPU. Similar to CIFAR10 dataset implementation setup, we set up cross-silo FL setting for CIFAR100 dataset with one node representing the server and
+eight nodes representing the clients.
+
+C. Remaining Results on CIFAR10
+C.1. Personalized Architectures
+To investigate the architecture heterogeneity, we also visualize the cell connection at each client (Figure 7). This
+confirms that the architectures at clients are diverse. This
+heterogeneity has the potential to bring us the benefit of
+personalization, each client designs its own architecture to
+
+Task and Dataset.We perform an image classification task
+on another dataset, the CIFAR100 dataset, that consists of
+60000 32x32 color images in 100 classes, with 600 images
+per class. We generate non-IID data across 8 clients by
+
+2
+
+Client ID: 1
+
+Client ID: 0
+
+Client ID: 3
+Client ID: 2
+
+Client ID: 5
+
+Client ID: 4
+
+Client ID: 6
+
+Client ID: 7
+
+Figure 7. Searched Architectures (Normal Cells): Each normal cell k takes the outputs of previous cells, cell k − 2 and cell k − 1, as
+its input. Each cell contains seven nodes: two input nodes, one output node, and four intermediate nodes inside the cell. The output
+node concatenates all intermediate nodes’ output depth-wise. It can be observed that the searched cells are edge-wise and operation-wise
+heterogeneous from client to client.
+label distribution
+
+0
+4
+8
+12
+16
+20
+24
+28
+32
+36
+40
+44
+48
+52
+56
+60
+64
+68
+72
+76
+80
+84
+88
+92
+96
+
+6000
+
+0.06
+
+5000
+
+local training dataset size
+
+0.07
+
+0.05
+0.04
+0.03
+0.02
+
+0
+
+1
+
+2
+
+3
+4
+5
+Client number
+
+6
+
+7
+
+Min = 5425, Max = 6694
+
+7000
+
+0.08
+
+4000
+3000
+2000
+
+0.01
+
+1000
+
+0.00
+
+0
+
+(a) Label distribution per client
+
+0
+
+1
+
+2
+
+3
+4
+Client number
+
+5
+
+6
+
+7
+
+(b) Image distribution per client
+
+Figure 8. CIFAR100: LDA distribution
+
+exploiting LDA distribution with parameter (α = 0.2) for
+the training data of CIFAR100. The actual data distribution
+across clients has been shown in figure 8. The right subfigure represents the label distribution across clients, where
+a darker color indicates more images of that class/label. The
+left sub-figure represents the total number of data samples
+present at each client.
+Similar to CIFAR10’s experiments setup, for the CIFAR100 dataset, we split the total training data samples
+present at each client into training (50%), validation (30%),
+and testing sets (20%). For comparison, we provide results
+
+for local adaptation with resnet18, perFedAvg, and Ditto.
+Since local adaptation, perFedAvg, and Ditto do not require
+any validation dataset, we split the total training data at each
+client into (80%) and testing sets (20%) for these methods.
+For a fair comparison, we fix the non-IID dataset distribution in all experiments. Next, we provide Hyperparameter
+search details for this experiment.
+Hyper-parameters. For empirical results of CIFAR100,
+we use a batch size of 32 for all our experiments. Furthermore, we use a learning rate in the search range of
+
+3
+
+Architecture Search
+
+Architecture Search
+Architecture Train
+
+Architecture Train
+
+Architecture Search
+
+Architecture Search
+Architecture Train
+
+Architecture Train
+
+(a) Average Validation Accuracy comparison
+
+(b) Architecture search vs. Architecture train Phase
+
+Figure 9. Comparison of our proposed method, SPIDER, with other state-of-the-art personalization methods (perFedAvg, Ditto, and local
+adaptation). The left figure shows the average validation accuracy comparison between our proposed method SPIDER and the other stateof-the-art methods; perFedAvg, Ditto, and local Adaptation. The right figure illustrates the architecture search (progressive perturbation of
+the Supernet) and derived child model’s architecture train phase of the proposed method.
+Table 2. Average local validation Accuracy Comparison of SPIDER with other personalization techniques
+Method
+
+Average Accuracy
+
+Parameter Size
+
+FLOPs
+
+Estimated Model Size
+
+SPIDER
+
+0.67±0.03
+
+392K
+
+64M
+
+16MB
+
+Local Adaptation - ResNet18
+
+0.61±0.03
+
+11M
+
+76M
+
+44MB
+
+Ditto - ResNet18
+
+0.57±0.03
+
+11M
+
+76M
+
+44MB
+
+perFedAvg - ResNet18
+
+0.64±0.03
+
+11M
+
+76M
+
+44MB
+
+{0.1, 0.3, 0.01, 0.01, 0.001, 0.003} for SPIDER. For SPIDER, we used λ search from the set of {0.01, 0.1, 1}.
+For the local adaptation with Resnet18, perFedAvg
+and Ditto, we searched learning rate over the set
+{0.1, 0.3, 0.01, 0.03, 0.001, 0.003}. For Ditto, we used λ
+from the set {0.01, 0.1, 1}. We used 1000 number of communication rounds for the reported results.
+
+racy around 67%. Similar to our observation with the CIFAR10 dataset, perFedAvg yields the second highest accuracy 64%. We also note that contrary to CIFAR10 results,
+Ditto provided the lowest performance among the three personalization methods. From a personalization perspective,
+we observe that our method achieves the same standard deviation, 0.032, as perFedAvg. However, we achieve this
+standard deviation with a 3.5% higher mean validation accuracy value. The local adaptation and Ditto also yield same
+standard deviation, which translates to same personalization
+(fairness) across clients. In a nutshell, experiments with CIFAR10 and CIFAR100 show that SPIDER with architecture personalization has the potential to provide higher performance in terms of higher mean validation accuracy and
+low/comparable standard deviation (fairness).
+Overall, we observed dominance of SPIDER with higher
+average accuracy over other baselines with CIFAR100 as
+we did for CIFAR10. However, improvement gap is more
+prominent with CIFAR100 (3.5%) as compared to CIFAR10 (1.4%) with the second dominant personalization
+method, perFedAvg. Moreover, we also note that with CIFAR100 all baselines yield same standard deviation (0.03)
+as other personalization baselines, however, in CIFAR10,
+Ditto had slightly higher standard deviation.
+
+D.2. Results on Average Validation Accuracy
+Here, we report the comparison of our proposed method
+SPIDER with the other state-of-the-art personalized methods; Ditto, perFedAvg, and local adaptation. Given these
+methods work on a pre-defined architecture, we use the Reset18 model because of its comparable model size to personalized architectures.
+Average Validation Accuracy and Personalization. In
+Figure 9, we provide the average validation accuracy calculated on each client’s local test dataset using the personalized architectures they search with SPIDER. The right
+sub-figure in Fig. 9 demonstrates the comparison of the
+proposed method with the state-of-art methods; Ditto, local adaptation, and perFedAvg. We note that our method
+outperforms all three methods by yielding higher accu-
+
+4
+
+

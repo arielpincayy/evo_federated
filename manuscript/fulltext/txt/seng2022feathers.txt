@@ -1,0 +1,1290 @@
+FEATHERS: Federated Architecture and Hyperparameter Search
+
+Jonas Seng1
+
+Pooja Prasad1
+
+arXiv:2206.12342v3 [cs.LG] 27 Mar 2023
+
+1
+
+Devendra Singh Dhami1, 2
+
+Kristian Kersting1, 2, 3
+
+Computer Science Department , AIML, TU Darmstadt , Germany
+2
+Hessian Center for AI (hessianAI)
+3
+Centre for Cognitive Science, TU Darmstadt
+
+Abstract
+Deep neural architectures have profound impact
+on achieved performance in many of today’s AI
+tasks, yet, their design still heavily relies on human
+prior knowledge and experience. Neural architecture search (NAS) together with hyperparameter
+optimization (HO) helps to reduce this dependence.
+However, state of the art NAS and HO rapidly become infeasible with increasing amount of data
+being stored in a distributed fashion, typically violating data privacy regulations such as GDPR and
+CCPA. As a remedy, we introduce FEATHERS—
+FEderated ArchiTecture and HypERparameter
+Search, a method that not only optimizes both
+neural architectures and optimization-related hyperparameters jointly in distributed data settings,
+but further adheres to data privacy through the
+use of differential privacy (DP). We show that
+FEATHERS efficiently optimizes architectural and
+optimization-related hyperparameters alike, while
+demonstrating convergence on classification tasks
+at no detriment to model performance when complying with privacy constraints.
+
+1
+
+Martin Mundt1, 2
+
+INTRODUCTION
+
+Federated learning (FL) is a distributed machine learning
+paradigm aiming to learn a shared model on data distributed
+at different locations without ever exchanging the data itself
+(McMahan et al., 2017). It is a promising solution in several
+industries, such as finance or healthcare, where it is infeasible to share the data due to privacy and security regulations.
+As in classical machine learning (ML), neural architectures
+and optimization-related hyperparameters (hence simply
+referred to as hyperparameters) have to be selected in FL
+before training. Since even experts are likely to choose nonoptimal architectures and hyperparameters, different neural
+
+Table 1: FEATHERS vs SOTA. FEATHERS is the first
+method that enables both HO and NAS in a federated learning setting while providing privacy guarantees (DP).
+Method
+DARTS(Liu et al., 2019)
+DP-FNAS(Singh et al., 2020)
+FedNAS(He et al., 2020a)
+DP-FTS-DE(Dai et al., 2021)
+FedEx(Khodak et al., 2021)
+FEATHERS
+
+NAS
+3
+3
+3
+7
+7
+3
+
+HO
+7
+7
+7
+3
+3
+3
+
+DP
+7
+3
+7
+3
+7
+3
+
+Fed.
+7
+3
+3
+3
+3
+3
+
+architecture search (NAS) and hyperparameter optimization
+(HO) methods have been developed to automatically search
+for suitable architectures/hyperparameters (Kairouz et al.,
+2021; Zoph and Le, 2017; Pham et al., 2018; Liu et al., 2019;
+Agrawal et al., 2021). With HO- and NAS-methods experts
+only have to define a search space over candidates instead
+of defining a specific rigid architecture and setting hyperparameters for a given ML-task. A search strategy is then
+applied to automatically find the optimal element within this
+space.
+To date, most NAS- and HO-methods are designed for classical ML-settings. As more and more data is being stored decentralized and privacy awareness is rising (He et al., 2020a;
+Khodak et al., 2021), a number of approaches to perform
+NAS/HO in FL settings have lately been proposed. However,
+the latter still face a significant number of challenges. First,
+current methods either optimize neural architectures or hyperparameters; a serious obstacle as performing NAS and
+HO sequentially is costly, especially in FL settings where
+it is preferable to minimize the communication performed
+between devices. In addition, the choice of architectures
+and hyperparameters inherently depend on each other. For
+instance, adopting a deeper architecture may require selecting different learning rates in order to assure adequate update scaling, following gradient back-propagation through
+the network. Therefore architectures and hyperparameters
+should be optimized jointly. A second major challenge is
+
+Overall, we make the following contributions:
+Architecture
+
+Hyperparameters
+
+Update
+FedAvg
+
+Central Server
+
+1. We propose a novel method, FEATHERS, that jointly
+optimizes neural architectures and hyperparameters in
+distributed data settings.
+
+Update
+reward
+
+2. We prove that the HO phase of FEATHERS converges
+with high probability and that FEATHERS’ convergence properties subsequently coincide with those of
+DARTS if the HO phase converges.
+
+global
+parameters
+
+3. By exploiting differentiability of model- and architectural parameters we provide privacy-guarantees during
+the search- and evaluation-stage via DP.
+
+…………………
+
+Client 1
+
+Client 2
+
+Figure 1: FEATHERS Overview. FEATHERS jointly optimizes neural architectures and hyperparameters using
+data distributed across clients C while providing privacyguarantee. In NAS-phase, the global architecture parameters and model parameters are computed using FedAvg
+over clients.The HO-phase selects hyperparameters for the
+subsequent NAS-phase based on the computed reward.
+that NAS- and HO-methods are traditionally not designed
+to be privacy-preserving. Throughout FL training, the server
+and clients exchange the updated parameters several times.
+In light of the growing concern about the disclosure of personal information(Fredrikson et al., 2015) and the threat of
+adversarial attacks (Ye et al., 2022), both ML models and
+their training process, and hence NAS and HO approaches,
+should guarantee privacy in distributed settings.
+To address the above challenges, we propose a novel
+method: FEATHERS1 - FEderated ArchiTecture and
+HypERparameter Search. As illustrated in Table 1, FEATHERS is the first method to synergize architecture search
+and hyperparameter optimization, while enabling privacy
+preserving federated learning.
+The overall architecture of FEATHERS is shown in Fig. 1.
+In essence, it consists of an HO- and a NAS-phase executed
+in an alternating fashion. In the HO phase, a n-bandit game
+is played to identify promising hyperparameters for a subsequent NAS-phase. Then, a NAS-phase is performed for
+a multiple iterations using the identified hyperparameters.
+Differentiable, cell-baded, NAS (Liu et al., 2019) is used to
+allow "averaging“ architectures of several clients using FedAvg, thus obtaining a new global architecture. The global
+architecture obtained is then sent back to the clients and
+used for further training. The differentiability of the architecture entails a crucial property of FEATHERS: enabling a
+privacy preserving optimization-scheme using differential
+privacy (DP).
+1
+
+4. We empirically show that FEATHERS converges towards well-suited architectures and hyperparameters
+on various classification tasks.
+
+Client C
+
+We make our code publicly available at: https://
+anonymous.4open.science/r/FEATHERS-250B/.
+
+We proceed as follows: After presenting related work we
+formally introduce the problem before moving to our proposed solution. A convergence analysis is then conducted,
+followed by our experimental evaluation of FEATHERS on
+several classification tasks. Finally, we conclude our work
+and show possible directions for future work.
+
+2
+
+RELATED WORK
+
+Hyperparameter Optimization. Several works address hyperparameter optimization in federated learning (Koskela
+and Honkela, 2018; Mostafa, 2019). Genetic CFL(Agrawal
+et al., 2021) clusters edge devices based on the training hyperparameters and genetically modifies the parameters clusterwise. DP-FTS-DE(Dai et al., 2021) integrates differential
+privacy into federated Thompson sampling with distributed
+exploration to preserve privacy and uses it for federated
+hyperparameter tuning. FLoRA(Zhou et al., 2021) uses a
+single-shot task by querying each client for several instantiations once and selects the best instantiations based on what
+the clients returned w.r.t. learning progress. FedEx(Khodak
+et al., 2021) uses a weight-sharing mechanism for hyperparameter optimization in the federated setting. In contrast,
+FEATHERS follows a few-shot policy as we adjust the hyperparameters several times during training.
+Neural Architecture Search. NAS aims to automatically
+identify an optimal neural architecture for a given task. Most
+methods are based on reinforcement learning (RL) (Zoph
+and Le, 2017; Zoph et al., 2016, 2018), evolutionary algorithms (EAs) (Xie and Yuille, 2017; Galván and Mooney,
+2021; Darwish et al., 2020) or gradient decent (GD) (Liu
+et al., 2019; Dong and Yang, 2019; Xie et al., 2018; Li
+et al., 2020a). Gradient based methods have been found to
+be more robust compared to the former (Zhu et al., 2021)
+and thus we adapt gradient-based neural architecture search
+in FEATHERS. Since this approach is differentiable it can
+be used in federated setting. Some recent NAS-methods
+for FL include Fed-NAS (He et al., 2020a) that uses the
+
+gradient-based NAS method MiLeNAS (He et al., 2020b)
+for personalized federated learning, and DP-FNAS (Singh
+et al., 2020), which also adopted differentiable NAS (Liu
+et al., 2019) combined with DP.
+Differential Privacy DP has first been introduced in
+(Dwork, 2006) to protect private information in a dataset
+from queries based on arbitrary mechanisms. In recent years,
+select works have shown that ML-models, especially neural
+networks, carry private information of their training data
+in their parameters (Fredrikson et al., 2015). To protect
+such private data from leaking, DP has been successfully
+employed in various FL settings. In particular, it has been
+shown that SGD can be turned into a differentially private
+algorithm by simply adding an appropriate amount of noise
+to the parameters during training (Abadi et al., 2016).
+
+3
+
+FEATHERS
+
+3.2
+
+FEATHERS ARCHITECTURE
+
+FEATHERS operates in two stages, the search stage and the
+evaluation stage. The search stage consists of an alternating
+procedure: As a first step, an instantiation of hyperparameters is identified which is expected to achieve a high decrease
+in validation loss. In a second step, the identified instantiation is used to perform several optimization-steps of the
+architecture. The two steps are repeated until convergence.
+In the evaluation stage the optimized architecture is retrained. Again, the HO-scheme from the search stage is
+applied to optimize hyperparameters. We now describe the
+HO and NAS phase in detail.
+Hyperparameter Optimization (HO). To identify wellworking hyperparameters h we have to solve the following
+objective:
+h∗ = arg min La∗ ,h (w∗ ; Xval , yval )
+
+Our objective is to efficiently optimize neural architectures
+and hyperparameters in a joint manner in FL under privacy
+guarantees. We now define our problem setup formally and
+present our proposed solution.
+3.1
+
+PROBLEM DEFINITION
+
+We consider a federated learning setting with a set of clients
+C of size C, each holding a dataset D1 , ..., DC . The data of
+(c)
+(c)
+each client c is split into training hXtrain , ytrain i and vali(c)
+(c)
+dation data hXval , yval i that is used to solve a supervised
+learning task. We aim to find an architecture a ∈ A and
+hyperparameters h ∈ H minimizing the global validation
+loss over all clients. Formally we phrase the problem as
+follows:
+X
+(c)
+(c)
+min
+vc · La,h (w∗ , Xval , yval ) with
+(1)
+a,h
+
+c∈C
+
+w∗ = arg min
+w
+
+X
+
+(c)
+
+(c)
+
+vc · La,h (w, Xtrain , ytrain )
+
+(2)
+
+c∈C
+
+where w ∈ Rn refers to the parameters of a neural network
+(model parameters) and vc is the weight of a client c:
+(c)
+|X |
+vc := P val (c)
+c∈C |Xval |
+
+(3)
+
+Note that in a FL settings, the global validation loss is a
+weighted sum of the client’s local validation losses. From
+now on, we denote the global training- and validation
+loss as La,h (w, Xtrain , ytrain ) and La,h (w, Xval , yval )
+respectively. Additionally, we require our method to be differential w.r.t. model parameters, architectural parameters
+and rewards. For better readability, we omit DP in the definition of the optimization problem and will return to it in
+Section 3.3.
+
+h
+
+(4)
+
+Here, w∗ denote model parameters minimizing the trainingloss under architecture a∗ and a∗ are the architectural parameters minimizing the validation-loss under hyperparameters
+h ∈ H where H is a discreete set of hyperparameter instantiations. We solve the above by using a n-armed banditapproach with a strategy similar to -greedy as shown in
+Algorithm 1. (Line 1-2): We start of by intializing the parameters, architecture and reward estimates. (Line 6-12):
+We then randomly sample m hyperparameter instantiations
+from a distribution π over H. For each sampled instantiation
+one communication round of training is performed using
+the same weights w and architecture a.. This yields an approximation of a∗ and w∗ . Each client computes its local
+validation loss before and after performing local training using hyperparameters h and parameters w and a. The losses
+(c)
+(c)
+are denoted as `a,w and `a0 ,w0 respectively. We compute
+(e)
+
+the reward-signal rh indicating how well instantiation h
+performed in HO-phase e as:
+X
+(e)
+(c) 
+rh =
+vc · `(c)
+(5)
+a,w − `a0 ,w0
+c∈C
+
+In the above equation vc refers to the weight of each client.
+After testing each sampled h we obtain a vector r(e) where
+each entry corresponds to one hyperparameter instantiations
+in H: For instantiations h sampled in HO-round e, r(e)
+contains the reward, all other entries are zero. The rewardestimates r are then updated using r(e) by applying the
+update rule:
+r = r + (i ◦ α ◦ (r(e) − r)) + ((1 − i) ◦ (α ◦ r − r)) (6)
+Here, ◦ is the Hadamard product, i is a binary vector indicating which hyperparameter instantiations were sampled in
+exploration round e and α is a constant factor determining
+how aggressively the reward-estimate should be updated.
+
+Algorithm 1 FEATHERS method server side
+Require: set of clients C, client weight vc ∀c ∈ C
+Require: search spaces H, A
+1: initialize parameters w and architecture a
+2: initialize reward estimates r ← 0
+3: P ← softmax(r)
+4: for p in phases do
+5:
+if p == ’ho’ then:
+6:
+sample n hyperparameters h from P
+7:
+rp ← 0
+8:
+for h in h do
+9:
+l1 , l2 , w∗ , a∗ ← client_step(h, w, a)
+P
+(c)
+(c)
+10:
+rp [h] ← c∈C vc · (l1 − lc )
+11:
+12:
+13:
+14:
+15:
+16:
+
+r ← update_rewards(r, rp )
+P ← softmax(r)
+if p == ’nas’ then:
+h∗ ← H[arg maxh r[h]]
+for j in nas_steps do
+w, a ← client_steps(h∗ , w, a)
+
+timized under h for a certain number of communication
+rounds as shown in Algorithm 1 (Line 13-16), thereby solving:
+min La,h (w∗ , Xval , yval )
+a
+
+where w∗ = arg min La,h (w, Xtrain , ytrain )
+w
+
+(8)
+(9)
+
+Inspired by Differentiable Architecture Search (DARTS)
+(Liu et al., 2019) we solve this optimization problem as follows: We define our search space to be a space over cells. A
+cell is a Directed Acyclic Graph (DAG) in which each node
+is a feature representation and each edge is a mixed operation. The feature representation of some node z is computed
+using all its parent-nodes and the mixed operations defining
+the edges between z and its parent, i.e.P
+for some node zj
+the representation is computed as: zj = i<j o(zi ,zj ) (xzi )
+Here, o(zi ,zj ) is a mixed operation and xzi is the feature
+representation of node zi . A mixed operation connecting
+nodes z1 and z2 is defined as a weighted sum over a set of
+operations O:
+(z ,z )
+
+If a hyperparameter instantiation was sampled at round e,
+its reward in r will be corrected by the error of the current
+reward estimate. All instantiations that were not sampled
+in e get scaled down by α since well suited instantiations
+in an early stage of training might not be suitable in later
+stages anymore. For example, in the beginning of training,
+an instantiation with a higher learning rate might be more
+appropriate whereas in later training-stages lower learning
+rates should be chosen.
+The use of the reward estimates is three-fold: (1) The hyperparameter instantiation with the highest reward achieved
+so far will be used to train the supernet in the next NASphase. (2) Reward estimates determine the number of
+communication-rounds in the HO-phase before the HOphase is starting: For this, we first compute the distribution
+π = softmax(r) over instantiations using the reward estimates r. This allows to compute the entropy H:
+X
+H=
+ln(π(h)) · π(h)
+(7)
+h∈H
+
+The number of HO-rounds performed next is determined
+by κ = rnd(βH). Here, β is a parameter to control the
+exploration-exploitation trade-off. In the beginning, all rewards are set to 0, thus leading to a uniform distribution
+which has the maximum entropy. Over time the rewardestimates reflect which instantiations work well and which
+do not. Hence, π gets less uniform and the entropy decreases
+over time, favoring exploitation over exploration in later
+training stages. (3) The distribution π is used to sample
+hyperparameter-instantiations tested in the next HO-round.
+Neural Architecture Search. Once the HO-phase yields
+a hyperparameter instantiation h, the architecture is op-
+
+o(z1 ,z2 ) =
+
+exp(ao 1 2 )
+
+X
+o∈O
+
+P
+
+(z1 ,z2 )
+)
+o0 ∈O exp(ao0
+
+o(x)
+
+(10)
+
+(z ,z )
+
+Here, ao i j are the architectural parameters to be learned.
+Since they fully describe the architecture, we will refer to
+them as the architecture a from now on. Objective 8 is
+solved by an alternating optimization of the architecture
+and model parameters. First, the architecture is updated
+by following the gradient ∇a La,h (ŵ, Xval , yval ) where
+ŵ = w − η∇w La,h (w, Xtrain , ytrain ). As a second step
+the model parameters are updated by following the gradient ∇w La,h (w, Xtrain , ytrain ). Parameter-updates are
+performed on client-side in each communication round and
+yield new architectural and model parameters a0c and wc0
+for each client c respectively. Since both, the architectural
+and model parameters, are parameters of a non-convex optimization problem with a differentiable loss-function, we use
+FedAvg to aggregate the model- and architecture parameters
+of all clients after each communication round. We use two
+types of cells: Normal cells and reduction cells. Normal
+cells keep the dimensions of the input while reduction cells
+apply an additional reduction-operation.
+Discretizing the Architecture. Since differentiable NAS
+requires a continuous relaxation of the architectural sapce A,
+the architecture learned by FEATHERS has to be discretized
+after training. This is done by selecting the top k operations
+with the highest architectural weight over all cells. Also, no
+operation is allowed to connect the same two nodes.
+3.3
+
+DIFFERENTIAL PRIVACY
+
+Although in FL no data is exchanged between server and
+clients, the parameters sent to the server still leak private
+
+information (Fredrikson et al., 2015). It has been shown
+that differential privacy (DP) can be used to provably protect private information encoded in these parameters during
+Stochastic Gradient Descent (SGD) (Abadi et al., 2016). We
+adapt this notion to both, model parameters and architectural parameters since both inherently depend on the data
+the model is trained on. DP was introduced in Dwork (2006)
+and is defined as follows:
+Definition 1. For any two datasets D, D0 that differ in
+exactly one record a mechanism M is called -differential
+private if ∀x : Pr[M (D) = x] ≤ exp()Pr[M (D0 ) = x]
+holds where Pr[M (D) = x] refers to the probability of
+mechanism M outputting x if executed on D.
+In our case M is the learning procedure, i.e. SGD. Making
+SGD differential private can be achieved by clipping gradients and adding Gaussian noise to the gradient of each
+sample w.r.t. the parameters, resulting in an algorithm called
+DP-SGD (Abadi et al., 2016). Updating model- and architectural parameters with DP-guarantees then becomes:
+B
+
+θ ← αθ
+
+1 X
+∇θ La (w, x(i) ) + N (0, σθ2 Cθ2 I)
+B i=1
+
+(11)
+
+In the above equation θ ∈ {w, a} refers to the model- or architectural parameters, B is the batch-size, N is the normal
+distribution, σθ is a scaling-parameter, Cθ is the maximum
+gradient norm, I the identity matrix and αθ is the learning
+rate for parameters θ. We use DP-SGD for learning both, the
+model parameters and the architecture. Hence, our method
+enjoys all convergence- and privacy-guarantees given by DPSGD which can be controlled via the parameter  (Abadi
+et al., 2016). As  inversely depends on noise-parameters
+σ, for high -values DP-SGD achieves approximately SGDconvergence while losing privacy-guarantees. For low  we
+obtain strong privacy guarantees while losing convergenceguarantees. It should be noted that FedAvg averages the
+parameters that have been computed by the clients. Since
+DP is closed under arbitrary post-processing, averaging does
+not break DP (Dwork et al., 2014). Similarly, we apply DP
+on rewards sent to the server to "hide“ possible private information from data by adding small Gaussian noise with zero
+mean to the rewards. For the DP-variant of FEATHERS, see
+Appendix A.
+3.4
+
+CONVERGENCE ANALYSIS
+
+We now show that FEATHERS’ convergence properties in
+distributed settings coincide with the convergence properties
+of DARTS in centralized settings with high probability, only
+scaled by a controllable factor arising from using FedAvg.
+For simplicity we do not consider adding DP in our analysis.
+Theorem 1. Given a joint distribution p(X1 , . . . , Xn , y)
+over random variables X1 , . . . , Xn , y from which each
+
+client c ∈ C from a set of clients C samples a dataset
+hX(c) , y(c) i, FEATHERS enjoys the same convergence properties as DARTS in a centralized
+setting if applied
+on a
+S
+S
+dataset hX, yi where X = c∈C X(c) and y = c∈C y(c) .
+Proof. We treat the HO-phase of FEATHERS as an oracle
+and assume that it returns well-suited hyperparameters h.
+Once h was obtained, it is fixed for a certain number of
+communication rounds κ. In each communication round
+i epochs of DARTS are performed locally on each client.
+Since we employ FedAvg to average model parameters after i local epochs, we exploit that FedAvg converges with
+1
+rate O( iκ
+) (Li et al., 2020b). Since FedAvg converges and
+parameter-updates are only propagated during NAS-phases,
+it follows that FEATHERS enjoys the same convergence
+properties as DARTS in each NAS-phase scaled by the con1
+vergence of FedAvg O( iκ
+).
+Since the above proof assumes that our method selects wellsuited hyperparameters h for each NAS-phase, we will now
+show that the HO-phase converges with high probability in
+non-stationary bandit-environments.
+Theorem 2. Given a fixed hyperparameter-space H and
+(j)
+(j)
+noisy, non-stationary rewards rh ∼ N (µh , σh ) where
+(j)
+µh is the expected value of the reward at iteration j, σh its
+standard deviation and h ∈ H, the HO-strategy of FEATHERS is at most off by α · 3σh for learning rate α with probability 0.997 once h ∈ H is sampled.
+Proof. Our proof is inspired by convergence results for greedy strategies as stated in (Sutton and Barto, 2018). We
+(j+1)
+(j)
+assume that |µh
+−µh | ≤ δ for all iterations and that we
+set 0 < α < 1 in the update rule. Since the softmax-function
+cannot evaluate to a point-mass, for the probability of each
+hyperparameter instantiation πi [h] > 0 holds. Thus, with j
+approaching infinity, each h ∈ H will be sampled infinitely
+many times, i.e. each instantiation will be sampled. At an
+iteration j, in the most extreme case, a certain h ∈ H has
+not been sampled yet. Assume it gets sampled in iteration j.
+(j)
+(j)
+Since rh ∼ N (µh , σh ) and the current estimate reward(j)
+estimate rh = 0, the update rule reads: rh = α · rh .
+Since we assume all rewards being Gaussian distributed, the
+(j)
+probability of obtaining a reward rh in the range of 3σh
+is 0.997. Since 0 < α < 1 holds, our estimate is at most
+(j)
+±α · 3σh of w.r.t. µh in 99.7% of the cases.
+As the above only considers the case in which our algorithm
+terminates after some h ∈ H is sampled, we also have
+to consider the following case: Assume h is sampled at
+iteration j and a reward-estimate is obtained. After that, h
+is not sampled for k subsequent iterations. The following
+theorem gives bounds for how much off our estimate will
+be in this case.
+
+Theorem 3. Under the assumptions of Theorem 2, the re(j+k)
+(j)
+ward estimate rh
+will be at most off by αk rh − (kδ +
+(j)
+µh ) assuming that h is sampled at iteration j and not
+sampled for k subsequent iterations.
+Proof. By assumptions from Theorem 2, the mean will be
+shifted by at most kδ after k steps. Since the update rule
+for rh is defined as rh = αrh , the reward estimate after k
+(j)
+iterations in which h is not sampled is αk rh . It follows
+that, k iterations after h was sampled, the reward estimate
+(j)
+(j)
+is off by at most αk rh − (kδ + µh ).
+It turns out that the above bound can be controlled by setting
+1
+k assuming we have access to µ(j) (see
+α ≤ (1 + µkδ
+(j) )
+Appendix F). In the case µ(j+1) − µ(j) = δ, this relation
+guarantees that our reward estimate of some h is still optimal
+if h was not sampled for k HO-rounds. Since we can assume
+that the loss decreases between HO-rounds, i.e. µ(j+1) −
+µ(j) < 0, the assumption 0 < α < 1 used in the above
+theorems is not violated. Using Theorem 2 we can assume
+that we have an estimate of µ(j) fulfilling at least µ(j) ±
+α · 3σh with high probability for some h sampled the first
+time in round j. Hence, the errors of reward-estimates can
+be controlled within reasonable bound given by Theorem 3
+in subsequent rounds.
+
+4
+
+EXPERIMENTS AND RESULTS
+
+In order to empirically demonstrate that FEATHERS is capable of jointly optimizing neural architectures and hyperparameters in FL settings with privacy guarantees, we investigate the following three questions:
+Q1. Can FEATHERS compete with state of the art HO- and
+NAS-methods in FL settings at various scales and label
+skews (referred to as non-i.i.d.)?
+Q2. Does FEATHERS adjust the choices of instantiations
+over time to account for dynamics of training process?
+Q3. How well does FEATHERS perform if DP is employed
+to preserve privacy with respect to privacy-budget ?
+We next describe our experiment protocol including the
+employed datasets before presenting our results in detail.
+4.1
+
+EXPERIMENTAL PROTOCOL
+
+In our experiments, we analyzed FEATHERS on three image classification tasks: Fashion-MNIST which contains
+black-white images of 10 different articles of clothing to be
+categorized as well as CIFAR-10 and Tiny-Imagenet which
+contain colored images of 10/200 different categories respectively. The fourth task is a binary classification problem
+on a fraud detection dataset which contains anonymized
+
+bank-account data from bank-customers based on which
+the fraud risk (high or low) has to be predicted (see Appendix B). All datasets were partitioned randomly on a set
+of clients such that each client holds the approximately same
+number of samples. Since in FL it is common to have data
+unequally distributed across clients, we also conducted experiments in which we introduced a label skew in the data
+(referred to as non-i.i.d. subsequently) .We first executed
+the search stage of FEATHERS using a search space over
+CNN/MLP-architectures. For the evaluation-stage we used
+the best normal cell and reduction cell obtained in the search
+stage to build up a larger network (validation networks). For
+discretizing the architecture k = 2 was chosen in order to
+be comparable to other cell-based NAS-methods. We then
+retrained the validation network and optimized hyperparameters using the same HO-strategy as in the search stage.
+The results of the validation network were then reported.
+Since we assume a cross-silo setting, we allowed all clients
+to participate in each communication round. Additionally
+we tested both FEATHERS with and without DP for fraud
+detection, to show that adding DP does not prevent learning a suitable architecture. Appendix C contains a detailed
+description of our search space.
+We implemented FEATHERS in Python based on the flower
+framework for federated learning. All models were built
+using PyTorch and the clients were distributed on Nvidia
+DGX-clusters with A-100 40GB GPUs. Also the server was
+deployed on the same cluster, however, using a separate
+GPU to simulate a cross-silo federated learning setting with
+parallel client-execution.
+4.2
+
+RESULTS
+
+We are now ready to answer the posed research questions
+and will elaborate on each of them in more detail.
+(Q1) FEATHERS achieves SOTA, independently of
+scale and label skew. First, we show that FEATHERS,
+while performing both HO and NAS, achieves state of the art
+results on Fashion-MNIST, CIFAR-10 and Tiny-Imagenet
+in Table 2. Despite DARTS being based on hyperparameters that have traditionally manually been tuned for best
+results by humans, our method beats DARTS (94% vs. 92%
+on Fashion-MNIST, 93% vs. 92% on CIFAR-10, 0.69%
+vs. 0.67% on Tiny-Imagenet) in most distributed learning
+settings while optimizing for a larger set of parameters.
+The same holds for label-skew scenarios. Introducing label
+skews does not seem to adversely affect its performance.
+However, if label-skew is present, a slight increase in the
+variance of our results can be seen.
+Second, to assess scalability of FEATHERS, we consider
+variance in results for increasing number of clients (marked
+in the rows of Table 2). We find that, in contrast to FedEx,
+the number of participating clients does not seem to have a
+
+Table 2: FEATHERS outperforms state of the art federated NAS- and HO-methods while being more flexible.
+DARTS, FedEx and FEATHERS were compared in different federated learning settings as described in Section 4. Each
+experiment was performed 5 times and the mean accuracy and standard deviation are reported. Colors are interpolated from
+green to blue (high accuracy to low accuracy).
+Dataset
+DARTS (f, 5 clients)†
+DARTS (f, 10 clients)†
+DARTS (f, 100 clients)†
+FedEx (5 clients)*
+FedEx (10 clients)*
+FedEx (100 clients)*
+
+Fashion-MNIST
+i.i.d
+non-i.i.d.
+0.92 ± 0.02
+0.91 ± 0.02
+0.92 ± 0.03
+0.82 ± 0.01
+0.78 ± 0.03
+0.65 ± 0.03
+
+0.93 ± 0.01
+0.92 ± 0.02
+0.91 ± 0.03
+0.81 ± 0.01
+0.78 ± 0.02
+0.64 ± 0.04
+
+CIFAR-10
+i.i.d.
+non-i.i.d.
+0.90 ± 0.02
+0.89 ± 0.04
+0.89 ± 0.03
+0.54 ± 0.03
+0.51 ± 0.03
+0.47 ± 0.04
+
+0.67 ± 0.02
+0.68 ± 0.02
+0.67 ± 0.02
+0.43 ± 0.04
+0.41 ± 0.03
+0.38 ± 0.04
+
+0.67 ± 0.02
+0.67 ± 0.03
+0.67 ± 0.03
+0.41 ± 0.04
+0.40 ± 0.04
+0.38 ± 0.05
+
+FEATHERS (5 clients)
+0.94 ± 0.01 0.93 ± 0.02 0.93 ± 0.03 0.91 ± 0.03
+0.93 ± 0.01 0.93 ± 0.03 0.92 ± 0.02 0.89 ± 0.04
+FEATHERS (10 clients)
+FEATHERS (100 clients) 0.94 ± 0.02 0.93 ± 0.03 0.90 ± 0.03 0.89 ± 0.03
+*Training performed using architecture found by DARTS.
+†The same hyperparameter-settings as described in (Liu et al., 2019) were used.
+
+0.69 ± 0.02
+0.68 ± 0.02
+0.68 ± 0.03
+
+0.69 ± 0.03
+0.68 ± 0.02
+0.67 ± 0.03
+
+negative influence on the performance of FEATHERS. We
+hypothesize that FEATHER’s stability is due to more extensive exploration. For an increasing number clients, each
+client holds a smaller subset of data since the datasets used
+have fixed size. Thus the stochastic gradients per client tend
+to have a higher variance, which in turn leads to higher
+variances in parameter-changes across clients. FEATHERS
+tests a set of hyperparameter instantiations on a frozen
+model before applying them for parameter-updates, whereas
+FedEx directly applies the chosen instantiations. Consequently, higher variance of gradients and FedEx’ higher
+risk of choosing inappropriate hyperparameters can lead to
+poorly performing models. In contrast, FEATHERS tends
+to choose ”safer“ instantiations.
+Finally, in terms of runtime, FEATHERS (∼ 2.5 GPU-days)
+does not add significant overhead compared to DARTS (∼ 2
+GPU-days). The additional HO-phase during the search
+stage adds an overhead of approximately 0.1-0.8 GPU-days,
+depending on the number of instantiations tested in each HOround. In contrast, FedEx’ runtime (∼ 1 GPU-day) is much
+lower compared to DARTS and FEATHERS since FedEx
+does not perform NAS and that it performs less exploration
+than our method. See Appendix G for a detailed listing of
+runtimes w.r.t. datasets and number of clients.
+(Q2) FEATHERS dynamically adjusts hyperparameters. Figure 2 shows the hyperparameters selected by
+FEATHERS over time for three runs on CIFAR-10. We
+observe that our method chooses more ”cautious“ hyperparameters than engineers usually do. For example, in DARTS
+it is common to start with a learning rate of 0.025, FEATHERS however chooses much lower learning rates most of
+the time. Presumably this is due to the properties of our HOalgorithm: In the first HO-round it samples and tests a small
+subset of instantiations from H before greedily selecting
+
+0.92 ± 0.02
+0.91 ± 0.03
+0.91 ± 0.02
+0.53 ± 0.02
+0.51 ± 0.04
+0.46 ± 0.05
+
+Tiny-Imagenet
+i.i.d.
+non-i.id.
+
+the one leading to the highest decrease in validation loss. In
+this concrete example, this choice might lead FEATHERS
+to choose a lower learning rate than 0.025, simply because
+there was no better sample. In subsequent HO-rounds the
+goal is to learn a distribution over instantiations maximizing
+the reward in the long run. As SGD never truly converges
+due to its inherent stochasticity, a smaller learning rate is
+ultimately beneficial in the later stages of training, in order
+to avoid heavily perturbing away from a minimum (i.e. too
+large learning rates will ”overshoot“).
+Consequently, FEATHER’s ”cautios“ instantiations entail
+more stable convergence. In that sense, FEATHERS mimics an annealing mechanism in later training stages, which
+find frequent use in Deep Learning problems. This observation further supports our claim that our method adjusts
+hyperparameters appropriately over time.
+(Q3) FEATHERS preserves privacy. To demonstrate
+that FEATHERS provides privacy guarantees without sacrificing predictive performance, we performed classification on the fraud detection dataset. The hyperparameter
+search space and the architecture search space are described in Appendix C. The privacy budgets w , a ∈
+{0.2, 0.25, 0.5, 1.0, 1.5, 2.0, ∞} were both set to equal values in all experiments. It is noteworthy that a privacy budget
+of ∞ corresponds to FEATHERS without DP. The search
+stage was performed for 100 communication rounds, all
+other parameters were set as above. Note that the dataset is
+heavily skewed (95% negative class, 5% positive class). We
+thus report F1-scores instead of accuracy as high accuracy
+would not necessarily indicate a good model performance.
+We further used oversampling on the client-side to account
+for label-skew.
+Figure 3 visualizes the results for different privacy bud-
+
+Figure 2: FEATHERS adjusts hyperparameters over time. The choices of hyperparameters are adapted during training
+to optimize the validation loss. In earlier stages (blue lines) higher learning rates are chosen whereas in later stages of
+training (red lines) lower learning rates are chosen. The figure shows hyperparameter-selections of three FEATHERS-runs
+on CIFAR-10. (Best viewed in color)
+DP: (1) Finding a good balance between a high performing
+model and privacy guarantees and (2) determining whether
+a longer runtime for training is still practically feasible to
+protect privacy.
+
+5
+
+Figure 3: DP retains performance. For  ≥ 1, FEATHERS
+achieves nearly the same performance with DP as without
+DP regardless of the number of clients. For low -values (i.e.
+stronger privacy-guarantees), the performance decreases.
+
+gets . For  ≥ 1 we obtained a F1-score of approximately
+0.77. This means, FEATHERS-DP performs equally well as
+FEATHERS as long as  is chosen larger to be larger than
+1. Decreasing  adds more noise on the gradients which increases the privacy level while disturbing the gradient-signal.
+For  ≤ 0.5 we obtained a significant decrease of the F1score. This confirms that the gradients carrying less (private)
+information also get less useful for parameter-updates.
+In summary, FEATHERS-DP retains the performance of
+FEATHERS for appropriate . Finally, we emphasize that
+adding DP came with approximately 1.5-2 times longer runtimes on our setup. A reasonable trade-off to accommodate
+privacy considerations. The underlying reason is that for DP
+the gradient of each sample has to be manipulated, resulting in poorer parallel execution of automatic differentiation.
+Hence, two trade-offs have to be considered when using
+
+CONCLUSION
+
+We have introduced FEATHERS, a federated learning
+method that efficiently optimizes both neural architectures
+and hyperparameters jointly, while preserving privacy of
+the underlying training-data. Our empirical investigation
+demonstrates that FEATHERS is more than competitive
+with state of the art NAS-algorithms, despite popular approaches like DARTS only performing a subset of the above,
+while also optimizing in a larger space of hyperparameters.
+FEATHERS now allows for a myriad of real-world problems to be addressed fully, e.g. tasks surrounding finance,
+defence, or healthcare. As one example, hospitals can use
+it to collaboratively train cancer-detection models without
+sharing sensible patient-data and without revealing the patient’s identity through parameters. That said, we note that
+fully automating critical systems could be risky and a human in-the-loop should evaluate the quality of the model
+found before it is deployed and monitor its prediction.
+From a technical perspective, it is further desirable to relax FEATHER’s requirement of discrete hyperparameter
+search spaces in order to properly account for continuous
+hyperparameters in future work. Incorporating a state reflecting the current state of training in HO-phases to allow for
+more informed hyperparameter choices instead of a stateless
+bandit approach is a promising additional direction. Lastly,
+considering FL-scenarios other than the cross-silo set-up
+considered in this work is intriguing, also with respect to
+enabling above mentioned applications.
+
+Acknowledgements
+This work was supported by the ICT-48 Network of AI Research Excellence Center "TAILOR" (EU Horizon 2020,
+GA No 952215), the Collaboration Lab "AI in Contruction"(AICO), the safeFBDC project and the project National
+High-Performance Computing for Computational Engineering Sciences (NHR4CES).
+References
+Martin Abadi, Andy Chu, Ian Goodfellow, H. Brendan
+McMahan, Ilya Mironov, Kunal Talwar, and Li Zhang.
+Deep learning with differential privacy. In Proceedings
+of the 2016 ACM SIGSAC Conference on Computer and
+Communications Security (CCS), 2016.
+Shaashwat Agrawal, Sagnik Sarkar, Mamoun Alazab,
+Praveen Kumar Reddy Maddikunta, Thippa Reddy
+Gadekallu, and Quoc-Viet Pham. Genetic cfl: Hyperparameter optimization in clustered federated learning.
+Computational Intelligence and Neuroscience, 2021.
+Zhongxiang Dai, Bryan Kian Hsiang Low, and Patrick Jaillet. Differentially private federated bayesian optimization
+with distributed exploration. Advances in Neural Information Processing Systems (NeurIPS), 2021.
+Ashraf Darwish, Aboul Ella Hassanien, and Swagatam
+Das. A survey of swarm and evolutionary computing
+approaches for deep learning. Artificial Intelligence Review, 2020.
+Xuanyi Dong and Yi Yang. Searching for a robust neural
+architecture in four gpu hours. In Proceedings of the
+IEEE/CVF Conference on Computer Vision and Pattern
+Recognition, 2019.
+Cynthia Dwork. Differential privacy. In Michele Bugliesi,
+Bart Preneel, Vladimiro Sassone, and Ingo Wegener, editors, Automata, Languages and Programming, 2006.
+Cynthia Dwork, Aaron Roth, et al. The algorithmic foundations of differential privacy. Foundations and Trends in
+Theoretical Computer Science, 2014.
+Matt Fredrikson, Somesh Jha, and Thomas Ristenpart.
+Model inversion attacks that exploit confidence information and basic countermeasures. In Proceedings of
+the 22nd ACM SIGSAC Conference on Computer and
+Communications Security (CCS), 2015.
+Edgar Galván and Peter Mooney. Neuroevolution in deep
+neural networks: Current trends and future challenges.
+IEEE Transactions on Artificial Intelligence, 2021.
+
+Chaoyang He, Erum Mushtaq, Jie Ding, and Salman Avestimehr. Fednas: Federated deep learning via neural architecture search. Workshop on Neural Architecture Search
+and Beyond for Representation Learning (CVPR), 2020a.
+Chaoyang He, Haishan Ye, Li Shen, and Tong Zhang. Milenas: Efficient neural architecture search via mixed-level
+reformulation. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition,
+2020b.
+Peter Kairouz, H Brendan McMahan, Brendan Avent, Aurélien Bellet, Mehdi Bennis, Arjun Nitin Bhagoji, Kallista
+Bonawitz, Zachary Charles, Graham Cormode, Rachel
+Cummings, et al. Advances and open problems in federated learning. Foundations and Trends in Machine
+Learning, 2021.
+Mikhail Khodak, Renbo Tu, Tian Li, Liam Li, MariaFlorina F Balcan, Virginia Smith, and Ameet Talwalkar.
+Federated hyperparameter tuning: Challenges, baselines,
+and connections to weight-sharing. Advances in Neural
+Information Processing Systems (NeurIPS), 2021.
+Antti Koskela and Antti Honkela. Learning rate adaptation for federated and differentially private learning.
+arXiv:1809.03832, 2018.
+Guohao Li, Guocheng Qian, Itzel C Delgadillo, Matthias
+Muller, Ali Thabet, and Bernard Ghanem. Sgas: Sequential greedy architecture search. In Proceedings of the
+IEEE/CVF Conference on Computer Vision and Pattern
+Recognition, 2020a.
+Xiang Li, Kaixuan Huang, Wenhao Yang, Shusen Wang,
+and Zhihua Zhang. On the convergence of fedavg on
+non-iid data. In 8th International Conference on Learning Representations, ICLR 2020, Addis Ababa, Ethiopia,
+April 26-30, 2020, 2020b.
+Hanxiao Liu, Karen Simonyan, and Yiming Yang. Darts:
+Differentiable architecture search. In International Conference on Learning Representations (ICLR), 2019.
+Brendan McMahan, Eider Moore, Daniel Ramage, Seth
+Hampson, and Blaise Aguera y Arcas. Communicationefficient learning of deep networks from decentralized
+data. In Artificial intelligence and statistics, 2017.
+Hesham Mostafa. Robust federated learning through
+representation matching and adaptive hyper-parameters.
+arXiv:1912.13075, 2019.
+Hieu Pham, Melody Y. Guan, Barret Zoph, Quoc V. Le,
+and Jeff Dean. Efficient neural architecture search via
+parameter sharing. CoRR, 2018.
+Ishika Singh, Haoyi Zhou, Kunlin Yang, Meng Ding, Bill
+Lin, and Pengtao Xie. Differentially-private federated
+neural architecture search. arXiv:2006.10559, 2020.
+
+Richard S Sutton and Andrew G Barto. Reinforcement
+learning: An introduction. 2018.
+Lingxi Xie and Alan Yuille. Genetic cnn. In Proceedings
+of the IEEE international conference on computer vision,
+2017.
+Sirui Xie, Hehui Zheng, Chunxiao Liu, and Liang Lin. Snas:
+stochastic neural architecture search. arXiv:1812.09926,
+2018.
+Jiayuan Ye, Aadyaa Maddi, Sasi Kumar Murakonda, Vincent Bindschaedler, and Reza Shokri. Enhanced membership inference attacks against machine learning models.
+In Proceedings of the 2022 ACM SIGSAC Conference on
+Computer and Communications Security (CCS), 2022.
+Yi Zhou, Parikshit Ram, Theodoros Salonidis, Nathalie
+Baracaldo, Horst Samulowitz, and Heiko Ludwig. Flora:
+Single-shot hyper-parameter optimization for federated
+learning. arXiv:2112.08524, 2021.
+Hangyu Zhu, Haoyu Zhang, and Yaochu Jin. From federated
+learning to federated neural architecture search: a survey.
+Complex & Intelligent Systems, 2021.
+Barret Zoph and Quoc Le. Neural architecture search with
+reinforcement learning. In International Conference on
+Learning Representations (ICLR), 2017.
+Barret Zoph, Deniz Yuret, Jonathan May, and Kevin Knight.
+Transfer learning for low-resource neural machine translation. In Proceedings of the 2016 Conference on Empirical Methods in Natural Language Processing (EMNLP),
+2016.
+Barret Zoph, Vijay Vasudevan, Jonathon Shlens, and Quoc V
+Le. Learning transferable architectures for scalable image
+recognition. In Proceedings of the IEEE conference on
+computer vision and pattern recognition (CVPR), 2018.
+
+A
+
+ALGORITHMS
+
+Algorithm 2 describes the computation-steps performed by each selected client in a communication round during the
+Search-stage of FEATHERS. The function L corresponds to the loss-function and the functions wlr(h) and alr(h) retrieve
+the model-weight-learning rate and the architecture-learning rate from a hyperaparameter-configuration h respectively.
+Algorithm 2 FEATHERS Framework Client-side Search stage
+Require: Network parameters w and architecture a
+Require: Hyperparameter configuration h
+Require: Data Xtrain , Xval , ytrain yval
+l1 ← La,h (w, Xval , yval )
+w∗ ← w − wlr(h)∇w La,h (w, Xtrain , ytrain )
+a ← a − alr(h)∇a La,h (w∗ , Xval , yval )
+w ← w − wlr(h)∇w La,h (w, Xtrain , ytrain )
+l2 ← La,h (w, Xval , yval )
+return l1 , l2 , w, a
+
+Algorithm 3 FEATHERS Framework Client-side Search stage with DP
+Require: Network parameters w and architecture a
+Require: Hyperparameter configuration h
+Require: Data Xtrain , Xval , ytrain yval
+l1 ← La,h (w, Xval , yval )
+w∗ ← w − wlr(h)∇w La,h (w, Xtrain , ytrain )
+PB
+(i)
+(i)
+a ← a − alr(h) · B1 i=1 ∇a La (w, Xval , yval ) + N (0, σa2 Ca2 I)
+P
+(i)
+(i)
+B
+2 2
+w ← w − wlr(h) · B1 i=1 ∇w La (w, Xtrain , ytrain ) + N (0, σw
+Cw I)
+l2 ← La,h (w, Xval , yval )
+return l1 , l2 , w, a
+
+Algorithm 4 FEATHERS Framework Client-side Evaluation stage
+Require: Network parameters w and architecture a
+Require: Hyperparameter configuration h
+Require: Data Xtrain , Xval , ytrain yval
+l1 ← La,h (w, Xval , yval )
+w ← w − wlr(h)∇w La,h (w, Xtrain , ytrain )
+l2 ← La,h (w, Xval , yval )
+return l1 , l2 , w, a
+
+Algorithm 5 FEATHERS Framework Client-side Evaluation stage with DP
+Require: Network parameters w and architecture a
+Require: Hyperparameter configuration h
+Require: Data Xtrain , Xval , ytrain yval
+l1 ← La,h (w, Xval , yval )
+PB
+(i)
+(i)
+2 2
+w ← w − wlr(h) · B1 i=1 ∇w La (w, Xtrain , ytrain ) + N (0, σw
+Cw I)
+l2 ← La,h (w, Xval , yval )
+return l1 , l2 , w, a
+
+During the Evaluation stage FEATHERS just performs regular network-updates using SGD (or SGD-like variants) under a
+passed hyperparameter instantiation h. This is shown in Algorithm 4.
+
+B
+
+FRAUD DATASET
+
+The fraud detection dataset we have used consists of features X ∈ R7 describing financial circumstances of anonymized
+customers and a binary output y describing whether a certain instance has high or low credit risk. It consists of 10, 000, 000
+samples. The labels are strongly skewed towards negative classes (95% negative class, 5% positive class). Due to this we
+used oversampling during training (in search and evaluation stage) on client-side. Also, in order to speed up training, we only
+used a uniformly sampled subset of 1, 000, 000 samples instead of the entire. As a preprocessing-step standardization of
+all features was applied. The dataset used can be found here: https://packages.revolutionanalytics.com/
+datasets/ccFraud.csv.
+
+C
+
+TRAINING DETAILS
+
+C.1
+
+GENERAL SETUP
+
+We trained the supernet in the search stage for 200 communication rounds on Fashion-MNIST and 500 communication
+rounds on CIFAR-10. After each HO-phase we used 15 communication rounds to perform NAS, the communication rounds
+per HO were computed based on the entropy of the softmaxed reward-estimates as described in Section 3. We chose
+to set β = 4 to allow a maximum of 16 communication rounds for HO, assuming a uniform distribution over the 120
+hyperparameter instantiations we use as a search space. Also, we set α = 0.65 in all experiments. In each communication
+round, all selected clients perform 5 epochs of local training. Data was shuffled before distributed on each client using a
+fixed seed. During training we used gradient clipping with a value of 5 and chose a batch size of 64.
+After the Search stage we selected the architecture leading to the highest accuracy score obtained in the 200/500
+communication rounds for Fashion-MNIST/CIFAR-10. This architecture was then used to build and train an evaluation
+network from scratch as described in Section 3. In the evaluation stage we performed HO again and allowed the training to
+take place for 1500 communication rounds where selected clients perform one epoch of training in each communication
+round. We again computed the number of HO-rounds with β = 4 and set the number of rounds training under a certain
+hyperparameter instantiation h to 15 with 5 epochs of local training on each client. During training the evaluation network
+we set gradient clipping to 5 and chose a batch size of 96 for Fashion-MNIST/CIFAR-10 and 128 for Tiny-Imagenet to be
+comparable to DARTS.
+
+C.2
+
+SEARCH SPACE IMAGE CLASSIFICATION
+
+Search Stage. Our search space for image classification tasks is divided into an architecture search space A and a
+non-architectural hyperparameter-search space H. A was defined as the space of cells consisting of 7 nodes. The nodes are
+connected by a mixed operation consisting of the following primitives: Separable and dilated separable convolutions of
+size 3 × 3 and 5 × 5, max- and average pooling of size 3 × 3, an identity operation as well as a zero-operation. We used
+a stride of one if applicable and used padding. Our convolutional operations are defined using the ReLU-Conv-BN order
+and we apply separable convolutions twice as in DARTS. We stack 8 cells s.t. the input of each cell is the output of its last
+two predecessors and every third cell is a reduction cell, the rest are normal cells. Normal cells keep the dimensions of the
+input whereas reduction cells reduce the input’s dimensions. The first cell receives the input twice. The output of each cell is
+defined as the depth-wise concatenation of the representations of its nodes. In case of fraud detection we are using a search
+space over MLPs since we deal with tabular data. Here, operations are defined as small MLPs which map the input to a
+lower or higher dimension and which use either Tanh, Sigmoid or ReLU as activation functions. For a detailed description
+of A in the MLP-case, see Appendix C.3.
+The hyperparameter-space H consists of candidates for the learning rate used for model- and architecture parameterupdates sampled from a log-uniform distribution from 10exp(U (−4,0)) and 10exp(U (−5,−1)) respectively. Further we included
+candidates for weight decay used in updates of both parameter-types sampled from 10exp(U (−5,−1)) and we included
+candidates for the momentum used in SGD-updates of model parameters with momentum candidates sampled from
+U(0.5, 1). We used 120 i.i.d. samples from these distributions to define our discrete hyperparameter search space.
+Evaluation Stage. Here, our search space consists of non-architectural hyperparameters only. We chose to tune for the
+learning rate, weight decay, momentum and path-dropout. We chose the first three hyperparameters since these directly
+influence the behavior of the optimizer, thus of the learning progress. Path-dropout was chosen to avoid over-fitting and
+
+to demonstrate that FEATHERS is able to select proper configurations to do so. In the evaluation on Fashion-MNIST and
+CIFAR-10 the search space over learning-rate, weight-decay and momentum remained the same as in the search stage. For
+dropout we allowed values between 0 and 0.5. In the evaluation on Tiny-Imagenet we defined the search space as follows:
+The learning rates were sampled from 10exp(U (−6,−1)) , weight-decay was sampled from 10exp(U (−5,−2)) , momentum and
+dropout remained the same as for CIFAR-10 and Fashion-MNIST. We sampled 240 candidates instead of 120.
+In the MLP-case we replaced path-dropout by regular dropout. We sample 120 i.i.d. samples as above, for (path-)dropout we
+chose to sample from U(0, 0.3).
+
+C.3
+
+SEARCH SPACE FRAUD DETECTION
+
+In case of the fraud detection dataset, we defined a search space over MLPs. We define a set of 6 operations, 3 of these
+retain the input-dimensionality and apply a linear transformation followed by either ReLU, Sigmoid or Tanh. The other
+3 operations reduce the dimensionality by a factor of 0.8. Our search space consists of three cells. Each cell represents a
+simple MLP-layer consisting of one of the 6 operations defined above. In the search stage, all configurations stayed the same
+as in the case of training on CIFAR-10/FashionMNIST except for the number of communication rounds which was set to
+100. In the evaluation stage the number of communication rounds was set to 200, the rest remained the same.
+
+D
+
+TECHNICAL DETAILS
+
+We make our code publicly available at: https://anonymous.4open.science/r/FEATHERS-250B/. We have used
+the flwr framework https://flower.dev/ to implement federated learning setting in FEATHERS. All experiments
+were run on Nvidia DGX clusters with A100-GPUs with 40 GB RAM. One GPU was used for the server and clients were
+distributed over the remaining GPUs. Of course all clients were isolated from each other during the experiments, the only
+communication allowed happened between clients and server.
+
+E
+
+ARCHITECTURES FOUND BY FEATHERS
+
+Figure 4: This figure shows the normal cell found by FEATHERS on CIFAR-10, i.e. the dimensions of the input are kept. ck
+is the output of the cell, ck−1 and ck−2 correspond to the input of the cell (i.e. the output of the last two cells). Each node in
+the graph shows a representation of the cell-input, computed by the operation(s) shown on the incoming edges of a node.
+
+Figure 5: This figure shows the reduction cell found by FEATHERS on CIFAR-10, i.e. the dimensions of the input are
+reduced. ck is the output of the cell, ck−1 and ck−2 correspond to the input of the cell (i.e. the output of the last two cells).
+Each node in the graph shows a representation of the cell-input, computed by the operation(s) shown on the incoming edges
+of a node.
+
+F
+
+DERIVATION OF SELECTION RULE FOR α
+
+Theorem 3 can be used to derive values for α in each HO-round which are guaranteed to be optimal under certain conditions.
+Based on the assumptions of Theorem 2, we have true mean-values of rewards µ(j) and µ(j+1) for round j and j + 1
+respectively. Also, we assume that |µ(j+1) − µ(j) | ≤ δ for all j. Let’s assume we have access to µ(j) at round j for some h
+and that h is not sampled for k subsequent rounds. Then our estimate of µ(j+k) would be αk µ(j) after k rounds. To obtain
+the correct estimate of µ(j+k) , the following must hold:
+(j)
+
+αk · µ(j) = µ(j) + k · (µ(j+1)−µ )
+
+(12)
+
+We can find the optimal α using the following derivation:
+(j)
+
+αk · µ(j) = µ(j) + k · (µ(j+1)−µ )
+(j+1)
+
+αk = 1 +
+
+−µ
+µ(j)
+
+)
+
+(13)
+(14)
+
+kδ
+µ(j)
+
+(15)
+
+
+kδ  k1
+α = 1 + (j)
+µ
+
+(16)
+
+≤1+
+It follows that
+
+k · (µ
+
+(j)
+
+Note that in case µ(j+1) − µ(j) = δ by applying the above equation we obtain the optimal α.
+
+G
+
+RUNTIMES
+
+Table 3: FEATHERS does not add significant overhead. FEATHERS’ runtime is approximately 0.4 GPU-days higher
+than the runtime of DARTS. FedEx has lower runtimes compared to both, FEATHERS and DARTS, mainly because it does
+not optimize the architecture and performs less exploration than FEATHERS. All runtimes are reproted in GPU-days.
+
+DARTS (5 Clients)
+DARTS (10 Clients)
+DARTS (100 Clients)
+FedEx (5 Clients)
+FedEx (10 Clients)
+FedEx (100 Clients)
+FEATHERS (5 Clients)
+FEATHERS (10 Clients)
+FEATHERS (100 Clients)
+
+Fsahion-MNIST
+1.8
+1.7
+1.5
+0.8
+0.8
+0.6
+2.2
+2.1
+1.9
+
+CIFAR-10
+2.1
+2.0
+1.8
+0.9
+0.8
+0.7
+2.5
+2.4
+2.1
+
+Tiny-Imagenet
+3.1
+2.9
+2.7
+1.3
+1.3
+1.1
+3.6
+3.5
+3.1
+
+Fraud Detection
+0.4
+0.3
+0.2
+0.09
+0.07
+0.05
+0.6
+0.6
+0.35
+
+

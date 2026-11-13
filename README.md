@@ -6,7 +6,7 @@ las actualizaciones (Δ) de un modelo sonda, y los representantes se re-sortean 
 evaluación depende del número de clusters C, no del número de nodos N.
 
 Decisiones de diseño, métricas y la regla de decisión experimental: [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
-La revisión sistemática del área está en `manuscript/main.pdf` y el informe experimental final (resultado mayormente negativo) en `manuscript/informe.pdf`. El código y los resultados de las propuestas anteriores
+La revisión sistemática y el informe experimental de la rama `experiment/cluster-sampling-nas` ya no están en esta rama. El código y los resultados de las propuestas anteriores
 (disimilitud/similitud con 8 nodos, many-objective) siguen en el tag `legacy-final` de git.
 
 ## Instalación
@@ -45,5 +45,5 @@ src/evofederated/
   evolution/   # evaluador por representantes y bucle NSGA-II / random search
   experiments/ # runner de una corrida
   metrics/     # hipervolumen, coste
-tests/  configs/  docs/  manuscript/
+tests/  configs/  docs/
 ```

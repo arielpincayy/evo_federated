@@ -1,0 +1,1330 @@
+arXiv:2305.07135v1 [cs.LG] 11 May 2023
+
+Divide-and-Conquer the NAS puzzle in Resource
+Constrained Federated Learning Systems
+Yeshwanth Venkateshaa,∗, Youngeun Kima , Hyoungseob Parka ,
+Priyadarshini Pandaa
+a
+
+Department of Electrical Engineering, Yale University, New Haven, Connecticut, USA
+
+Abstract
+Federated Learning (FL) is a privacy-preserving distributed machine learning
+approach geared towards applications in edge devices. However, the problem of designing custom neural architectures in federated environments is
+not tackled from the perspective of overall system efficiency. In this paper, we propose DC-NAS—a divide-and-conquer approach that performs
+supernet-based Neural Architecture Search (NAS) in a federated system by
+systematically sampling the search space. We propose a novel diversified
+sampling strategy that balances exploration and exploitation of the search
+space by initially maximizing the distance between the samples and progressively shrinking this distance as the training progresses. We then perform
+channel pruning to reduce the training complexity at the devices further.
+We show that our approach outperforms several sampling strategies including Hadamard sampling, where the samples are maximally separated. We
+evaluate our method on the CIFAR10, CIFAR100, EMNIST, and TinyImagenet benchmarks and show a comprehensive analysis of different aspects of
+federated learning such as scalability, and non-IID data. DC-NAS achieves
+near iso-accuracy as compared to full-scale federated NAS with 50% fewer
+resources.
+Keywords: Neural Architecture Search, Federated Learning
+
+∗
+
+Corresponding author
+Email address: yeshwanth.venkatesha@yale.edu (Yeshwanth Venkatesha)
+
+Preprint submitted to Neural Networks
+
+May 15, 2023
+
+1. Introduction
+Deep learning has radically changed the landscape of AI with unprecedented success in computer vision, language processing, and several other
+domains such as recommendation engines and bioinformatics LeCun et al.
+(2015); Voulodimos et al. (2018); Min et al. (2017); Young et al. (2018); Zhang
+et al. (2019). Given that most of these applications are being deployed on millions of edge devices containing sensitive data, privacy-preserving distributed
+learning paradigms such as federated learning have garnered significant interest McMahan et al. (2017); Konečnỳ et al. (2016); Chen and Ran (2019);
+Voghoei et al. (2018); Véstias et al. (2020); Li et al. (2018); Kairouz et al.
+(2021). A crucial part of the success of deep learning is attributed to the design of novel architectures Simonyan and Zisserman (2014); He et al. (2016);
+Szegedy et al. (2015, 2016, 2017); Liu et al. (2017b). Neural Architecture
+Search (NAS), the technique of searching for the optimal network architecture removes the tedious human effort of handcrafting architectures Zoph
+and Le (2016); Pham et al. (2018); Liu et al. (2018b,a); Tan et al. (2019);
+Elsken et al. (2019); Wistuba et al. (2019). With deep learning being rapidly
+applied in various domains, NAS is one of the promising steps toward democratizing AI. Standard federated learning methods assume a fixed network
+architecture that is often manually designed beforehand for a given problem
+and hence might not be optimal. Further, the devices in practical federated
+systems are often constrained in their resources such as memory, storage,
+and processing power. Hence, it is prudent to develop practical methods to
+perform NAS in a federated learning system accounting for device resource
+constraints. While there is significant progress in compression techniques for
+reducing the complexity of neural networks Neill (2020); Choi et al. (2020);
+Blalock et al. (2020); He et al. (2017); Han et al. (2015); Lin et al. (2017a);
+Ashok et al. (2017); Luo et al. (2017), they do not perform NAS directly
+on the edge devices. It involves an additional step of first performing NAS
+offline followed by using the compression techniques to reduce the complexity
+of the model before deploying in the devices.
+In this paper, we propose DC-NAS—a Divide-and-Conquer approach to
+address the problem of NAS in a federated learning system consisting of
+resource-constrained devices. The objective of our method as illustrated in
+Fig. 1a, is to accelerate the NAS process and at the same time reduce the
+training complexity of the models in the clients. To achieve this, we divide
+the search space among the clients and combine their updates analogous to
+2
+
+Figure 1: Summary of DC-NAS approach. (a) Illustration of our objective of reducing
+the search time as well as the training complexity at the clients. (b) Illustration of the
+overall framework. The complexity of the model is reduced in two steps first by sampling
+the subnetworks from the server and then applying channel pruning at the clients. The
+communicated gradients after local training are aggregated and are used to update the
+supernet at the server. (c) Toy example showing our sampling approach on a 4-dimensional
+hypercube. Blue points picked in Round 1, orange in Round 2, and green in Round 3.
+
+assembling the pieces of a puzzle. As shown in Figure 1b, the model complexity on the clients is reduced in two stages. First, a smaller subnet is
+sampled for each client by pruning the connection topology of the supernet at the server. Then, within the client, the channels in the convolution
+layers are pruned to ensure that the resulting subnet fits within the client’s
+resource constraints. We then train the subnet using the clients’ local data
+and aggregate the updates from different subnets into the larger supernet at
+the server. A straightforward method to sample the subnets is to randomly
+prune the connection topology until we achieve a sufficiently small network.
+However, this leads to an unstructured exploration of the search space and
+the aggregation of such subnets results in jagged updates consequently reducing the convergence rate similar to the observation in Cai et al. (2019).
+To address this issue, we propose a diversified sampling strategy (shown in
+Figure 1c) that maps the problem of selecting subnets to sampling points on
+an n-dimensional hypercube. In the initial rounds, we maximize the distance
+between the samples and as the training progresses we reduce this distance
+3
+
+Figure 2: t-SNE projections of the sampled points using diversified sampling, random
+sampling and Hadamard sampling. The sampled points follow a spiral pattern in diversified
+sampling showing the balance in exploration as well as exploitation. In contrast, random
+sampling and Hadamard sampling show the two extremes of exploration and exploitation.
+While random sampling is always in explore mode as seen by the arbitrary selection of
+points, Hadamard sampling is in full exploit mode by selecting the maximally separated
+points. Hence multiple points will overlap with each other when plotted on a 2D space.
+Note: The points in Hadamard sampling are perturbed to show that multiple samples are
+mapped to the same location.
+
+thereby balancing the exploration of space as well as exploiting the known
+regions. Visualized on a two-dimensional space using t-SNE Van der Maaten
+and Hinton (2008) in Fig. 2, this follows a spiral pattern by exploring the
+farther points in the initial rounds and progressively reducing the distance
+thereby exploiting the known regions in the later rounds. In contrast, random
+sampling selects the points arbitrarily. Finally in Hadamard sampling Seberry et al. (2005); Horadam (2012); Hedayat and Wallis (1978); Yarlagadda
+and Hershey (2012), while we obtain samples that are maximally separated
+in terms of hamming distance, the points are clustered when mapped on a 2D
+space showing that all the samples are rigidly interrelated hence restricting
+the exploration of the search space. Our contributions can be summarized
+as follows:
+• We propose a divide-and-conquer approach to collaboratively perform
+neural architecture search in a federated environment with resourceconstrained devices. We reduce the network complexity by pruning
+the connection topology followed by the channels to account for the
+compute budget in the client.
+• We propose a diversified sampling strategy to systematically sample
+4
+
+subnets from the search space by sampling maximally separated samples in the initial rounds and progressively reducing the distance between the samples leading to an accelerated search. We show that our
+sampling process outperforms a spectrum of sampling strategies including Hadamard sampling which provides maximally separated samples.
+• We show the effectiveness of our method with a comprehensive analysis on different aspects of federated learning such as non-IID data
+and scalability on CIFAR10, CIFAR100, EMNIST, and TinyImagenet
+datasets.
+2. Related Work
+Among several approaches towards tackling the problem of NAS, a majority are based on reinforcement learning (RL) Baker et al. (2016); Zoph
+and Le (2016); Zoph et al. (2018); Cai et al. (2018a); Pham et al. (2018),
+evolutionary algorithms (EA) Real et al. (2017); Suganuma et al. (2017); Liu
+et al. (2017a); Real et al. (2019); Miikkulainen et al. (2019); Xie and Yuille
+(2017); Elsken et al. (2018), or gradient descent Liu et al. (2018b); Xie et al.
+(2018); Cai et al. (2018b); He et al. (2020b); Elsken et al. (2019); Wistuba
+et al. (2019). Among these, gradient-based methods offer the best tradeoff between performance and resource consumption. Additionally, federated
+aggregation involves some form of averaging of the gradients from different clients which can be extended to architecture parameters, thus, making
+gradient-based NAS techniques a natural choice in federated environments.
+NAS in federated environments has been previously approached from different perspectives. FedNAS He et al. (2020a) extends the DARTS Liu et al.
+(2018b) framework trained with mixed-level reformulation from MiLeNAS
+He et al. (2020b) to federated environments with a straightforward aggregation of both weights and architecture parameters. The authors of DecNAS
+Xu et al. (2020) propose a technique to leverage the federated environment
+to conduct parallel training of multiple candidates for different constraints
+by extending NetAdapt Yang et al. (2018) to federated environments. The
+authors of RT-FedEvoNAS Zhu and Jin (2021) take the approach of evolutionary algorithms to efficiently search the architecture space. The authors of
+Cheng et al. (2022) and Singh et al. (2020) focus on the privacy aspect of federated NAS by adding noise to the gradients of architecture parameters and
+provide theoretical differential privacy guarantees. The authors of DFNAS
+5
+
+Garg et al. (2020a) reduce the commonly used two-staged NAS approach
+(search and finetune) to a one-stage computationally lightweight method to
+obtain ready-to-deploy neural network models. MGNAS Pan et al. (2021)
+provides a generic framework to NAS in federated learning by aggregating architectures from different clients by considering them as probabilistic graphs.
+The authors of Mushtaq et al. (2021) take the route of personalizing architecture design for each client whereas we define our problem as distributing the
+learning of a common model. HANF Seng et al. (2022) proposes a method
+to perform both NAS and hyperparameter optimization using a combination
+of gradient-based and RL-based methods. More recently, NAS in a federated
+environment is used in applications of IoT devices Zhang et al. (2022) and
+secure medical data analysis Liu et al. (2022). While we limit our scope to
+horizontal federated learning where every participating client has the same
+feature set, there has been work on NAS for vertical federated learning where
+the clients hold feature-partitioned data Liang et al. (2021); Liu et al. (2023).
+Finally, the authors of Liu and Cao (2021) and Zhu et al. (2021) provide a
+broad overview of the problem of NAS in federated learning.
+In contrast to previous approaches where NAS is performed independently
+on each client and the server is used to aggregate the models, DC-NAS performs NAS in a server-client integrated manner. The server distributes the
+work to every client by sampling a different subnet and combines the knowledge learned at each client into the supernet. While previous NAS approaches
+in federated learning train the supernet to find the best architecture, we train
+the entire supernet in a federated manner so that we can later sample architectures at different levels of complexity and deploy them off the shelf. This
+has the practical advantage of finding tailored architecture at different complexities based on the client’s needs. While we use DARTS-based Liu et al.
+(2018b) search space in our experiments, the core sampling method can be
+extended to any NAS method that uses gradient or evolutionary techniques
+to train the architecture/weight parameters of a network.
+3. Methods
+3.1. DC-NAS Framework
+The NAS search space is defined as a collection of weights and architecture
+parameters (w, α), where the set of weights w represents the layers, and the
+architecture parameters α encode the connectivity among different layers Liu
+et al. (2018b). In a federated learning setup, we have a set of C clients with a
+6
+
+(c)
+
+(c)
+local dataset D(c) : {xi , yi }N
+samples out of total
+i=1 at each client c with N
+N samples. Given the set of weights w, architecture encoded by parameters
+α and a loss function L, the global objective f is optimized by minimizing
+the weighted sum of loss across all clients,
+
+min f (w, α) = min
+w,α
+
+w,α
+
+C
+X
+N (c)
+c=1
+
+N
+
+·[
+
+1 X
+L(xi , yi , w, α)].
+N (c)
+(c)
+
+(1)
+
+i∈D
+
+Assuming that the client’s resource constraints can be summarized to a scalar
+target sparsity s(c) , we define s(c) for each client c that needs to be achieved
+to fit the subnet to the client’s capability. To achieve this, we employ a two
+step process. First, given the architecture of the supernet, the server samples
+a subnet for each client by pruning a fraction of connections. The subnet
+(c)
+(c)
+can be defined by a binary mask march with sparsity sarch . Next, we apply
+(c)
+channel pruning at the client with sparsity of schannel to further reduce the
+(c)
+complexity of the subnet. We obtain the channel sparsity schannel required
+to achieve the overall target sparsity of s(c) as follows:
+(c)
+
+schannel = 1 − min(1,
+
+1 − s(c)
+(c)
+
+1 − sarch
+
+).
+
+(2)
+
+As described in algorithm 1, for client c in each round, we sample masks
+for each client and prune the architecture of the supernet to ob(c)
+tain a sparse subnet. Then in each client, we keep only the first schannel
+(c)
+fraction of the channels and prune out the rest. Let mchannel = {0, 1}nc
+where nc is the number of channels, denote the binary mask of nc dimension with set bits indicating the active channels. With the notation of
+(c)
+(c)
+m(c) = march ◦ mchannel denoting the composition of the masks, we obtain
+the sparse subnet by applying m(c) over the weights and architecture parameters as (w(c) , α(c) ) = m(c) ⊗ (w, α). We then perform local search on each
+client over the subnet by alternating between updating w(c) and α(c) for every
+minibatch of data He et al. (2020b,a). We then communicate the gradients
+of the trained subnets to the server. We update the corresponding weights
+and architecture parameters in the supernet by aggregating the gradients as,
+(c)
+march
+
+w=w+
+
+C
+X
+N (c)
+c=1
+
+N
+7
+
+· m(c) ⊗ ∇w(c) ,
+
+(3)
+
+Algorithm 1 DC-NAS
+Input: Initial supernet: (w0 , α0 ); Number of local epochs: E; Number
+of rounds: R; C clients indexed by c each with local data D(c)
+Output: Trained supernet (w∗ , α∗ )
+1: Initialize Sampler
+. (Ref. Algorithm 2)
+2: for round r = 1, ..., R do
+3:
+Get target sparsity s(c) = [s(1) , ..., s(C) ]
+4:
+for all clients c = 1, ..., C do
+(c)
+5:
+march ← Sampler.SampleMask()
+(c)
+(c)
+(c)
+6:
+mchannel ← [{1}schannel nc , {0}(1−schannel )nc ]
+(c)
+(c)
+(c)
+(c)
+7:
+(wr , αr ) ← m(c) ⊗ (wr , αr ) where m(c) = march ◦ mchannel
+.
+Apply mask
+(c)
+(c)
+(c)
+(c)
+8:
+wr+1 , αr+1 ← LocalSearch(wr , αr )
+9:
+end for
+P
+(c)
+N (c)
+(c)
+⊗ ∇wr+1
+10:
+wr+1 ← wr + C
+c=1 N · m
+P
+(c)
+N (c)
+(c)
+⊗ ∇αr+1
+11:
+αr+1 ← αr + C
+c=1 N · m
+12: end for
+13: procedure LocalSearch(w, α)
+14:
+for epoch e = 1, ..., E do
+15:
+for Minibatch in training and validation data in Dc do
+16:
+w ← w − ηw ∇w Ltr (w, α)
+17:
+α ← α − ηα (∇α Ltr (w, α) + λ∇α Lval (w, α))
+18:
+end for
+19:
+end for
+20:
+return (w, α)
+21: end procedure
+
+α=α+
+
+C
+X
+N (c)
+c=1
+
+N
+
+· m(c) ⊗ ∇α(c) .
+
+(4)
+
+Note that the updates are weighted according to the number of data samples
+(N ) to reduce the variance of the updates McMahan et al. (2017). At the
+end of the training procedure, we obtain a fully trained supernet from which
+high-performing subnets can be sampled. While the subnets give a reasonable
+
+8
+
+accuracy off the shelf, they can be further finetuned with the local client data
+to improve the accuracy. The strategy to sample the mask has a significant
+impact on the effectiveness of our framework. Here, we propose a diversified
+sampling strategy to systematically divide the search space among the clients.
+
+Algorithm 2 Diversified Sampling - Sampler
+Input: Number of clients C and number of rounds R.
+(c)
+Output: Subnet masks march for client c at round r.
+1: parent nodes ← random sample
+2: for round r = 1, ..., R do
+3:
+root ← Pick a node from parent nodes
+4:
+offset = 1
+5:
+for client c = 1, ..., C do
+(c)
+6:
+march ← Flip every rth bit of root starting from offset bit
+7:
+offset = offset + 1
+8:
+offset = offset % r
+9:
+end for
+10:
+parent nodes ← samples from current round r
+11: end for
+
+3.2. Diversified Sampling
+Given a search space encoded by vector α of n dimension, the binary mask
+march of the same dimension uniquely encodes all possible subnets. This
+results in a search space of 2n possible architectures which can be visualized
+as points on an n-dimensional hypercube Qn . Given a node u on Qn , we
+can find the node that is k-hamming distance from it by flipping k bits. In
+each round, we take the nodes sampled in the previous round and find the
+subsequent nodes that are at a certain distance from it. And we progressively
+reduce this distance as we go to later rounds. With this, we can explore the
+search space in a structured way with points sampled from a different region
+every round. To better understand the strategy consider the toy example
+of a 4-dimensional hypercube Q4 shown in Fig. 1c. Since all the nodes
+are symmetrical, without loss of generality we can assume we picked the
+first node. By flipping all the bits we reach the node that is diametrically
+opposite to the original node in the search space. In the next round, since
+9
+
+we are flipping every alternate bit, we reach nodes that are at a hamming
+distance of 2 from the nodes in the previous rounds. In subsequent rounds
+we flip every 3rd , 4th , 5th bits and so on. At round r, this involves r bit
+flips resulting in samples being n/r hamming distance from the samples of
+previous rounds and 2n/r hamming distance among each other. Hence, we
+are systematically exploring the search space by sampling from the regions
+of the space that have not been previously explored. Additionally, given that
+the samples among the clients follow a pattern, the subnets fall into place
+like pieces of a puzzle upon aggregation. Note that this process can result in
+subnets that are beyond the capabilities of certain clients. For example, if
+we flip all the bits of a mask with a sparsity of 0.25, the resulting mask will
+have a sparsity of 0.75. To handle this we prune the channels of convolution
+layers to reach the required sparsity as described in Eqn. 2. We summarize
+our sampling method in algorithm 2.
+4. Experiments
+4.1. Experiment Setup
+We perform experiments with CIFAR10, CIFAR100 Krizhevsky et al.
+(2009), EMNIST Cohen et al. (2017) and TinyImagenet Le and Yang (2015)
+datasets to show the effectiveness of our DC-NAS framework and diversified sampling. Following previous work He et al. (2020a), we partition the
+training set of CIFAR10 among 8 clients which is further divided into local
+training and validation sets. We simulate the non-IID scenario by sampling
+the proportions of classes using Dirichlet distribution with concentration parameter αiid = 0.5 similar to previous work He et al. (2020a); Wang et al.
+(2020). The default hyperparameters that are listed in Table 1 are used
+across our experiments unless mentioned otherwise. We use a system with
+four V100 GPUs each with 32GB of GPU memory and an 18-core CPU with
+8GB of memory per core.
+While we divide the training set among all the clients, we hold out the
+test set and use the accuracy achieved by the full supernet with composite
+operations on this global test set as the main performance metric across all
+our experiments. In addition to this, we also report the accuracy of the
+subnet formed by choosing only the operations with argmax(α). Further,
+this sampled network can be finetuned to improve accuracy. Finally, we track
+the training time and communication cost between the server and the clients
+
+10
+
+Table 1: Default Hyperparameters.
+
+Parameter
+
+Value
+
+Dataset
+CIFAR10
+No. of Clients (C)
+8
+No. of rounds (R)
+50
+Local Epochs (E)
+5
+Target Sparsity (s(c) )
+0.5
+Batch Size
+32
+
+Parameter
+
+Value
+
+Client Optimizer
+Grad clipping thr
+Weight decay w
+Weight decay α
+LR for w (ηw )
+LR for α (ηα )
+
+Adam
+0.5
+3e-4
+1e-3
+0.001
+3e-4
+
+to measure the computation and communication complexity by measuring
+training time and the model size respectively.
+4.2. Sampling Strategies
+As explained in Section 3.2, our approach for exploring the search space
+involves finding samples that maximize the sum of the distance from previous
+samples in the initial rounds, and gradually reducing this distance to balance
+exploration and exploitation as the training progresses. In contrast, a simple
+random sampling method may not effectively cover the diverse regions of
+the space with a limited number of samples. To study the effectiveness
+of our sampling method, we design a spectrum of sampling strategies by
+progressively increasing the interdependence between the samples.
+We start with the simple strategy of random sampling, which selects subnets for each client independently of each other. We then explore Antithetic
+sampling, which reduces the variance of random samples by alternating the
+random selection between adjacent clients and using the complement of the
+selected subnet in the next client. In the common sample strategy, we randomly sample once per round and use this sample across all clients. This
+variant helps in understanding the effect of the interrelationship between the
+sampled subnets among the clients. Complement sample is a special case of
+antithetic sampling where we generate a random sample only once per round
+and use it in half of the clients and use the complement of it in the remaining
+half. Hadamard sampling uses Hadamard code to generate samples that are
+maximally separated from each other.
+In addition to our diversified sampling described in section 3.2, we also
+define two variants, namely diversified sampling + reset and diversified sampling + reset 10. In diversified sampling + reset we choose a random sample
+11
+
+0.9
+
+Test Accuracy
+
+Test Accuracy
+
+0.9
+0.6
+
+0.6
+
+0.3
+0.0 0
+
+0.3
+
+FedNAS
+Random
+Hadamard
+
+DS + Reset
+DS + Reset 10
+DS (Ours)
+
+10 20 30 40 50
+
+Communication Rounds
+
+0.0 0
+
+Random
+Antithetic
+Common
+
+Complement
+DS (Ours)
+
+10 20 30 40 50
+
+Communication Rounds
+
+(a) Comparison to random and Hadamard sam-(b) Comparison of diversified sampling to addipling.
+tional sampling strategies.
+
+Figure 3: Performance of different sampling methods. (a) The training progression across
+communication rounds of our diversified sampling as compared to random and Hadamard
+sampling. (b) Performance comparison with additional variants including antithetic, complement sample and common sample.
+
+at the start of every round and perform the bit flip operation to obtain the
+subsequent samples. In diversified sampling + reset 10 we choose a random
+sample every 10 rounds. By comparing our method to these variants, we
+see that the interrelationship between the samples of the current round to
+the samples of the previous round has an impact on the search process. We
+use FedNAS He et al. (2020a) as the baseline which has no sampling and
+distributes/trains full supernet in every client.
+While keeping all the parameters identical (from Table 1), we vary only
+the sampling strategy and compare the test accuracy of the supernet across
+rounds in Fig. 3a and Fig. 3b. We observe that diversified sampling outperforms all the variants and achieves nearly the same performance as that of the
+FedNAS baseline. Note that in the beginning, all the variants show a similar
+trend because the interdependence of the samples is not yet pronounced as
+the total number of explored samples is low. Once we have explored the space
+sufficiently and the supernet is trained to a certain extent, the advantage of
+our structured exploration strategy with diversified sampling is evident with
+a significant performance improvement.
+While antithetic sampling and complement sampling have no observable
+
+12
+
+Hamming distance
+
+100
+80
+60
+40
+20
+00
+
+Random
+Hadamard
+DS (Ours)
+
+200
+
+400
+
+Sample number
+
+(a) Distance between the samples across
+rounds.
+
+Hamming distance
+
+60
+40
+
+Hadamard
+Random
+DS (Ours)
+
+20
+00
+
+25
+
+50
+
+Comm. Rounds
+
+(b) Distance between the samples within (c) Visualization of mask
+rounds.
+among clients across rounds.
+
+overlaps
+
+Figure 4: Diversified sampling in action. (a) Minimum hamming distance to all the
+previous samples across rounds. (b) Average hamming distance between all pairs of the
+samples at each round. (c) Visualization of distribution of operations among the clients
+across rounds for our diversified sampling compared with random and hadamard sampling.
+
+impact over random sampling, using common samples across all clients helps
+in the initial stages of the training owing to the absence of irregular overlaps
+in the subnets among the clients. However, as the training progresses, it
+becomes unstable due to high variance among the samples. Therefore the
+performance drop in random sampling, antithetic sampling, and complement
+sampling can be attributed to both irregular overlaps among the subnets of
+
+13
+
+clients as well as inefficient exploration of the search space. Hadamard sampling is a strong baseline to compare our method as it yields samples that are
+proven to be maximally separated hence efficiently covering the search space.
+While it outperforms all the previous variants, it falls short to our diversified
+sampling indicating that the gradual reduction of exploration is effective in
+balancing finding new samples and exploiting the known areas. We observe
+that diversified sampling+reset with each round starting from a different random sample outperforms all the previous variants barring Hadamard sampling. This shows that reducing the distance between samples in the later
+rounds (by flipping every rth bit in round r) gives an observable improvement. While we observe a performance drop when we reset every round,
+resetting every 10 rounds shows a minimal performance drop compared to
+the original diversified sampling. This reveals that the initial 10-15 rounds
+of exploration with diversified sampling are crucial.
+4.3. Diversified Sampling
+To understand the working of diversified sampling, we observe the hamming distances between the samples across the rounds as well as within the
+rounds. In Fig. 4a, at each sample, we plot the minimum hamming distance
+to all the previous samples. Note that this distance is high initially in diversified sampling and progressively reduces as the training progresses. This
+suggests aggressive exploration initially and then, a progressive reduction in
+exploration width. Similarly, the average distance among the samples within
+each round also follows the same trend (shown in Fig. 4b). In Fig. 4c, we
+plot the overlap of masks among the clients for the three variants. The value
+of each pixel denotes the number of clients where an operation is active.
+Note that in diversified sampling, initially the operations are distributed
+uniformly among all the clients (blue pixels showing each operation is active
+in 4 clients). In the later rounds, while some operations are exploited by
+having them active in more clients, certain operations are explored in some
+of the clients (as seen by grey and purple pixels respectively). On the other
+hand in RS, there is no such structure and HS follows a rigid structure of
+optimally distributing the operations among the clients in every round. This
+shows the balance in exploration and exploitation in diversified sampling as
+compared to complete exploration in random sampling and full exploitation
+in Hadamard sampling.
+
+14
+
+0.9
+
+Test Accuracy
+
+0.6
+
+0.3
+
+0.0 0
+
+DS C = 4
+DS C = 8
+DS C = 16
+DS C = 50
+
+DS C = 100
+RS C = 100
+Baseline C = 100
+
+25
+
+Communication Rounds
+
+50
+
+Figure 5: Performance of diversified sampling at scale.
+
+4.4. Scalability
+To evaluate the system’s performance at scale, we increase the number of
+clients up to 100 in this experiment, as illustrated in Figure 5. As expected,
+increasing the number of clients resulted in decreased overall performance
+and less stable training across all sampling strategies. This is a well-known
+phenomenon in standard federated learning, as the dataset size at each client
+reduces. For example, despite having a full supernet at every client, the
+FedNAS baseline performance decreased when the number of clients was
+100. We notice a comparable pattern with our diversified sampling where the
+system’s performance decreases as the number of clients increases. However,
+this is not caused by diversified sampling but rather by the characteristics of
+federated averaging (notably, the performance of DS was almost the same as
+the FedNAS baseline at 100 clients). On the other hand, due to the limited
+data samples at each client and the high variance introduced by random
+sampling, we notice a diverging behavior when training a 100-client system
+with random sampling. This experiment demonstrates that our approach
+can be scaled up to larger scenarios. Hence, our method can be applied to
+cross-silo as well as cross-device federated learning.
+4.5. Additional Datasets
+CIFAR100, similar to CIFAR10 consists of 32×32 images with 100 classes.
+EMNIST consists of 28 × 28 dimensional grayscale images with 62 classes of
+handwritten alphabet. TinyImagenet is a trimmed down version of Imagenet
+and has 100000 images of 200 classes with image size reduced to 64 × 64.
+15
+
+0.6
+
+Baseline
+DS
+RS
+
+Test Accuracy
+
+0.4
+
+Test Accuracy
+
+Test Accuracy
+
+0.9
+
+Baseline
+DS
+RS
+
+0.6
+
+0.30
+0.15
+
+0.3
+
+0.2
+0.0 0
+
+25
+
+Rounds
+
+50
+
+(a) CIFAR100
+
+0.0
+
+Baseline
+DS
+RS
+
+10
+
+Rounds
+
+0.00
+
+20
+
+(b) EMNIST
+
+10
+
+Rounds
+
+20
+
+(c) TinyImagenet
+
+Figure 6: Effectiveness of our method on additional datasets.
+
+We divide all the datasets among 8 clients and use the same experimental
+setup. As shown in Fig. 6, we observe that the trend across all datasets is
+similar to that of CIFAR10 with diversified sampling outperforming random
+sampling. While there is a performance drop as compared to the baseline in
+CIFAR100 and TinyImagenet due to the increased complexity of datasets,
+the performance gap between our method and random sampling is significant.
+
+Test Accuracy
+
+0.9
+0.6
+
+FedNAS Full
+FedNAS Best
+DS Full
+DS Best
+RS Full
+RS Best
+
+0.3
+0.0 0
+
+25
+
+Communication Rounds
+
+50
+
+Figure 7: Accuracy of the best subnet obtained by taking the argmax(α).
+
+4.6. Sampling Best Architecture
+In addition to the supernet, we also observe the accuracy of the bestperforming subnet that is obtained by taking the argmax over the architecture parameters α. While it can be further finetuned, it is advantageous to
+have a subnet that can be deployed off the shelf. We compare the performance of diversified sampling and random sampling along with the FedNAS
+16
+
+20
+
+10
+
+Baseline
+DS s(c) = 0.25
+DS s(c) = 0.50
+DS s(c) = 0.75
+
+25
+
+RS s(c) = 0.25
+RS s(c) = 0.50
+RS s(c) = 0.75
+
+Communication Rounds
+
+50
+
+(a) Comparison of diversified sampling
+and random sampling at different s(c) .
+
+Target Sparsity (s(c))
+
+0.0 0
+
+Baseline
+DS s(c) = 0.25
+DS s(c) = 0.50
+DS s(c) = 0.75
+RS s(c) = 0.25
+RS s(c) = 0.50
+RS s(c) = 0.75
+
+15
+
+0.6
+0.3
+
+Training Time (Hours)
+
+Test Accuracy
+
+0.9
+
+5
+00
+
+25
+
+50
+
+Comm. rounds
+
+(b) Comparison of training complexity.
+
+0.75
+
+0.64M
+
+0.50
+
+1.06M
+
+0.25
+
+1.45M
+
+1.93M
+Model Size
+
+0.00
+
+(c) Comm. complexity of
+diversified sampling.
+
+Figure 8: Results showing the performance of diversified sampling (green) compared to
+random sampling (red) along with the FedNAS baseline (grey). (a) Shows the accuracy of
+the supernet at different values of s(c) . (b) Shows the overall training time comparison of
+diversified sampling at different sparsity. (c) Communication complexity in terms of the
+average number of parameters in subnets. The communication complexity shown is for
+the FedNAS Baseline case (grey) with s(c) = 0 and Diversified sampling case (green) with
+different s(c) .
+
+baseline in Fig. 7. We observe that by training with sampling, the best samples give near iso-performance off the shelf with that of the corresponding
+supernet. Still, diversified sampling yields no loss in accuracy between the
+best subnet and supernet.
+In contrast for FedNAS baseline, when trained with full supernet, the
+best-performing architecture suffers a huge performance drop and needs to
+be finetuned before deploying. This is because when trained with sampling,
+every time we are choosing a different part of the supernet making every
+component learn the underlying function independently. On the other hand,
+if full supernet is available at all times as with FedNAS, it learns as a single
+unit and, hence a sample from it fails to give reasonable accuracy without
+finetuning. This is analogous to training an ensemble of small models as
+compared to training one large model Sagi and Rokach (2018).
+4.7. Architecture Sparsity and Search Complexity
+One of the key parameters in our framework is target sparsity (s(c) ) as it
+constrains the complexity of the overall process. Here we measure it’s effect
+on the accuracy, search time, and communication complexity. In Fig. 8a,
+we use target sparsities of 0.25, 0.5, and 0.75 across all clients to compare
+17
+
+Test Accuracy
+
+0.9
+0.6
+0.3
+0.0 0
+
+25
+
+s(c) = 0.5
+s(c) = 0.5, s(c) = 0.1
+s(c) = 0.5, s(c) = 0.2
+s(c) = 0.75
+s(c) = 0.75, s(c) = 0.1
+s(c) = 0.75, s(c) = 0.2
+
+Communication Rounds
+
+50
+
+Figure 9: Performance of diversified sampling with different sparsity constraints in each
+(c)
+(c)
+device. µs = 0.5, σs = 0.2 denotes that clients can have heterogeneous sparsity s(c) in
+the range [0.3, 0.7] with high probability.
+
+diversified sampling and random sampling. Additionally, we show the FedNAS baseline case where there is no sampling which corresponds to s(c) = 0.
+We observe the test accuracy for the diversified sampling (DS) and random
+sampling (RS) with different values of s(c) . We observe that increasing s(c) up
+to 0.5 has minimal effect on diversified sampling as the performance remains
+nearly the same as that of the baseline. Whereas, there is a significant drop
+in accuracy for the random sampling strategy which is only amplified with
+an increase in s(c) . In the extreme case of s(c) = 0.75, the test accuracy of
+random sampling drops to as low as 20%.
+In Fig. 8b and Fig. 8c, we measure the overall training time and the
+average number of parameters (model size) communicated in each round
+respectively. With different values of s(c) , we observe a proportional reduction
+in training time and the volume of data transferred between the clients and
+the server. Our method with s(c) = 0.5 takes ∼10 hours for completing 50
+rounds and achieves nearly the same accuracy as that of baseline which takes
+∼18 hours. Note that while our method reduces the communication load as
+compared to baseline, the communication efficiency can be further improved
+by using state-of-the-art gradient compression techniques Lin et al. (2017b);
+Albasyoni et al. (2020).
+In Fig. 9, we simulate the case of heterogeneous clients by using different
+sparsities in different clients. In addition to uniform sparsity constraints of
+50% and 75%, we simulate the variable sparsity constraint by sampling from
+18
+
+a normal distribution at a standard deviation of 0.1 and 0.2. While there is a
+slight drop in performance as compared to homogeneous sparsity, our method
+can handle the practical situations of clients having different constraints.
+
+Test Accuracy
+
+0.9
+0.6
+0.3
+0.0 0
+
+Baseline Non-IID ( iid = 0.5)
+DS Non-IID ( iid = 0.5)
+DS iid = 1.0
+DS iid = 2.0
+
+25
+
+50
+
+Communication Rounds
+
+Figure 10: Performance of diversified sampling at different levels of skewness in the data.
+There is a performance drop as the data becomes more non-IID.
+
+4.8. Non-IID Partition
+In this section, we evaluate the effectiveness of our method when the data
+distribution among the clients is non-IID. We keep all parameters identical
+and vary the data distribution among clients from IID to various degrees
+of non-IID by tuning the alpha parameter in the Dirichlet distribution. In
+Fig. 10, we observe a drop in performance as the data becomes more non-IID
+i.e., as we decrease the αiid , the performance curve shifts downward. Note
+that the baseline also takes a similar hit in performance with non-IID data.
+Hence, we can attribute the performance drop to the challenge of handling
+non-IID data which is a well explored problem in federated learning.
+4.9. Comparison to previous work
+We compare our results to the previous federated NAS works which have
+reported performance on CIFAR10 in Table 2. We also include the case of
+using only channel pruning without sampling (FedNAS + pruning) which
+serves as an ablation study to show the importance of subnet sampling.
+We include the case of fixed architecture (ResNet18) and its corresponding
+pruned version for completeness. Since each of the previous methods have a
+different experimental setup, we quote the reported final accuracy reached by
+19
+
+every method after finetuning along with the number of parameters, MAC
+operations, and communication rounds. Since with our divide and conquer
+approach, each client is training a smaller subnet, we reduce the number
+of MAC operations as well as the number of parameters to communicate
+between the clients and the server. Hence, we achieve near state-of-the-art
+accuracy with significantly less compute and communication complexity as
+compared to the state-of-the-art.
+Table 2: Comparison to previous work. We quote the final accuracy, model size, number of
+MACs and number of communication rounds in the search phase as well as finetune(FT)
+phase. reported by the previous methods. We compare the communication complexity
+with number of parameters and compute complexity with number of MAC operations.
+Note that since SPIDER Mushtaq et al. (2021) designs personalized architecture for each
+client, the reported metrics are averaged over the metrics obtained by the clients.
+
+Method
+
+Acc (%)
+
+Params
+
+MACs
+
+Rounds
+(Search + FT)
+
+FedNAS He et al. (2020a)
+FedNAS + Pruning
+DFNAS Garg et al. (2020b)
+RT-FedEvoNAS Zhu and Jin (2021)
+DPNAS Cheng et al. (2022)
+DP-NAS Singh et al. (2020)
+MGNAS Pan et al. (2021)
+SPIDER Mushtaq et al. (2021)
+HANF Seng et al. (2022)
+ResNet18
+ResNet18 + Pruning
+DC-NAS (Ours)
+
+91.43
+79.90
+92.11
+86.68
+68.33
+86.0
+85.33
+92.0
+90.0
+91.01
+85.42
+90.21
+
+1.93M
+0.97M
+2.1M
+0.53M
+3.36M
+345K
+11.17M
+5.81M
+1.06M
+
+317.57M
+160.48M
+279.60M
+62M
+556.65M
+289.52M
+186.64M
+
+50 + 50
+50 + 50
+150 + 0
+500 + 0
+100 + 0
+50 + 50
+400 + 0
+1500 + 0
+120 + 1500
+0 + 50
+0 + 50
+50 + 50
+
+5. Conclusion and Future Work
+We present a divide-and-conquer approach to perform NAS in a resourceconstrained federated learning system efficiently. We propose a novel diversified sampling technique to accelerate the search process while being mindful
+of the compute capabilities of the clients. We show the effectiveness of our
+method over multiple datasets with experiments spanning different aspects
+of federated learning. While our work focuses on improving the efficiency of
+the search, there is room for improving the overall efficiency of the system.
+20
+
+For example, standard pruning and quantization can be used in addition to
+our approach to compress the final architecture before deploying. During
+sampling the mask, we are disregarding the exact compute load and assuming that every operation is going to take similar compute resources. Hence, it
+is possible to extract further efficiency by explicitly weighting each operation
+proportional to the compute load of the operation. Further, we provide a
+generic solution but the specifics of devices can have different implications
+on final training and communication complexity. In this paper, we show the
+effectiveness of our strategy empirically and leave the theoretical analysis to
+future work. While we show the scalability with respect to the number
+of clients with a preliminary experiment, it is worthwhile to study how it
+scales to a larger search space and larger datasets. Further, while we use
+DARTS search space in our experiments, the core method is not specific to
+DARTS and can be extended to any search space that can be modeled as a
+binary vector. Finally, since our method relies on the server to orchestrate
+the whole process, it is heavily dependent on the server’s reliability. Hence,
+a decentralized peer-to-peer version of this problem is an interesting avenue
+to explore.
+Acknowledgements
+This work was supported in part by CoCoSys, a JUMP2.0 center sponsored by DARPA and SRC, Google Research Scholar Award, the National
+Science Foundation CAREER Award, TII (Abu Dhabi), the DARPA AI Exploration (AIE) program, and the DoE MMICC center SEA-CROGS (Award
+#DE-SC0023198).
+References
+Albasyoni, A., Safaryan, M., Condat, L., Richtárik, P., 2020. Optimal gradient compression for distributed and federated learning. arXiv preprint
+arXiv:2010.03246 .
+Ashok, A., Rhinehart, N., Beainy, F., Kitani, K.M., 2017. N2n learning: Network to network compression via policy gradient reinforcement learning.
+arXiv preprint arXiv:1709.06030 .
+Baker, B., Gupta, O., Naik, N., Raskar, R., 2016. Designing neural network architectures using reinforcement learning. arXiv preprint
+arXiv:1611.02167 .
+21
+
+Blalock, D., Gonzalez Ortiz, J.J., Frankle, J., Guttag, J., 2020. What is the
+state of neural network pruning? Proceedings of machine learning and
+systems 2, 129–146.
+Cai, H., Chen, T., Zhang, W., Yu, Y., Wang, J., 2018a. Efficient architecture
+search by network transformation, in: Proceedings of the AAAI Conference
+on Artificial Intelligence, pp. 1–6.
+Cai, H., Gan, C., Wang, T., Zhang, Z., Han, S., 2019. Once-for-all: Train
+one network and specialize it for efficient deployment. arXiv preprint
+arXiv:1908.09791 .
+Cai, H., Zhu, L., Han, S., 2018b. Proxylessnas: Direct neural architecture
+search on target task and hardware. arXiv preprint arXiv:1812.00332 .
+Chen, J., Ran, X., 2019. Deep learning with edge computing: A review.
+Proceedings of the IEEE 107, 1655–1674.
+Cheng, A., Wang, J., Zhang, X.S., Chen, Q., Wang, P., Cheng, J., 2022.
+Dpnas: Neural architecture search for deep learning with differential privacy, in: Proceedings of the AAAI Conference on Artificial Intelligence,
+pp. 6358–6366.
+Choi, Y., El-Khamy, M., Lee, J., 2020. Universal deep neural network compression. IEEE Journal of Selected Topics in Signal Processing 14, 715–726.
+Cohen, G., Afshar, S., Tapson, J., Van Schaik, A., 2017. Emnist: Extending
+mnist to handwritten letters, in: 2017 international joint conference on
+neural networks (IJCNN), IEEE. pp. 2921–2926.
+Elsken, T., Metzen, J.H., Hutter, F., 2018. Efficient multi-objective
+neural architecture search via lamarckian evolution. arXiv preprint
+arXiv:1804.09081 .
+Elsken, T., Metzen, J.H., Hutter, F., 2019. Neural architecture search: A
+survey. The Journal of Machine Learning Research 20, 1997–2017.
+Garg, A., Saha, A.K., Dutta, D., 2020a. Direct federated neural architecture
+search. arXiv preprint arXiv:2010.06223 .
+Garg, A., Saha, A.K., Dutta, D., 2020b. Direct federated neural architecture
+search. arXiv preprint arXiv:2010.06223 .
+22
+
+Han, S., Mao, H., Dally, W.J., 2015. Deep compression: Compressing deep
+neural networks with pruning, trained quantization and huffman coding.
+arXiv preprint arXiv:1510.00149 .
+He, C., Annavaram, M., Avestimehr, S., 2020a. Towards non-iid and invisible
+data with fednas: Federated deep learning via neural architecture search.
+arXiv preprint arXiv:2004.08546 .
+He, C., Ye, H., Shen, L., Zhang, T., 2020b. Milenas: Efficient neural architecture search via mixed-level reformulation, in: Proceedings of the
+IEEE/CVF Conference on Computer Vision and Pattern Recognition, pp.
+11993–12002.
+He, K., Zhang, X., Ren, S., Sun, J., 2016. Deep residual learning for image
+recognition, in: Proceedings of the IEEE conference on computer vision
+and pattern recognition, pp. 770–778.
+He, Y., Zhang, X., Sun, J., 2017. Channel pruning for accelerating very deep
+neural networks, in: Proceedings of the IEEE international conference on
+computer vision, pp. 1389–1397.
+Hedayat, A., Wallis, W.D., 1978. Hadamard matrices and their applications.
+The Annals of Statistics , 1184–1238.
+Horadam, K.J., 2012. Hadamard matrices and their applications, in:
+Hadamard Matrices and Their Applications. Princeton university press,
+pp. 1–12.
+Kairouz, P., McMahan, H.B., Avent, B., Bellet, A., Bennis, M., Bhagoji,
+A.N., Bonawitz, K., Charles, Z., Cormode, G., Cummings, R., et al.,
+2021. Advances and open problems in federated learning. Foundations
+and Trends® in Machine Learning 14, 1–210.
+Konečnỳ, J., McMahan, H.B., Yu, F.X., Richtárik, P., Suresh, A.T., Bacon,
+D., 2016. Federated learning: Strategies for improving communication
+efficiency. arXiv preprint arXiv:1610.05492 .
+Krizhevsky, A., Hinton, G., et al., 2009. Learning multiple layers of features
+from tiny images. Toronto, ON, Canada .
+
+23
+
+Le, Y., Yang, X., 2015. Tiny imagenet visual recognition challenge. CS 231N
+7, 3.
+LeCun, Y., Bengio, Y., Hinton, G., 2015. Deep learning. nature 521, 436–444.
+Li, H., Ota, K., Dong, M., 2018. Learning iot in edge: Deep learning for the
+internet of things with edge computing. IEEE network 32, 96–101.
+Liang, X., Liu, Y., Luo, J., He, Y., Chen, T., Yang, Q., 2021. Selfsupervised cross-silo federated neural architecture search. arXiv preprint
+arXiv:2101.11896 .
+Lin, J., Rao, Y., Lu, J., Zhou, J., 2017a. Runtime neural pruning. Advances
+in neural information processing systems 30.
+Lin, Y., Han, S., Mao, H., Wang, Y., Dally, W.J., 2017b. Deep gradient compression: Reducing the communication bandwidth for distributed training.
+arXiv preprint arXiv:1712.01887 .
+Liu, C., Zoph, B., Neumann, M., Shlens, J., Hua, W., Li, L.J., Fei-Fei, L.,
+Yuille, A., Huang, J., Murphy, K., 2018a. Progressive neural architecture
+search, in: Proceedings of the European conference on computer vision
+(ECCV), pp. 19–34.
+Liu, D., Cao, Y., 2021. Federated neural architecture search evolution and
+open problems: An overview, in: International Conference on Bio-Inspired
+Computing: Theories and Applications, Springer. pp. 330–345.
+Liu, H., Simonyan, K., Vinyals, O., Fernando, C., Kavukcuoglu, K., 2017a.
+Hierarchical representations for efficient architecture search. arXiv preprint
+arXiv:1711.00436 .
+Liu, H., Simonyan, K., Yang, Y., 2018b. Darts: Differentiable architecture
+search. arXiv preprint arXiv:1806.09055 .
+Liu, W., Wang, Z., Liu, X., Zeng, N., Liu, Y., Alsaadi, F.E., 2017b. A survey
+of deep neural network architectures and their applications. Neurocomputing 234, 11–26.
+Liu, X., Zhao, J., Li, J., Cao, B., Lv, Z., 2022. Federated neural architecture search for medical data security. IEEE Transactions on Industrial
+Informatics 18, 5628–5636.
+24
+
+Liu, Y., Liang, X., Luo, J., He, Y., Chen, T., Yao, Q., Yang, Q., 2023. Crosssilo federated neural architecture search for heterogeneous and cooperative
+systems, in: Federated and Transfer Learning. Springer, pp. 57–86.
+Luo, J.H., Wu, J., Lin, W., 2017. Thinet: A filter level pruning method for
+deep neural network compression, in: Proceedings of the IEEE international conference on computer vision, pp. 5058–5066.
+Van der Maaten, L., Hinton, G., 2008. Visualizing data using t-sne. Journal
+of machine learning research 9.
+McMahan, B., Moore, E., Ramage, D., Hampson, S., y Arcas, B.A., 2017.
+Communication-efficient learning of deep networks from decentralized
+data, in: Artificial intelligence and statistics, PMLR. pp. 1273–1282.
+Miikkulainen, R., Liang, J., Meyerson, E., Rawal, A., Fink, D., Francon, O.,
+Raju, B., Shahrzad, H., Navruzyan, A., Duffy, N., et al., 2019. Evolving deep neural networks, in: Artificial intelligence in the age of neural
+networks and brain computing. Elsevier, pp. 293–312.
+Min, S., Lee, B., Yoon, S., 2017. Deep learning in bioinformatics. Briefings
+in bioinformatics 18, 851–869.
+Mushtaq, E., He, C., Ding, J., Avestimehr, S., 2021. Spider: Searching
+personalized neural architecture for federated learning. arXiv preprint
+arXiv:2112.13939 .
+Neill, J.O., 2020. An overview of neural network compression. arXiv preprint
+arXiv:2006.03669 .
+Pan, Z., Hu, L., Tang, W., Li, J., He, Y., Liu, Z., 2021. Privacy-preserving
+multi-granular federated neural architecture search a general framework.
+IEEE Transactions on Knowledge and Data Engineering .
+Pham, H., Guan, M., Zoph, B., Le, Q., Dean, J., 2018. Efficient neural
+architecture search via parameters sharing, in: International conference
+on machine learning, PMLR. pp. 4095–4104.
+Real, E., Aggarwal, A., Huang, Y., Le, Q.V., 2019. Regularized evolution for
+image classifier architecture search, in: Proceedings of the aaai conference
+on artificial intelligence, pp. 4780–4789.
+25
+
+Real, E., Moore, S., Selle, A., Saxena, S., Suematsu, Y.L., Tan, J., Le,
+Q.V., Kurakin, A., 2017. Large-scale evolution of image classifiers, in:
+International Conference on Machine Learning, PMLR. pp. 2902–2911.
+Sagi, O., Rokach, L., 2018. Ensemble learning: A survey. Wiley Interdisciplinary Reviews: Data Mining and Knowledge Discovery 8, e1249.
+Seberry, J., JWysocki, B., AWysocki, T., 2005. On some applications of
+hadamard matrices. Metrika 62, 221–239.
+Seng, J., Prasad, P., Dhami, D.S., Kersting, K., 2022. Hanf: Hyperparameter and neural architecture search in federated learning. arXiv preprint
+arXiv:2206.12342 .
+Simonyan, K., Zisserman, A., 2014. Very deep convolutional networks for
+large-scale image recognition. arXiv preprint arXiv:1409.1556 .
+Singh, I., Zhou, H., Yang, K., Ding, M., Lin, B., Xie, P., 2020.
+Differentially-private federated neural architecture search. arXiv preprint
+arXiv:2006.10559 .
+Suganuma, M., Shirakawa, S., Nagao, T., 2017. A genetic programming
+approach to designing convolutional neural network architectures, in: Proceedings of the genetic and evolutionary computation conference, pp. 497–
+504.
+Szegedy, C., Ioffe, S., Vanhoucke, V., Alemi, A., 2017. Inception-v4,
+inception-resnet and the impact of residual connections on learning, in:
+Proceedings of the AAAI conference on artificial intelligence, pp. 1–6.
+Szegedy, C., Liu, W., Jia, Y., Sermanet, P., Reed, S., Anguelov, D., Erhan,
+D., Vanhoucke, V., Rabinovich, A., 2015. Going deeper with convolutions,
+in: Proceedings of the IEEE conference on computer vision and pattern
+recognition, pp. 1–9.
+Szegedy, C., Vanhoucke, V., Ioffe, S., Shlens, J., Wojna, Z., 2016. Rethinking
+the inception architecture for computer vision, in: Proceedings of the IEEE
+conference on computer vision and pattern recognition, pp. 2818–2826.
+Tan, M., Chen, B., Pang, R., Vasudevan, V., Sandler, M., Howard, A.,
+Le, Q.V., 2019. Mnasnet: Platform-aware neural architecture search for
+26
+
+mobile, in: Proceedings of the IEEE/CVF Conference on Computer Vision
+and Pattern Recognition, pp. 2820–2828.
+Véstias, M.P., Duarte, R.P., de Sousa, J.T., Neto, H.C., 2020. Moving deep
+learning to the edge. Algorithms 13, 125.
+Voghoei, S., Tonekaboni, N.H., Wallace, J.G., Arabnia, H.R., 2018. Deep
+learning at the edge, in: 2018 International Conference on Computational
+Science and Computational Intelligence (CSCI), IEEE. pp. 895–901.
+Voulodimos, A., Doulamis, N., Doulamis, A., Protopapadakis, E., 2018. Deep
+learning for computer vision: A brief review. Computational intelligence
+and neuroscience 2018.
+Wang, H., Yurochkin, M., Sun, Y., Papailiopoulos, D., Khazaeni, Y.,
+2020. Federated learning with matched averaging. arXiv preprint
+arXiv:2002.06440 .
+Wistuba, M., Rawat, A., Pedapati, T., 2019. A survey on neural architecture
+search. arXiv preprint arXiv:1905.01392 .
+Xie, L., Yuille, A., 2017. Genetic cnn, in: Proceedings of the IEEE international conference on computer vision, pp. 1379–1388.
+Xie, S., Zheng, H., Liu, C., Lin, L., 2018. Snas: stochastic neural architecture
+search. arXiv preprint arXiv:1812.09926 .
+Xu, M., Zhao, Y., Bian, K., Huang, G., Mei, Q., Liu, X., 2020. Federated
+neural architecture search. arXiv preprint arXiv:2002.06352 .
+Yang, T.J., Howard, A., Chen, B., Zhang, X., Go, A., Sandler, M., Sze, V.,
+Adam, H., 2018. Netadapt: Platform-aware neural network adaptation
+for mobile applications, in: Proceedings of the European Conference on
+Computer Vision (ECCV), pp. 285–300.
+Yarlagadda, R.K., Hershey, J.E., 2012. Hadamard matrix analysis and synthesis: with applications to communications and signal/image processing.
+volume 383. Springer Science & Business Media.
+Young, T., Hazarika, D., Poria, S., Cambria, E., 2018. Recent trends in deep
+learning based natural language processing. ieee Computational intelligenCe magazine 13, 55–75.
+27
+
+Zhang, C., Yuan, X., Zhang, Q., Zhu, G., Cheng, L., Zhang, N., 2022. Towards tailored models on private aiot devices: Federated direct neural
+architecture search. IEEE Internet of Things Journal .
+Zhang, S., Yao, L., Sun, A., Tay, Y., 2019. Deep learning based recommender
+system: A survey and new perspectives. ACM Computing Surveys (CSUR)
+52, 1–38.
+Zhu, H., Jin, Y., 2021. Real-time federated evolutionary neural architecture
+search. IEEE Transactions on Evolutionary Computation .
+Zhu, H., Zhang, H., Jin, Y., 2021. From federated learning to federated
+neural architecture search: a survey. Complex & Intelligent Systems 7,
+639–657.
+Zoph, B., Le, Q.V., 2016. Neural architecture search with reinforcement
+learning. arXiv preprint arXiv:1611.01578 .
+Zoph, B., Vasudevan, V., Shlens, J., Le, Q.V., 2018. Learning transferable
+architectures for scalable image recognition, in: Proceedings of the IEEE
+conference on computer vision and pattern recognition, pp. 8697–8710.
+
+28
+
+

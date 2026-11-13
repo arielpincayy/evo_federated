@@ -1,0 +1,473 @@
+Direct Federated Neural Architecture Search
+
+arXiv:2010.06223v3 [cs.LG] 20 Oct 2020
+
+Anubhav Garg∗
+Cisco Systems
+Amit Kumar Saha
+Cisco Systems
+
+Debo Dutta
+Cisco Systems
+
+Abstract
+Neural Architecture Search (NAS) is a collection of methods to craft the way neural networks are built. We apply this idea to Federated Learning (FL), wherein
+predefined neural network models are trained on the client/device data. This approach is not optimal as the model developers can’t observe the local data, and
+hence, are unable to build highly accurate and efficient models. NAS is promising for FL which can search for global and personalized models automatically for
+the non-IID data. Most NAS methods are computationally expensive and require
+fine tuning after the search, making it a two-stage complex process with possible
+human intervention. Thus there is a need for end-to-end NAS which can run on
+the heterogeneous data and resource distribution typically seen in a FL scenario.
+In this paper, we present an effective approach for direct federated NAS which is
+hardware agnostic, computationally lightweight, and a one-stage method to search
+for ready-to-deploy neural network models. Our results show an order of magnitude reduction in resource consumption while edging out prior art in accuracy.
+This opens up a window of opportunity to create optimized and computationally
+efficient federated learning systems.
+
+1 Introduction
+Federated Learning (FL) (McMahan et al. (2017)) is an approach to solving a machine learning problem where many clients generate their own data and collaborate under the orchestration of a central
+server to train the model, often to preserve privacy of the original data (e.g., in regulated verticals
+like healthcare). Mathematically, it can be represented by the following optimization problem:
+
+min F (w), where F (w) :=
+w
+
+K
+X
+
+νi Fi (w)
+
+(1)
+
+i=1
+
+P
+Here K is the total number of clients, νi ≥ 0 and i νi = 1. Fi is the local objective function
+for client i and is typically taken as L(xi , yi , w, α), that is, the loss of the prediction on local data
+(xi , yi ) with model parameters w and architecture α. The term νi can be considered as the relative
+effect of each client, and is user defined with twoPtypical values being νi = 1/n or νi = ni /n where
+ni is the number of samples of client i and n = i ni .
+A unique characteristic of FL is that each client’s data is private to itself and not exchanged or
+transferred either with the server or other clients. Here, clients can be organizations like hospitals
+which have patients’ data, such as CT scans or edge devices like smart cameras or smartphones.
+∗
+
+Correspondence to anubhgar@cisco.com
+
+Preprint. Under review.
+
+We’ll use the term clients in this article for simplicity, without loss of generality. Multiple such
+clients generate data locally, mostly in a non identical and independently distributed (IID) fashion.
+To design an efficient and accurate model, model developers need to exhaustively examine the characteristics of the data, which is not possible in FL due to the invisibility of data from all the clients to
+the machine learning engineers. The current practice in FL is to apply a predefined neural network
+architecture for the given task. It involves many iterations of model selection and hyperparameter
+tuning requiring many rounds of training, which is extremely expensive and difficult to achieve on
+the limited computational resources and low communication bandwidth scenarios. This makes the
+objective function in Eq. 1 hard to optimize. The objective in Eq. 1 trains a global model for all
+the clients. If the clients’ data is small and IID, the single global model learnt via federated learning
+should perform better than local models. A core challenge in FL is that the clients continuously
+generate data in a non-IID manner (Li et al. (2020)), which makes a single predefined model hard to
+fit for all clients. Moreover, the predefined architecture design may have some modules which are
+redundant for a particular client’s dataset and could lead to useless computation for that client.
+To solve this problem, we make the use of Neural Architecture Search (NAS), which automatically
+searches for the optimal neural network architecture for the given task. There are many search
+methods in NAS, majority of which can be classified as using reinforcement learning, evolutionary
+algorithms, and gradient descent. Compared to other approaches, gradient based differentiable architecture search methods are order of magnitude cheaper with state-of-the-art performance. These
+methods employ a one-shot weight-shared model trained using gradient descent. Most of these methods involve a search stage, in which a child architecture is derived from the one-shot model and a
+retraining stage, in which a bigger network based on the child architecture is trained on the specified dataset. Thus, it is a two-stage process which involves analyses of the target data for building
+the final network. For example, DARTS (Liu et al. (2019)) based methods search for a cell using
+a proxy dataset in the architecture search phase. For best performance, this cell is stacked many
+times according to the final dataset and retrained on it. Moreover, due to the bi-level optimization
+of DARTS, it is extremely computationally expensive and not fit for edge devices like smartphones
+(see section 3, 5 for further analysis). These methods are developed for centralized training and
+cannot be used directly in the FL setting. To address these issues, we propose an end-to-end NAS
+approach developed for the FL setting which can search for the optimal architecture directly on the
+given task, data, and hardware. It is a one-stage hardware adaptable method which searches for a
+ready-to-deploy neural network on any type of client hardware, ranging from hospitals having multiGPU clusters to edge devices like smartphones or other IoT devices. The main contributions of our
+work can be summarized as follows:
+1. To the best of our knowledge, it is the first work to combine federated NAS for both crosssilo and cross-device environment, where the data is partitioned by examples by taking
+the advantage of Shufflenet blocks (Zhang et al. (2018)) in our search space, which is an
+extremely computation efficient architecture for mobile devices.
+2. We provide a efficient plug-and-play solution to search for a ready-to-deploy network in
+the federated setting. Our one-stage architecture search method eliminates the need for
+retraining of the derived network on the clients.
+3. As shown by extensive experiments, our approach takes significantly less communication
+rounds and computation resources compared to previous methods. For the same number
+of communication rounds, our approach achieves an average test accuracy improvement of
+upto 10% compared to predefined models with FedAvg (McMahan et al. (2017)).
+
+2 Our Approach
+In this section, we first formally define the problem, and then describe the construction of the super
+network which includes any possible network in the search space. In Section 2.2.2, we explain an
+efficient approach to search for a sub-network in this super network. Finally, we propose the direct
+federated NAS technique for target hardware which to optimize the objective in Eq. 1.
+2
+
+2.1 Problem Definition
+As mentioned earlier, the definition of a typical federated learning problem is given by Eq. (1).
+In previous work, the architecture α of the model is fixed and the optimization is only on model
+parameters w, as can be seen from Eqn. (1). In contrast, we learn the architecture along with the
+model weights, α being a variable parameter. The local objective function Fi of each client therefore
+is (Xie et al. (2019)):
+(2)
+EZ∼pα(Z) [Lw (xi , yi , Z)]
+Here Z is a matrix of all structural decisions, α is the architecture encoding, pα (Z) is the distribution
+of architectures, and L is the loss function. In other words, the local objective is to find the best α to
+optimize the expected performance on the given dataset (xi , yi ). The global objective is to maximize
+the predictive performance on the given task by collectively learning the model parameters along
+with the architecture α.
+2.2 Direct Federated NAS
+2.2.1 Preliminaries
+The objective function (Eqn. (2)) can be optimized by searching on a supernet, called the parent
+network. The parent network is a directed acyclic graph (DAG) G = (V, E). Nodes v ∈ V represents
+the intermediate representations and edges e ∈ E represent some transformation of them (e.g., pooling, convolution). There are multiple edges eij between pair of nodes vi and node vj to comprise all
+possible architectures in the search space. Every edge has a weight α, called the architecture parameter. These architecture parameters are trained by a NAS algorithm and for every pair of nodes, the
+architecture weight with the highest value is chosen to derive the final network, also called the child
+network.
+2.2.2 Searching for Child Network
+Our architecture search method is based on DSNAS (Hu et al. (2020)). It is a task-specific end-toend NAS method which searches for the child network in one stage. Algorithm 1 details the specifics
+of searching for the final network.
+Algorithm 1 Client Local Search
+Require : parent network, operation parameters w, αth , total epochs E
+for epoch e = 1, 2, 3, ..., E do
+1. Sample one-hot random variables Z from pα (Z)
+2. Construct child network with w according to Z, multiply a 1 after each feature map X
+3. Get a batch from data and forward to get L
+4. Backward L to both w and 1, backward log pα (Z) to α
+pα (z) ∂L
+∂L
+5. Update w with ∂w
+, update α with ∂ log∂α
+∂1
+6. Prune edges with weight α < αth
+end
+
+The algorithm starts by sampling from pα (Z), Z is a matrix whose rows Zi,j are one-hot random
+variable vectors indicating masks multiplied to edges ei,j in the DAG. The probability distribution
+pα (Z) is the softmax over α. A child network is constructed based on Z and the loss is calculated.
+The gradients are calculated using backpropagation and the weights as well as the architecture parameters are updated according to the formulae in Algorithm 1. The operation with the highest
+architecture parameter is selected between any pair of nodes.
+2.2.3 Federated NAS
+The objective in Eq. 1 can be optimized by updating the global architecture and weight parameters,
+α and w respectively by averaging the clients’ values (McMahan et al. (2017). Algorithm 2 specifies
+such an orchestration by a central server.
+3
+
+Algorithm 2 Direct Federated NAS
+Require : Hardware configuration, the total number of rounds T
+Build the parent network based on hardware configuration
+Initialize w, α of parent network. Call it w0 and α0
+for round t = 0, 1, 2, ..., T do
+Select K clients St
+for each client i ∈ St in parallel do
+i
+Send wt , αt to client. Run Algorithm 1 and get updated parameters, wt+1
+and αit+1
+end
+PK
+Update architecture αt+1 ← i nni αit
+PK
+Update weight wt+1 ← i nni wti
+end
+The above algorithm requires the device type as input, which can be GPU or CPU, and the parent
+network is constructed accordingly. The server initializes the weight and architecture parameters of
+the parent network. For every round, the server selects K clients from the pool of available clients.
+In each round, the the local search process is run by every client in parallel and the architecture and
+weight parameters are trained on their respective dataset. After the clients have finished the local
+search, the architecture α and weight w parameters of the parent network is updated by the formulae
+in Algorithm 2. This process is repeated for all rounds or until the model is converged.
+This method gives a ready-to-deploy network with no need of retraining a larger network constructed
+by stacking the DAG’s learnt on a small network. Our method is hardware agnostic, which can
+search on the target hardware type directly by constructing the parent network accordingly. It learns
+the architecture directly on the federated datasets and target hardware without any proxy or manual
+intervention.
+
+3 Experiments and Results
+To evaluate our approach, we do several experiments for the cross-silo and cross-device setting. We
+take the target task as image classification in our experiments. We use the FedML (He et al. (2020b))
+research library for our experiments.
+Search space: Our parent network is built using shuffle blocks (Zhang et al. (2018)). For the crosssilo evaluation, there are 4 choices for each block in the parent network, with kernel sizes 3, 5, 7,
+and a xception block. For the cross-device experiments, there are 3 candidates for each choice block
+in the parent network. For further details about our search space, we refer to (Hu et al. (2020)). Our
+search space comprises of 420 neural networks architectures for the cross-silo setting and 312 for the
+cross-device setting.
+Dataset : For cross-silo setting, we perform our experiments on the CIFAR-10 dataset for both IID
+and non-IID distribution. For the IID case, we divide the training dataset homogeneously between
+the clients in each round. We generate the non-IID dataset similar to (He et al. (2020a)), for fair comparison, that is, by splitting the training images into K clients in an unbalanced manner: sampling
+pc ∼ Dir(α) where Dir is the dirichlet distribution with α = 0.5 and allocating a pc,k proportion of
+the samples of class c to local client k. Similar to (He et al. (2020a)) we test different methods on
+the test data held by the central server. CIFAR-10 has 50,000 training and 10,000 test images, all
+coloured, of size 32x32, and split equally in 10 classes.
+For the cross-device setting, we use the CINIC-10 dataset, which has 90,000 training and test
+coloured images of size 32x32 split equally in 10 classes. The sampling strategy is same as that
+of the cross-silo setting.
+Results: Table 1 compares the test accuracy and search cost of our method with FedNAS, which
+applies MiLeNAS (He et al. (2020c)) architecture search for federated learning. We achieve remarkable computational efficiency improvement. As our method is one-stage, we record the total time
+taken to search and train. We would like to point out that though the parameters of the final network
+is more for our approach, the memory consumption during search is orders of magnitude lesser
+4
+
+0.6
+Test Accuracy
+
+Test Accuracy
+
+0.8
+0.6
+0.4
+Mobilenet
+Resnet56
+DFNAS
+
+0.2
+0
+
+0.4
+
+0.2
+ShuffleNet
+DFNAS
+
+0
+
+50
+100
+150
+Communication Rounds
+
+Figure 1: Average test accuracy vs. communication rounds for the non-IID CIFAR10 data distribution on 8 clients for 150
+rounds.
+DFNAS achieves an accuracy
+of 88.31%, MobileNetV1 83.41%, and
+ResNet56 77.78% with FedAvg for same
+number of rounds.
+
+0
+
+100
+200
+Communication Rounds
+
+Figure 2: Average test accuracy vs. communication rounds for the non-IID CINIC10 data distribution on 16 clients for 250
+rounds. DFNAS achieves an accuracy of
+68.35%, while ShuffleNetV1 with FedAvg
+67.70% for same number of rounds.
+
+making our approach fit for low memory hardware. Table 2 compares the accuracy with different
+number of clients and time taken. It can be seen that the approach is robust to different clients and
+scale.
+Figure 1 compares our approach with FedAvg algorithm on two pre-defined neural networks. DFNAS achieves more than 10% higher test accuracy on Resnet56 (He et al. (2016)) and 5% on MobileNet (Howard et al. (2017)) for same number of communication rounds. The lower accuracy
+of DFNAS for a few rounds is because it searches for the best architecture from the search space
+while for other curves it is fixed. Figure 2 compares DFNAS with ShuffleNetV1 using the FedAvg
+algorithm on the cross-device setting. The total number of clients are 16, both the methods have
+equal parameters (< 1M ) and the data distribution is non-IID. For same number of communication
+rounds, we achieve better performance than the pre-defined architecture.
+Table 1: DFNAS achieves state-of-the art performance on CIFAR-10 dataset. The results are for 8
+clients having non-IID data distribution. Since our method is one-stage, the total time consisting of
+search and training is recorded.
+Method
+
+Test Accuracy (%)
+
+Params (M)
+
+Total time (GPU Days)
+
+Memory (MB)
+
+FedNAS
+DFNAS (ours)
+
+91.43 ± 0.13
+92.11 ± 0.1
+
+0.33
+2.1
+
+1
+0.18
+
+10,793
+1,437
+
+Table 2: Comparison of our approach with different clients on the CIFAR-10 dataset. The data
+distribution is IID for more than one clients.
+Clients
+
+Test Accuracy (%)
+
+Params (M)
+
+Total time (GPU Days)
+
+2
+4
+8
+
+93.53 ± 0.10
+93.31 ± 0.12
+92.79 ± 0.15
+
+2.1
+2.1
+2.1
+
+0.83
+0.43
+0.18
+
+5
+
+4 Related Work
+Federated Learning: The approach to train shared model on decentralized data without transferring or exchanging it by aggregating locally computed updates was termed Federated Learning
+(McMahan et al. (2017)). They introduced the Federated Averaging algorithm, in which the clients
+use SGD to train the shared model weights which are averaged by the central server. There are four
+core challenges in achieving the objective in Eq. 1 — statistical heterogeneity of data, hardware
+heterogeneity of clients, low communication bandwidth, and privacy (Li et al. (2020)). Our method
+solves for first two of the above mentioned challenges directly and it solves the third challenge indirectly by eliminating the need for large number of communication rounds required due to model
+refinement. We would like to point out that standard privacy preserving approaches like differential
+privacy can be applied to our method to preserve server and client privacy.
+Neural Architecture Search: Zoph & Le (2017) used a controller RNN and trained it with reinforcement learning to search for architectures. Since then, numerous NAS methods have been
+studied. Based on major search strategy, NAS methods can be classified into Reinforcement
+Learning (Baker et al. (2016); Cai et al. (2018); Zhong et al. (2018); Zoph et al. (2018); Pham et al.
+(2018)), Neuro-Evolution (Real et al. (2017); Suganuma et al. (2018); Liu et al. (2018b); Real et al.
+(2019); Elsken et al. (2019)) and gradient-based (Liu et al. (2019); Cai et al. (2019); Xie et al.
+(2019); Nayman et al. (2019); Xu et al. (2020b); Chen et al. (2019a)). Other methods include Random Search (Li & Talwalkar (2019)), Bayesian Optimization (Jin et al. (2019); Kandasamy et al.
+(2018) and some custom methods (Chen et al. (2019b); Kamath et al. (2018); Carlucci et al. (2019);
+Liu et al. (2018a)).
+Federated Neural Architecture Search (FNAS): There are several works on FNAS which apply
+some NAS algorithm to the federated learning setting. In (He et al. (2020a)), clients use MiLeNAS (He et al. (2020c)) to search for an architecture for the cross-silo FL setting. In DP-FNAS
+(Singh et al. (2020)), in each round clients compute weight and architecture parameter gradients on
+a subset of local data which are sent to server for averaging in two steps, thus requiring double communication rounds than our approach. DP-FNAS utilize DARTS with additionally applying random
+Gaussian noise to local gradients to preserve differential privacy. Though they achieve differential
+privacy by adding random noise to gradients, there is a tradeoff between validation accuracy and
+the level of privacy. Both of these approaches have large memory requirement than our approach.
+They are two-stage methods which require parameter retraining after the architecture search, thus
+requiring large number of communication rounds. DecNAS (Xu et al. (2020a)) applies model compression and pruning techniques to a pre-trained model based on the NetAdapt (Yang et al. (2018))
+framework for fitting on the given resource budget. Concretely, they prune the convolution filters
+with the smallest value based on the ℓ2 norm. DecNAS searched architecture has a performance
+limitation as that of the pre-trained model used with a key challenge to fit on the non-IID data in the
+FL setting. (Zhu & Jin (2020)) proposes a multi-objective double sampling evolutionary approach
+to FNAS which is computationally expensive.
+
+5 Discussions
+The computational complexity of our method is the same as training a single neural network since
+we sample only one path in the parent supernet DAG at every step instead of considering all the
+candidate paths, which requires the whole network to be stored in the memory. Specifically, if P , Q
+and R denote the forward time, backward time and memory consumption of a sampled subnetwork
+from the search space, then DARTS-like methods take nP , nQ and nR, where n is the number of
+operations while DFNAS takes the same as a single network, that is, P , Q and R.
+
+6 Conclusions
+In this paper, we addressed the inefficiency of the current practice of applying predefined neural
+network architecture to federated learning systems. We presented a plug-and-play solution DFNAS,
+which is as simple as training one single neural network yet provides an improvement over current
+approaches in terms of accuracy, computation and communication bandwidth. Our work highlights
+6
+
+the inefficiency of applying the DARTS based NAS methods directly on the federated learning setting. We believe that this general approach could be applied to a variety of federated learning
+problems.
+
+References
+Baker, B., Gupta, O., Naik, N., and Raskar, R. Designing neural network architectures using reinforcement learning. arXiv preprint arXiv:1611.02167, 2016.
+Cai, H., Chen, T., Zhang, W., Yu, Y., and Wang, J. Efficient architecture search by network transformation. In Thirty-Second AAAI conference on artificial intelligence, 2018.
+Cai, H., Zhu, L., and Han, S. ProxylessNAS: Direct neural architecture search on target task and
+hardware. In International Conference on Learning Representations, 2019.
+Carlucci, F. M., Esperanca, P., Tutunov, R., Singh, M., Gabillon, V., Yang, A., Xu, H., Chen, Z., and
+Wang, J. Manas: multi-agent neural architecture search. arXiv preprint arXiv:1909.01051, 2019.
+Chen, X., Xie, L., Wu, J., and Tian, Q. Progressive differentiable architecture search: Bridging the
+depth gap between search and evaluation. In The IEEE International Conference on Computer
+Vision (ICCV), October 2019a.
+Chen, Y., Meng, G., Zhang, Q., Xiang, S., Huang, C., Mu, L., and Wang, X. Renas: Reinforced
+evolutionary neural architecture search. In The IEEE Conference on Computer Vision and Pattern
+Recognition (CVPR), June 2019b.
+Elsken, T., Metzen, J. H., and Hutter, F. Efficient multi-objective neural architecture search via
+lamarckian evolution. In International Conference on Learning Representations, 2019.
+He, C., Annavaram, M., and Avestimehr, A. S. Fednas: Federated deep learning via neural architecture search. ArXiv, abs/2004.08546, 2020a.
+He, C., Li, S., So, J., Zhang, M., Wang, H., Wang, X., Vepakomma, P., Singh, A., Qiu, H., Shen, L.,
+Zhao, P., Kang, Y., Liu, Y., Raskar, R., Yang, Q., Annavaram, M., and Avestimehr, S. Fedml: A
+research library and benchmark for federated machine learning. arXiv preprint arXiv:2007.13518,
+2020b.
+He, C., Ye, H., Shen, L., and Zhang, T. Milenas: Efficient neural architecture search via mixed-level
+reformulation. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), June 2020c.
+He, K., Zhang, X., Ren, S., and Sun, J. Deep residual learning for image recognition. 2016 IEEE
+Conference on Computer Vision and Pattern Recognition (CVPR), pp. 770–778, 2016.
+Howard, A., Zhu, M., Chen, B., Kalenichenko, D., Wang, W., Weyand, T., Andreetto, M., and
+Adam, H. Mobilenets: Efficient convolutional neural networks for mobile vision applications.
+ArXiv, abs/1704.04861, 2017.
+Hu, S., Xie, S., Zheng, H., Liu, C., Shi, J., Liu, X., and Lin, D. Dsnas: Direct neural architecture
+search without parameter retraining. 2020 IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), pp. 12081–12089, 2020.
+Jin, H., Song, Q., and Hu, X. Auto-keras: An efficient neural architecture search system. In
+Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery &
+Data Mining, pp. 1946–1956, 2019.
+Kamath, P., Singh, A., and Dutta, D. Fast neural architecture construction using envelopenets. arXiv
+preprint arXiv:1803.06744, 2018.
+Kandasamy, K., Neiswanger, W., Schneider, J., Poczos, B., and Xing, E. P. Neural architecture
+search with bayesian optimisation and optimal transport. In Advances in Neural Information
+Processing Systems, pp. 2016–2025, 2018.
+7
+
+Li, L. and Talwalkar, A. Random search and reproducibility for neural architecture search. arXiv
+preprint arXiv:1902.07638, 2019.
+Li, T., Sahu, A. K., Talwalkar, A., and Smith, V. Federated learning: Challenges, methods, and
+future directions. IEEE Signal Processing Magazine, 37:50–60, 2020.
+Liu, C., Zoph, B., Neumann, M., Shlens, J., Hua, W., Li, L.-J., Fei-Fei, L., Yuille, A., Huang, J., and
+Murphy, K. Progressive neural architecture search. In Proceedings of the European Conference
+on Computer Vision (ECCV), pp. 19–34, 2018a.
+Liu, H., Simonyan, K., Vinyals, O., Fernando, C., and Kavukcuoglu, K. Hierarchical representations
+for efficient architecture search. In International Conference on Learning Representations, 2018b.
+Liu, H., Simonyan, K., and Yang, Y.
+DARTS: Differentiable architecture
+search.
+In International Conference on Learning Representations, 2019.
+URL
+https://openreview.net/forum?id=S1eYHoC5FX.
+McMahan, H., Moore, E., Ramage, D., Hampson, S., and y Arcas, B. A. Communication-efficient
+learning of deep networks from decentralized data. In AISTATS, 2017.
+Nayman, N., Noy, A., Ridnik, T., Friedman, I., Jin, R., and Zelnik, L. Xnas: Neural architecture
+search with expert advice. In Advances in Neural Information Processing Systems, pp. 1975–1985,
+2019.
+Pham, H., Guan, M. Y., Zoph, B., Le, Q. V., and Dean, J. Efficient neural architecture search via
+parameter sharing. In ICML, 2018.
+Real, E., Moore, S., Selle, A., Saxena, S., Suematsu, Y. L., Tan, J., Le, Q. V., and Kurakin, A.
+Large-scale evolution of image classifiers. In Proceedings of the 34th International Conference
+on Machine Learning-Volume 70, pp. 2902–2911. JMLR. org, 2017.
+Real, E., Aggarwal, A., Huang, Y., and Le, Q. V. Regularized evolution for image classifier architecture search. In Proceedings of the aaai conference on artificial intelligence, volume 33, pp.
+4780–4789, 2019.
+Singh, I., Zhou, H.-Y., Yang, K., Ding, M., Lin, B., and Xie, P. Differentially-private federated
+neural architecture search. ArXiv, abs/2006.10559, 2020.
+Suganuma, M., Ozay, M., and Okatani, T. Exploiting the potential of standard convolutional autoencoders for image restoration by evolutionary search. In International Conference on Machine
+Learning, pp. 4771–4780, 2018.
+Xie, S., Zheng, H., Liu, C., and Lin, L.
+SNAS: stochastic neural architecture
+search.
+In International Conference on Learning Representations, 2019.
+URL
+https://openreview.net/forum?id=rylqooRqK7.
+Xu, M., Zhao, Y., Bian, K., Huang, G., Mei, Q., and Liu, X. Federated neural architecture search.
+arXiv: Learning, 2020a.
+Xu, Y., Xie, L., Zhang, X., Chen, X., Qi, G.-J., Tian, Q., and Xiong, H. Pc-darts: Partial channel
+connections for memory-efficient architecture search. In International Conference on Learning
+Representations, 2020b.
+Yang, T.-J., Howard, A., Chen, B., Zhang, X., Go, A., Sze, V., and Adam, H. Netadapt: Platformaware neural network adaptation for mobile applications. ArXiv, abs/1804.03230, 2018.
+Zhang, X., Zhou, X., Lin, M., and Sun, J. Shufflenet: An extremely efficient convolutional neural network for mobile devices. 2018 IEEE/CVF Conference on Computer Vision and Pattern
+Recognition, pp. 6848–6856, 2018.
+Zhong, Z., Yan, J., Wu, W., Shao, J., and Liu, C.-L. Practical block-wise neural network architecture
+generation. In Proceedings of the IEEE conference on computer vision and pattern recognition,
+pp. 2423–2432, 2018.
+8
+
+Zhu, H. and Jin, Y. Real-time federated evolutionary neural architecture search.
+abs/2003.02793, 2020.
+
+ArXiv,
+
+Zoph, B. and Le, Q. V. Neural architecture search with reinforcement learning. In ICLR 2017, 2017.
+Zoph, B., Vasudevan, V., Shlens, J., and Le, Q. V. Learning transferable architectures for scalable image recognition. In Proceedings of the IEEE conference on computer vision and pattern
+recognition, pp. 8697–8710, 2018.
+
+9
+
+

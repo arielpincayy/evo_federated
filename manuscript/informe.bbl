@@ -1,0 +1,40 @@
+\begin{thebibliography}{1}
+
+\bibitem{zhu2021realtime}
+Hangyu Zhu and Yaochu Jin.
+\newblock {Real-Time Federated Evolutionary Neural Architecture Search}.
+\newblock {\em IEEE Transactions on Evolutionary Computation}, 26:364--378,
+  2021.
+
+\bibitem{yuan2022resourceaware}
+Jinliang Yuan, Mengwei Xu, Yuxin Zhao, Kaigui Bian, Gang Huang, Xuanzhe Liu,
+  and Shangguang Wang.
+\newblock {Resource-Aware Federated Neural Architecture Search over
+  Heterogeneous Mobile Devices}.
+\newblock {\em IEEE Transactions on Big Data}, pages 1--11, 2022.
+
+\bibitem{bhope2023flips}
+Rahul~Atul Bhope, K.~R. Jayaram, Nalini Venkatasubramanian, Ashish Verma, and
+  Gegi Thomas.
+\newblock {FLIPS: Federated Learning using Intelligent Participant Selection}.
+\newblock arXiv (Cornell University), 2023.
+
+\bibitem{khodak2021federated}
+Mikhail Khodak, Renbo Tu, Tian Li, Liam Li, Maria-Florina Balcan, Virginia
+  Smith, and Ameet Talwalkar.
+\newblock {Federated Hyperparameter Tuning: Challenges, Baselines, and
+  Connections to Weight-Sharing}.
+\newblock arXiv (Cornell University), 2021.
+
+\bibitem{deb2002nsga2}
+Kalyanmoy Deb, Amrit Pratap, Sameer Agarwal, and T.~Meyarivan.
+\newblock A fast and elitist multiobjective genetic algorithm: {NSGA-II}.
+\newblock {\em IEEE Transactions on Evolutionary Computation}, 6:182--197,
+  2002.
+
+\bibitem{dudziak2022fedoras}
+ukasz Dudziak, Stefanos Laskaridis, and Javier Fernandez-Marques.
+\newblock {FedorAS: Federated Architecture Search under system heterogeneity}.
+\newblock arXiv (Cornell University), 2022.
+
+\end{thebibliography}

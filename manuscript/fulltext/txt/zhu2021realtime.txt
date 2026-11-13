@@ -1,0 +1,2416 @@
+1
+
+Real-time Federated Evolutionary Neural
+Architecture Search
+
+arXiv:2003.02793v1 [cs.LG] 4 Mar 2020
+
+Hangyu Zhu and Yaochu Jin, Fellow, IEEE
+
+Abstract—Federated learning is a distributed machine learning
+approach to privacy preservation and two major technical
+challenges prevent a wider application of federated learning.
+One is that federated learning raises high demands on communication, since a large number of model parameters must
+be transmitted between the server and the clients. The other
+challenge is that training large machine learning models such
+as deep neural networks in federated learning requires a large
+amount of computational resources, which may be unrealistic
+for edge devices such as mobile phones. The problem becomes
+worse when deep neural architecture search is to be carried
+out in federated learning. To address the above challenges,
+we propose an evolutionary approach to real-time federated
+neural architecture search that not only optimizes the model
+performance but also reduces the local payload. During the
+search, a double-sampling technique is introduced, in which for
+each individual, a randomly sampled sub-model of a master
+model is transmitted to a number of randomly sampled clients
+for training without reinitialization. This way, we effectively
+reduce computational and communication costs required for
+evolutionary optimization and avoid big performance fluctuations
+of the local models, making the proposed framework well suited
+for real-time federated neural architecture search.
+Index Terms—Federated learning, neural architecture search,
+multi-objective evolutionary optimization, real-time optimization,
+deep neural networks, communication cost
+
+I. I NTRODUCTION
+TANDARD centralized machine learning methods require
+to collect training data from distributed users and stored
+them on a single server, which suffers from a high risk of
+leaking users’ private information. Therefore, a distributed approach called federated learning [1] was proposed to preserve
+data privacy, enabling multiple local devices to collaboratively
+train a shared global model while the training data remain to
+be deployed on the edge devices. Consequently, the central
+server has no access to the private raw data and the client
+privacy is protected.
+However, federated learning demands a large amount of
+communication resources in contrast to the conventional centralized learning paradigm, since updating the global model
+needs to frequently download and upload model parameters
+between the server and edge clients. To mitigate this problem,
+a large body of research work has been carried out to reduce
+the communication costs in federated learning. The most
+popular approaches include compression and sub-sampling
+of the client uploads [2]–[4] or quantization of the weights
+of the models [5]. Most recently, Chen et al. [6] suggest a
+
+S
+
+Hangyu Zhu and Yaochu Jin are with the Department of Computer
+Science, University of Surrey, Guildford, GU2 7XH, United Kingdom. Email:
+{hangyu.zhu;yaochu.jin}@surrey.ac.uk. (Corresponding author: Yaochu Jin)
+
+layer-wise parameter update algorithm to reduce the number
+of parameters to be transmitted between the server and the
+clients. In addition, Zhu et al. [7] uses a multi-objective
+evolutionary algorithm (MOEA) to simultaneously enhance
+the model performance and communication efficiency.
+Little work has been reported on offline optimization of the
+architecture of deep neural networks (DNNs) for federated
+learning, let alone real-time neural architecture search (NAS)
+suited for the federated environment. In the field of centralized
+machine learning, Zoph et al. [8] present some early work on
+NAS using reinforcement learning, which, however, consumes
+a plenty of computational resources. To mitigate this problem,
+Pham et al. [9] introduce a directed acyclic graph (DAG) based
+neural architecture representation to significantly accelerate
+the search speed without much degradation of the learning
+performance by using weight sharing technique.
+Recently, evolutionary approaches to NAS have received increasing attention [10]–[13], and hybrid methods that combine
+evolutionary search with the gradient method [14] have also
+been reported [15]. To reduce the computational cost, surrogate
+ensembles have been introduced in evolutionary NAS, which
+has been shown promising in reducing the computational
+complexity without deteriorating the learning performance
+[16].
+Most existing search strategies for NAS in a centralized
+learning environment are not well suited for federated NAS
+for the following reasons. First, most current search strategies
+for centralized learning focus on improving the model performance without paying much attention to the model size and
+computation cost. Client devices like mobile phones cannot
+afford computationally intensive model training and bandwidth
+restrictions do not allow very large models to be transmitted
+frequently between the server and clients. Second, many NAS
+techniques for accelerating model training [9], [11], [13]–[15],
+[17] adopt transfer learning techniques [18], [19] by searching
+upon cell based small models and transferring the found
+promising cell structures to large models. Such techniques are
+not directly applicable to federated learning, because such cell
+transfer methods may cause model divergence in a distributed
+training scheme and learning transferred models from scratch
+will consume extra communication resources. Finally, modern
+deep neural networks may fail to work in federated learning
+as learnable parameters in the batch normalization layer [20]
+may degrade the global model performance after model aggregation, because the locally trained models may have very
+different weights in mean and variance.
+Note that our previous work on multi-objective evolutionary
+federated optimization [7] is an offline evolutionary approach
+
+2
+
+to NAS, like most conventional evolutionary optimization
+algorithms. In offline evolutionary NAS, the parameters of a
+newly generated offspring model are randomly reinitialized
+and trained from scratch before the model is evaluated on a
+validation dataset, requiring a large amount of computational
+resources. What is worse, the performance of the reinitialized
+models will dramatically degrade, making the offline optimization approach infeasible for realtime application of federated
+learning, such as online recommendation systems [21].
+Therefore, offline federated evolutionary optimization of
+neural networks is not applicable to the real-world applications
+and it is highly desirable to develop a framework for real-time
+federated evolutionary neural architecture search. The main
+contributions of this work are summarized as follows:
+1) A double-sampling technique is proposed that randomly
+samples a sub-network of the global model, whose parameters are transmitted to a few randomly sampled local
+devices without replacement. The number of devices to
+be sampled depends on the ratio between the number
+of connected local clients and the number of individuals
+in the population. The double-sampling technique brings
+about two advantages. First, only a sub-network needs
+to be trained on local devices, significantly reducing the
+number of parameters to be uploaded from the local
+devices to the server. Second, sampling of the clients
+without replacement makes sure that each local device
+needs to train only one sub-network for once at each
+generation. The above two features together make the
+proposed real-time evolutionary method substantially different from offline evolutionary NAS, where the whole
+neural network must be trained on all local devices for
+fitness evaluations, and each device needs to train all
+networks in the population. To the best of our knowledge,
+it is the first time that a real-time evolutionary NAS
+algorithm has been developed for the federated learning
+framework.
+2) An aggregation strategy is developed that updates the
+global model based on the sub-networks sampled and
+trained at each generation. Thus, in the proposed realtime evolutionary NAS, each generation is equivalent to
+a training round in the traditional federated learning. In
+addition, the weights of the sampled sub-networks are
+inherited before it is trained on a local device, accelerating the convergence and avoiding dramatic performance
+deterioration caused by random reinitialization.
+Extensive comparative studies are performed to verify the
+performance of the proposed real-time federated evolutionary
+NAS by comparing the learning performance and computational complexity of the models it obtains with that of the
+standard ResNet18 [22] on both IID and non-IID data. We
+also show the proposed real-time evolutionary NAS is at least
+five times faster than the offline evolutionary NAS method.
+II. BACKGROUND
+In this section, a review of federated learning is given at
+first, followed by an introduction to NAS for deep neural
+networks. Then, the basic of a multi-objective evolutionary
+
+algorithms will be introduced. Finally, a brief discussion is
+given to clarify the differences between the offline and realtime evolutionary optimization frameworks.
+
+A. Federated Learning
+As mentioned before, federated learning is an emerging
+decentralized privacy-preserving model training technology
+that enables local users to training a global model without
+uploading their private local data to a central server. A conventional federated learning algorithm called federated averaging
+(FedAvg) algorithm is shown in Algorithm 1. In the following,
+we briefly introduce this algorithm.
+Algorithm 1 FederatedAveraging. K indicates the total number of clients; B is size of mini-batches, E is equal to the
+number of training iterations, η is the learning rate, n is the
+total number of data pairs on all distributed clients, and nk is
+the number of data pairs on client k.
+1: Server Update:
+2: Initialize θ(0)
+3: Let θ(t) = θ(0)
+4: for each communication round t = 1, 2, ... do
+5:
+Select m = C × K clients, C ∈ (0, 1) clients
+6:
+Download θ(t) to each client k
+7:
+for each client k ∈ m do
+8:
+Wait Client k Update for synchronization
+m
+P
+nk
+9:
+θ(t) =
+θ(t)k
+n
+k=1
+
+10:
+end for
+11: end for
+12:
+13: Client k Update:
+14: θ k = θ(t)
+15: for each iteration from 1 to E do
+16:
+for batch b ∈ B do
+17:
+θ k = θ k − η∇Lk (θ k , b)
+18:
+end for
+19: end for
+20: return θ k to server
+
+1) Server Side: The model parameters θ(0) are initialized
+once at the beginning of FedAvg algorithm, which is then sent
+to all selected m = C × K clients, where K is the number of
+total clients and C is the fraction of all clients between 0 and
+1. After all m clients update and send the updated local model
+parameters θk back to the central server, the parameters θ(t)
+of the global server model will be replaced by the weighted
+averaging of each client’s model parameters θk .
+2) Client Side: The local model parameters θk are replaced
+by the downloaded global model parameters θt . Then the local
+model parameters are updated by the batch stochastic gradient
+descent (SGD) algorithm [23], where b is the local learning
+batch size. After local training, the learned model parameters
+θk will be sent back to the central server for global model
+aggregation.
+An alternative approach to local execution is to calculate
+and upload the local model gradients only.
+PmThen, they are
+aggregated on the server by θ(t) = θ(t) − k=1 nnk g k , where
+g k represents local gradients. This method is beneficial to
+reduce the local computation consumption while sharing the
+same computing result with the previous one.
+
+3
+
+Softmax
+
+Ln
+
+Ln-1
+
+L2
+
+L1
+
+Inputs
+
+…
+
+Fig. 1. An illustrative example of CNN represented in a macro search space.
+h[i+1]
+concat
+
+Inputs
+
+add
+
+op1
+
+op2
+
+add
+
+op1
+
+op2
+
+add
+
+op1
+
+add
+
+add
+
+op2
+
+op1
+
+op2
+
+op1
+
+op2
+
+h[i]
+…
+
+h[i-1]
+
+Fig. 2. A typical structure of the normal cell represented in a micro search
+space, where each block receives the outputs from the previous cell h[i] and
+the cell before the previous cell h[i−1] as its inputs, which are then connected
+to two operations, denoted by ’op’ in the figure. Finally all the branches are
+concatenated at the output of this cell.
+
+B. Neural Architecture Search
+Deep learning [24] has been extremely successful in the
+field of image recognition and speech recognition. However,
+most deep neural network (DNN) models are manually designed by human experts, and not until very recently has
+increasing attention been attracted to automatically search for
+a good model architecture using NAS methods. The search
+space in NAS depends on the neural network model in use
+and in this work, we limit our discussions to convolutional
+neural networks (CNNs) [25], [26].
+Roughly speaking, the search space for NAS can be categorized into macro and micro search spaces [9]. The macro
+search space is over the entire CNN model, as shown in Fig.
+1. The whole model consists of n sequential layers where
+the dashed lines are shortcut connections, similar to ResNet
+[22]. So the macro search space aims to represent a good
+structured model in terms of the number of hidden layers n,
+operations types (e.g. convolution), model hyper parameters
+(e.g. convolutional kernel size), and the link methods for
+shortcut connections. Different from the macro search space,
+micro search space only covers repeated motifs or cells [27],
+[28] in the whole model structure. And these cells are built in
+complex multi-branch operations [29], [30] as shown in Fig. 2,
+where the given structure contains two inputs h[i] and h[i − 1]
+coming from two previous layers and only one concatenated
+output.
+Much work has been done that uses reinforcement learning
+(RL) for NAS [8], [9], [31]–[33]. RL-based search methods
+always adopt a recurrent neural network (RNN) [34] as a
+controller to sample a new candidate model to be trained and
+then use the model performance as the reward score. And then
+
+this score can be used to update the controller for sampling a
+better child model in the next iteration.
+Apart from RL, evolutionary algorithms (EAs) based approaches are often used to deal with multi-objective optimization problems in NAS. Different from the previous neuroevolution techniques [35], [36] that aim to optimize both
+the weights and architecture of neural networks, EA based
+NAS only optimizes the model architecture itself, and the
+model parameters are trained using conventional gradient
+descent methods [10]–[13]. Evolutionary NAS starts with randomly generating a population of parent models with different
+structures and train them in parallel. When all the models
+are learned for some pre-defined epochs, fitness values are
+calculated by evaluating the models on the validation dataset.
+After that, genetic operators such as crossover and mutation
+are applied on the parents to generate the offspring population
+consisting of new models. Then, a selection operation will
+be performed that selects the better offspring models to be
+the parents of the next generation, which is often known as
+survival of the fittest. This selection and reproduction process
+repeats for a certain number of generations until certain
+conditions are satisfied. Note that conventional evolutionary
+NAS needs to evaluate a population of neural networks at each
+generation and all newly generated neural models are trained
+from scratch, which are not suited for the online optimization
+task.
+The gradient method became increasingly popular recently,
+mainly because its search speed is much faster than RLbased and evolutionary NAS methods. In [14], [15] relaxation
+tricks [37] are used to make a weighted sum of candidate
+operations differentiable so that the gradient descent can be
+directly employed upon these weights [38]. No reinitialization
+of the model parameters is needed in this approach.
+However, the gradient based technique requires much more
+computation memories than other approaches, since the overall
+network need to be jointly optimized. To fix this issue, a
+sampling strategy is proposed by [39], [40], in which only one
+or two paths (a path is a sub-network connecting the inputs
+and outputs) are sampled from a complex neural network for
+training. In addition, a weight sharing technique [9] is also
+suggested to avoid reinitialization of the newly sampled models, which saves a plenty of training time. Other techniques
+such as Bayesian optimization [41] is also a good approach
+reducing the computational complexity of NAS [42].
+C. Multi-Objective Evolutionary Optimization
+Federated NAS is naturally a multi-objective optimization
+problem. For instance, the model performance should be
+maximized, while the payload transferred between the server
+and clients should be minimized. In the machine learning
+community, multiple objectives are usually aggregated to be a
+scalar objective function using hyperparameters. By contrast,
+the Pareto approach to solving multi-objective optimization
+problems has been very popular and successful in evolutionary
+computation [43], which has also been extended to machine
+learning [44]. The main difference between the Pareto approach and the conventional aggregated approach to machine
+
+4
+
+learning is that in the Pareto approach, no hyperparameters
+need to be defined and a set of models presenting trade-off
+relationships between the objectives will be obtained. Finally,
+one or multiple models can be chosen from the trade-off
+solutions based on the user’s preferences.
+The elitist non-dominated sorting genetic algorithm, NSGAII in short [45], is a very popular multi-objective evolutionary
+algorithm (MOEA) based on the dominance relationship between the individuals. The overall framework of NSGA-II is
+summarized in Algorithm 2.
+Algorithm 2 NSGA-II, N is the population size, t is the
+number of generations
+1: Initialize t = 1
+2: Initialize parents P (1) with a population size N
+3: Calculate the objective values for P (1)
+4: while the maximum number of generations is not reached do
+5:
+Generate N offspring Q(t) by applying genetic operators on P (t)
+6:
+Calculate objective values of Q(t)
+7:
+Combine the parent and offspring populations: R(t) ← P (t) + Q(t)
+8:
+Perform fast non-dominated sorting on R(t) and calculate the crowding distance of all individuals in R(t)
+9:
+Sort the combined population according to the dominance relationship
+and the crowding distance
+10:
+Select the best N individuals from R(t) and store them in parents
+P (t + 1)
+11:
+t←t+1
+12: end while
+
+The main idea of non-dominated sorting is to generate a set
+of ordered fronts based on the Pareto dominance relationships
+between the objective values of R(t) and solutions located in
+the same front cannot dominate with each other. Solutions in
+the first non-dominated fronts will have a higher priority to be
+selected. This sorting algorithm has a computation complexity
+of O(mN 2 ), where m is the number of objectives and N is the
+population size. To promote the solution diversity, a crowding
+distance that measures the distance between two neighboring
+solutions in the same front is calculated and those having a
+large crowding distance have a higher priority to be selected.
+The computation complexity of crowding distance calculation
+is O(mN 2 logN ) in the worst case, when all the solutions are
+located in one non-dominated front. Readers are referred to
+[45] for more details.
+D. Online and Offline Evolutionary NAS
+As previously discussed, existing evolutionary NAS methods, also including most RL and gradient based NAS algorithms, are meant for offline model optimization. In other
+words, they are not suited for scenarios in which neural
+architecture search must be performed while the network is
+already in use, such as in recommender systems or vision
+surveillance systems.
+Conventional offline evolutionary NAS is not suited for realtime applications for the following reasons. First, a neural
+network model is not allowed to be randomly initialized
+when it is already in use, because random initialization will
+seriously deteriorate the performance of the neural network.
+Second, the available computational resource on client devices
+is limited and therefore, NAS should not require substantially
+more computational resource. However, EAs are population
+
+based search, and at each generation (i.e., time instant), a
+set of models (depending on the population size) must be
+assessed, which will considerably increase the computational
+costs of the clients. Moreover, NAS should not significantly
+increase the communication costs. This is again challenging
+for evolutionary NAS, where the parameters of multiple models (depending on the population size) must be transferred
+between the server and the clients. Finally, the models in
+offline evolutionary NAS are usually not fully trained to reduce
+computation time. Thus, they must be trained again at the
+end of the evolutionary search, which will incur additional
+communication costs.
+III. P ROPOSED A LGORITHM
+In this section, we will introduce the encoding method and
+model structure used in federated NAS at first. And then
+the two objectives to be optimized and the double-sampling
+method for evaluating the objectives are explained. Finally,
+the overall framework of the proposed evolutionary federated
+NAS is presented.
+A. Structure Encoding for Federated NAS
+For real-time NAS, we adopt a light-weighted CNN as the
+master model, since communication cost is always a primary
+concern in federated learning. In addition, the search space
+should not be too large and the total number of layers should
+be limited to make it appropriate for real-time federated
+optimization.
+The master model used in the proposed online federated
+NAS is shown in Fig. 3, where a convolutional block, 3 × 4
+choice blocks (each branch of choice block contains two convolutional or more advanced depthwise convolutional layers
+except for the identity block) and a fully connected layer are
+linked to build a DNN containing a maximum of 26 hidden
+layers. Specifically, the convolutional block consists of three
+sequentially connected layers with a convolutional layer, a
+batch normalization layer [20], and a rectified linear (ReLu)
+layer. And one choice block is composed of four pre-defined
+branches of candidate blocks, namely identity block, residual
+block, inverted residual block and depthwise separable block,
+as shown in Fig. 4. Thus, there are in total 420 possible one
+path sub-networks. In addition, these four candidate blocks
+are categorized into two groups, one is called normal block
+whose input and output share the same channel dimension,
+whereas the other is called reduction block whose output
+channel dimension is doubled and the spatial dimension is
+quartered compared to its input.
+Identity block links its input to its output directly (Fig. 4(a)),
+which can be seen as a ’layer removal’ operation. For the structure reduction part, it just operates two branches of point-wise
+convolution with a stride of 2 at first and then concatenates
+these two outputs from the channel dimension. As a result, the
+spatial dimensions of the inputs are quartered and the filter
+channels are doubled through this identity reduction block.
+Residual block contains two sequentially connected convolution blocks as shown in Fig. 4(b), where the normal block
+has the same structure as the residual block used in ResNet
+
+Input 32x32x3
+
+64-d
+
+32x32x64
+
+64
+
+32x32x64
+
+32x32x64
+
+Conv Bn Relu 3x3, 64
+
+64
+64-d
+
+Choice Block
+Choice blocks, 64
+
+x3
+
+Identity
+
+Input
+
+1x1, 32
+
+1x1, 64
+
+16x16x64
+Identity
+
+32x32x64
+
+Choice blocks, 128
+
+x3
+
+Branch 0
+
+Branch 1
+
+Branch 2
+
+Branch 3
+
+64
+
+16x16x128
+
+Choice blocks, 256
+
+x3
+
+bn, relu
+
+1x1, 64
+
+bn, relu
+
+bn
+
+relu
+
+relu
+
+16x16x128
+16x16x128
+
+Output
+
+16x16x128
+
+3x3, 128
+bn, relu
+
+bn
+
++
+
+bn, relu
+
+64-d
+
+16x16x128
+16x16x128
+
+64-d
+64
+
+(a) Identity Block
+
+(b) Residual Block
+
+x3
+
+64
+
+64-d
+
+32x32x64
+
+32x32x64
+
+dw, 3x3, 64
+
+dw, 3x3, 64
+
+1x1, 384
+
+1x1, 64
+
+4x4x512
+
+Averaging
+
+64-d
+
+1x1, 64
+bn
+
+1x1, 128
+
+bn
+
++
+
+bn
+relu
+
++
+
+bn
+
+relu
+
+16x16x128
+
+16x16x128
+64-d
+
+64-d
+
+(c) Inverted Residual Block
+
+(d) Depth Wise Separate Block
+
+Fig. 5.
+A sub-model represented
+by the
+[0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0].
+
+choice
+
+Output 10d
+
+Fully connected, 10
+
+Depth wise
+separate block, 128
+Averaging
+
+Fig. 4. Four candidate blocks used in the proposed federated NAS, where
+the left part of each subfigure is the normal blocks and the right part is the
+reduction blocks. Symbol c in (a) represents the concatenation operation. Only
+normal blocks contain shortcut connections.
+Residual block, 128
+
+64
+[22]. Note that the reduction residual block
+does not contain
+shortcut connections while the normal block has.
+Inverted residual block (Fig. 4(c)) has an ’inverted’ bottleneck structure of the residual block, which was first proposed
+in MobilenetV2 [46]. This block contains three convolution
+layers: 1) a 1 × 1 expanding point-wise convolution layer,
+followed by a batch normalization layer and a ReLu activation
+function. 2) a 3 × 3 depthwise convolution layer [47], [48],
+followed by a batch normalization layer and a ReLu activation
+function. 3) a 1 × 1 spatially filtered point-wise convolution
+layer followed by a batch normalization layer.
+The intuition of using expanding at the first layer instead
+of in the last layer as done in the bottleneck layer is that a
+nonlinear activation function such as ReLu may cause layer
+information loss [49] and using a nonlinear projection upon a
+high-dimensional space can mitigate this issue. After the tensor
+is mapped back to a low-dimensional space again through
+the last point-wise layer, the ReLu function is not needed to
+prevent information loss.
+Depthwise separable block consists of two depthwise convolution operations [47] (Fig. 4(d)) that incurs lower computation
+cost than the conventional convolution operation. It has been
+proved in [48] that 3 × 3 depthwise convolution consumes
+about one-eighth to one-ninth of the computation time of the
+standard convolution at the expense of a small deterioration in
+performance.
+For each communication round, only one branch of all 12
+choice blocks is sampled from the master model and then
+downloaded to a client device for reducing communication
+costs and computation resources required at the local device.
+This sampled sub-model can be encoded into a two-bit binary
+string with a total length of 2 × 12 = 24 bits. Every two bits
+in the code represent one specific branch in the choice block.
+For instance, [0, 0] represents branch 0, which is the identity
+block, [0, 1] represents branch 1, i.e., the residual block,
+[1, 0] represents branch 2, the inverted residual block, and
+[1, 1] represents branch 3, which is the depthwise separable
+
+1x1, 64
+
+1x1, 128
+
+relu
+16x16x128
+
+dw, 3x3, 64
+
+Identity block, 512
+
+16x16x128
+
+dw, 3x3, 64
+
+bn, relu
+16x16x384
+
+Identity block, 64
+
+64
+
+dw, 1x1, 384
+
+bn, relu
+
+bn, relu
+
+Inverted residual
+block, 128
+
+bn, relu
+bn, relu
+
+bn, relu
+
+bn, relu
+
+16x16x128
+
+64 each choice block
+Fig. 3. An Identity
+example structure of the master model, in3x3,
+which
+3x3, 128
+16x16x64
+16x16x64
+bn
+consists of four branches.
+
+1x1, 64
+
+Depth wise
+separate block, 512
+
+1x1, 32
+
+bn, relu
+
+dw, 1x1, 384
+
+Residual block, 64
+
+1x1, 32
+
+bn, relu
+
+Inverted residual
+block, 64
+
+bn, relu
+
+3x3, 128
+
+Identity block, 512
+
+3x3, 64
+
+Residual block, 256
+
+64
+Output 10d
+
+16x16x64
+
+1x1, 384
+
+32x32x64
+
+Depth wise
+separate block, 256
+
+64
+
+Conv block 64
+
+Fully connected, 10
+
+32x32x64
+
+Inverted residual
+block, 256
+
+1x1x512
+
+, 1x1, 384
+
+3x3, 128
+
+3x3, 64
+bn
+
+c
+bn, relu
+
+8x8x256
+
+Choice blocks, 512
+
+3x3, 64
+
+16x16x64
+
+16x16x64
+
+bn, relu
+
+bn,
+relu
+16x16x128
+
+bn, relu
+
+1x1, 64
+16x16x64
+
+1x1, 384
+
+3x3, 128
+bn, relu
+
+3x3,bn,
+64relu
+
+1x1, 32
+
+64
+
+3x3, 128
+
+3x3, 64
+
+32x32x64
+
+32x32x64
+
+Input 32x32x3
+
+ntity
+
+5
+
+key
+
+block. Therefore, the binary string (also called the choice
+key) [0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0]
+can be decoded into a sub-model with structure as shown in
+Fig. 5.
+B. A Double-Sampling for Objective Evaluations
+Offline evolutionary optimization is intrinsically not suited
+for federated learning. Although one or multiple light weighted
+models with high performance can be found by an offline
+evolutionary algorithm in the last generation [7], a large
+amount of extra computation and communication resources
+is required. For instance, for an EA of a population size of
+N , each client in an offline evolutionary NAS algorithm must
+
+6
+
+evaluate the fitness of N individuals at each generation, which
+is N − 1 times in extra compared to the gradient method. In
+addition, the models are repeatedly randomly reinitialized and
+trained from scratch on the clients, which may not be good
+enough for use during the optimization.
+In order to address the above issues, a double-sampling
+technique is proposed here to develop a real-time evolutionary
+federated NAS, in which at each generation, the global model
+for each individual are sub-sampled from a common master
+model, whereas the clients for training the global model of
+one individual is sub-sampled from the participating clients.
+Specifically, a choice key is generated for each individual to
+randomly sample a sub-network from the master model to
+be this individual’s global model. Then, the global model of
+this individual (a sampled sub-model) will be downloaded to
+a randomly sampled subset of the participating clients. The
+number of clients to be chosen, say L, for training one global
+model of an individual is determined by the ratio between
+the number of individuals and the number of participating
+clients, i.e., L = ⌊m/N ⌋, where m = CK is the number of
+participating clients, K is the total number of clients and C is
+the participation ratio at the current round. Here, we assume
+that the number of clients is equal to or larger than that of the
+population size.
+In this work, two objectives are to be optimized: one is the
+test error of each global model and the other is the floating
+point operations per second (FLOPs) of the model. Recall
+that the global model of each individual is a sub-model of
+the master model sampled using a choice key. Population
+initialization of the proposed methods is composed of the
+following four main steps.
+Initialize the mater model. Generate the initial parent
+population containing N individuals, each representing
+a sub-model sampled from the master model using a
+choice key. Sample L clients for each individual without
+replacement. That is, each client should be sampled only
+once.
+• Download the sub-model of each parent individual to the
+L selected clients and train it using the data on the clients.
+Once the training is completed, upload the L local submodels to the server for aggregation to update the master
+model.
+• Generate N offspring individuals using crossover and
+mutation. Similarly, generate a choice key for each
+offspring individual to sample a sub-model from the
+master model. Download the sub-model of each offspring
+individual to L randomly sampled participating clients
+and train it on these clients. Note that the weights of the
+sub-models are inherited directly from the master model
+and will not be reinitialized in training. Upload the trained
+local sub-models and aggregate them to update the master
+model.
+• Finally, download the master model together with the
+choice keys of all parents and offspring to all clients
+to evaluate the test errors and FLOPs. Upload the test
+errors and FLOPs to the server and calculate the weighted
+averaging of test errors for each individual.
+
+•
+
+Once the objective values of all parent and offspring individuals are calculated, environmental selection can be carried out
+to generate the parent individuals of the next generation based
+on the elitist non-dominated sorting and crowding distance, as
+discussed in Algorithm 2 in Section II.C.
+In the following generations, similar steps as described
+above will be carried out, except that the master model is
+updated only once at each generation after the global model
+(also a sub-model randomly sampled from the master model)
+of all offspring individuals is trained on the sampled clients
+and the resulting local sub-models are aggregated. It should be
+emphasized that at each generation, the master model shared
+by all individuals need to be downloaded to all participating
+clients only once for fitness evaluations.
+Note that model aggregation is different from that in the
+conventional federated learning. The reason is that different
+clients may be sampled for different individuals, and different
+individuals may have different model structures, which cannot
+be directly aggregated. Fig. 6 shows an illustrative example,
+where the master model has two choice blocks C1 and C2 .
+There are two individuals, and the choice keys for the two
+individuals are [0, 0, 0, 1] and [1, 0, 1, 1], respectively. The
+resulting sub-models are B0 and B1 , and B2 and B3 . We
+further assume that client 1 is chosen for training sub-model
+B0 and B1 and client 2 for B2 and B3. Then each client
+updates its model parameters according to the available local
+dataset and then upload the trained model to the server, which
+is denoted by the shaded square. And then two master models
+are reconstructed by filling in the sub-models that are not
+updated, which are denoted by the white squares. Since the
+reconstructed master models have the same structure, they can
+be easily aggregated using i.e., the weighted averaging. The
+pseudo code for model aggregation is presented in Algorithm
+3.
+The advantage of the above filling and aggregation method
+is able to prevent abrupt changes in some sub-models and
+improve convergence in federated learning. In addition, this
+aggregation method does not require extra communication
+resources, since this operation is only performed on the server.
+From the above description, we can see that the doublesampling strategy fits perfectly well with the population
+based evolutionary search so that the objective values of all
+individuals at one generation can be evaluated within one
+communication round, seamlessly embedding a generation of
+architecture search into one round of training in federated
+learning.
+C. Overall Framework
+We use NSGA-II to optimize both model FLOPs and performances for the online evolutionary federated NAS framework.
+The framework is illustrated in Fig. 7 and the pseudo code is
+listed in Algorithm 4.
+The fitness evaluations are done for both parent and offspring populations at every generation, which is equivalent to
+a communication round in the proposed real-time evolutionary
+NAS. For fitness evaluations, both the master model and all
+choice keys CR (t) are downloaded to all participating clients.
+
+7
+
+Algorithm 3 Model Aggregation, m is the total number of
+client uploads. k is the client index. I is the total number of
+hidden layers of the master model, i is the hidden layer index
+of the learning model, B is the total branches in one choice
+block, b is the branch block index, n is the number of data
+samples on all clients, nk is the number of data on client k,
+and t is the communication round.
+1: θ(t − 1) is the parameters of the master model in the last communication
+round, θbi (t) is the parameters of the master model for the b-th branch in
+the i-th hidden layer.
+2: Receive client model parameters θk and choice key Ck , where θki is the
+model parameters and Cki is the choice of i-th hidden layer.
+3: Server Aggregation:
+4: Let θ(t) ← 0
+5: for each i ∈ I do
+6:
+for each k ∈ m do
+then
+7:
+if θki is not in
+Pchoicenkblocks
+i
+8:
+θ i (t) ← m
+k=1 n θk
+9:
+else
+10:
+for each branch b ∈ B do
+11:
+if thenCki == b
+12:
+θbi (t) ← θbi (t) + nnk θki
+13:
+else
+14:
+θbi (t) ← θbi (t) + nnk θbi (t − 1)
+15:
+end if
+16:
+end for
+17:
+end if
+18:
+end for
+19: end for
+20: Return θ(t)
+
+Server
+Aggregation
+C1
+B0
+
+C1
+B2
+
+B1
+
+B3
+
+B0
+
+C1
+B2
+
+B1
+
+B3
+
+B0
+
+B1
+
+B0
+
+B1
+
+B2
+
+B3
+
+B2
+
+B3
+
++
+C2
+B0
+
+C2
+B2
+
+B1
+
+Download
+
+B3
+
+B0
+
+Download
+
+Upload
+
+B1
+
+C2
+B2
+
+B3
+
+Upload
+
+Client 1
+
+Client 2
+
+C1
+
+C1
+
+C1
+
+B0
+
+B0
+
+B2
+
+Update
+
+C1
+B2
+
+Update
+
+C2
+
+C2
+
+C2
+
+C2
+
+B1
+
+B1
+
+B3
+
+B3
+
+Choice key: [0, 0, 0, 1]
+
+Choice key: [1, 0, 1, 1]
+
+Fig. 6. An illustrative example of model aggregation. The master model
+contains two choice blocks (C1 , C2 ) and B0 , B1 , B2 , B3 are four different
+branches in a choice block. The two sampled sub-models are downloaded to
+client 1 and client 2, respectively for training. After the updated sub-models
+are uploaded, they are are filled with the remaining sub-models (those not
+updated in this round for this individual) to reconstruct the master model
+before all reconstructed master models are aggregated.
+
+Thus, we do not need to download any model parameters
+for training of any sub-models in the next round and it is
+sufficient to download the choice keys only (refer to Lines 3233 in Algorithm 4. After that, each client uploads the updated
+local sub-models to the server for model aggregation. As a
+result, the proposed model sampling method can reduce both
+local computation complexity and communication costs for
+uploading the models.
+It should be noticed that the parent sub-models are trained
+only at the first generation. In the subsequent evolutionary
+optimization, only offspring sub-models need to be trained.
+
+Algorithm 4 Online Federated NAS by NSGA-II, N is the
+population size, t is the number of generations, K indicates
+the total numbers of clients; B is size of mini-batch, E is
+equal to training iterations and η is the learning rate, n is the
+total number of data points on all clients, nk is the number of
+data points on client k
+1: // Double sampling method used here
+2: Server:
+3: Initialize θ(0)
+4: θ(t) ← θ(0)
+5: t ← 1
+6: // Server master model sampling (model sampling)
+7: Randomly sub sample parent choice keys CP (t) with a population size
+N
+8: for each communication round t = 1, 2, ... do
+9:
+// For online optimization, the generation is equal to the communication round
+10:
+Convert all CP (t) choice keys into binary codes CbP (t)
+11:
+Generate CbQ (t) with the size of N by binary genetic operators
+12:
+Convert CbQ (t) into offspring choice keys CQ (t)
+13:
+CR (t) ← CP (t) + CQ (t)
+14:
+Select m = C × K clients, C ∈ (0, 1) clients
+15:
+if t ≤ 1 then
+16:
+Generate sub models θ p ∈ θ(t), p ∈ CP (t)
+17:
+// Client sampling (clients sampling)
+18:
+Randomly sub sample m clients to N groups
+19:
+for p ∈ CP (t), g ∈ N (|CP (t)| = N ) do
+20:
+Download θ P to all clients in group g
+21:
+end for
+22:
+for each client k ∈ m do
+23:
+Wait Client k Update for synchronization
+24:
+θ(t) ← Do server aggregation in Algorithm 3
+25:
+end for
+26:
+end if
+27:
+// No need to reinitialize the model parameters of offspring models
+28:
+Generate sub models θ q ∈ θ(t), q ∈ CQ (t)
+29:
+// Client sampling (clients sampling)
+30:
+Randomly sub sample m clients to N groups
+31:
+for q ∈ CQ (t), g ∈ N (|CQ (t)| = N ) do
+32:
+if t > 1 then
+33:
+Download the choice key q to all clients in group g
+34:
+else
+35:
+Download θ q and the choice key q to all clients in group g
+36:
+end if
+37:
+end for
+38:
+for each client k ∈ m do
+39:
+Wait Client k Update for synchronization
+40:
+θ(t) ← Do server aggregation in Algorithm 3
+41:
+end for
+42:
+// Do NSGA-II optimization
+43:
+Calculate FLOPs of all sub models in CR (t)
+44:
+for each client k ∈ m do
+45:
+Download master model θ(t) and choice keys CR (t) to client k
+46:
+Calculate the test errors for all sub models in CR (t)
+47:
+Upload them to the server
+48:
+end for
+49:
+Do weighted averaging on test errors of all uploads based on the local
+data size to achieve the final test errors of all sub models in CR (t)
+50:
+Do fast non dominated sorting
+51:
+Do crowding distance sorting
+52:
+// New solutions are generated within each communication round
+53:
+Generate new parent choice keys CP (t) from CR (t)
+54:
+t←t+1
+55: end for
+56:
+57: Client k Update:
+58: if Receive one choice key q then
+59:
+Sub sample θ(t) based on the choice key to generate θ k
+60: else
+61:
+θ k ← θ p orθ q
+62: end if
+63: for each iteration from 1 to E do
+64:
+for batch b ∈ B do
+65:
+θ k = θ k − η∇Lk (θ k , b)
+66:
+end for
+67: end for
+68: return θ k to the server
+
+8
+
+Central Server
+t=t+1
+
+Initialize
+Parents P(t)
+(t = 1)
+
+Generate choice
+key ‫ܥ‬௉ ‫ ݐ‬and do
+branch sampling
+
+Generate choice
+key ‫ܥ‬ொ ‫ ݐ‬and do
+branch sampling
+
+Generate
+offsprings Q(t)
+
+Client sampling
+
+Combine
+choice keys
+‫ܥ‬ோ ‫ ݐ‬ൌ ‫ܥ‬௉ ‫ ݐ‬൅ ‫ܥ‬ொ ‫ݐ‬
+
+Combine
+parents P(t) and
+offsprings Q(t)
+
+Fitness
+evaluation
+
+Client sampling
+Master model
+aggregation ߠሺ‫ݐ‬ሻ
+
+Sampled
+branches
+
+Environment
+selection
+
+Parents P(t)
+
+Trained
+branches
+
+Yes
+
+Sampled
+branches
+
+Training on Data
+‫ܦ‬௞
+
+Client k
+
+No
+
+t=1?
+
+Choice
+key ‫ܥ‬ொ ‫ݐ‬
+
+Training on Data
+‫ܦ‬௞
+
+Client k
+
+Master model
+aggregation ߠሺ‫ݐ‬ሻ
+Trained
+branches
+
+ߠሺ‫ݐ‬ሻ
+
+Choice
+keys ‫ܥ‬ோ ‫ݐ‬
+
+Calculate test
+errors and
+FLOPs for each
+sub model
+
+Client k
+
+Fig. 7. The overall framework for multi-objective online evolutionary federated NAS, where t is the communication round, P (t) is the parent population
+and CP (t) is the corresponding choice keys, Q(t) is the offspring population and CQ (t) is its choice keys, R(t) is the combined population and CR (t) is
+the choice keys of the combined population, θ(t) is all trainable parameters of the master model.
+
+However, all 2N sub-models sampled by CR (t) need to be
+evaluated to calculate the test errors for fitness evaluations
+at each generation, because training the offspring sub-models
+will also affect the parameters of the parent sub-model since
+parent and offspring sub-models always share weights of the
+master model. In addition, we do not need to reinitialize
+the model parameters of the sampled offspring sub-models
+before training starts. Due to the client sampling strategy,
+the population size N does not affect the communication
+costs for fitness evaluations, since the entire master model is
+downloaded from the server and sampling of the master model
+can be done on the clients.
+Since NSGA-II is a Pareto based multi-objective optimization algorith which can find a set of optimal models that trade
+off between accuracy and computational complexity (FLOPs).
+Therefore, for online applications, the user needs to articulate
+preferences to select one of the Pareto optial solutions from
+the parent population in each round. In practice, the Pareto
+solutions with the high test accuracies or those near the knee
+points [50]–[52] are preferred unless there are other strong
+user-specified preferences.
+IV. E XPERIMENTAL R ESULTS
+
+TABLE I
+PARAMETERS OF NSGA-II
+Parameter
+Generations
+Population
+Crossover Probability
+Mutation Probability
+Bit Length
+
+Value
+500
+10
+0.9
+0.1
+2
+
+TABLE II
+H YPER PARAMETERS FOR FEDERATED LEARNING
+Parameter
+Total Clients
+Local Epochs
+Train Batch Size
+Test Batch Size
+Initial Learning rate
+Momentum
+Learning Decay
+
+value
+10, 20, 50
+1
+50
+100
+0.1
+0.5
+0.995
+
+B. Federated Learning Settings
+
+A. NSGA-II Settings
+
+The hyper parameters for federated learning are presented
+in Table II.
+
+The settings for NSGA-II are listed in the Table I. Here, we
+use binary one-point crossover and binary bit flip mutation
+as the genetic operators. Since the master network only
+contains four choice blocks, a two-bit binary string is used
+for representation.
+
+Here, learning decay means the decay of the learning rate
+over each communication round. Apart from this, the number
+of total communication rounds is not set here, because it is
+equal to the number of generations in real-time evolutionary
+optimization.
+
+9
+
+TABLE III
+A RCHITECTURE OF R ES N ET FOR CIFAR 10
+
+500-th generation
+0.25
+
+32x32
+
+Conv2 x
+
+32x32
+
+3x3, 64
+
+
+3 × 3, 64
+×2
+3 × 3, 64
+
+
+3 × 3, 128
+×2
+3 × 3, 128
+
+
+3 × 3, 256
+×2
+3 × 3, 256
+
+
+3 × 3, 512
+×2
+3 × 3, 512
+
+Conv3 x
+
+16x16
+
+Conv4 x
+
+8x8
+
+Conv5 x
+
+4x4
+
+Average Pool
+
+1x1
+
+FLOPs MAC(G)
+
+Conv1
+
+High
+
+0.20
+
+0.15
+
+0.15
+
+Knee
+
+0.05
+
+0.05
+0.00
+0.15
+
+0.20
+
+0.25
+
+0.30
+
+Test error
+
+0.35
+
+0.40
+
+0.00
+
+0.45
+
+(a) 10 clients, IID data
+NSGA-II 20 clients IID
+0.175
+
+0.40
+
+0.25
+Knee
+
+0.20
+
+Knee
+
+0.15
+0.10
+
+0.050
+
+0.05
+
+0.025
+
+1) Baseline Model Used in Federated Learning: We use
+ResNet18 as the baseline model and its parameters are provided in Table III. As previously mentioned, all trainable
+parameters in the batch normalization layers are removed,
+resulting in a total FLOPs (MAC) of 0.5587G on the cifar10
+dataset. The settings for the federated learning follow those
+given in Section III.
+
+0.35
+
+High
+
+0.30
+
+0.075
+
+D. Experiment Results
+
+0.30
+
+Test error
+
+0.35
+
+High
+
+0.150
+
+0.100
+
+0.15
+
+0.20
+
+0.25
+
+0.30
+
+0.35
+
+Test error
+
+0.40
+
+0.17 0.18 0.19 0.20 0.21 0.22 0.23 0.24
+
+Test error
+
+(c) 20 clients, IID data
+
+(d) 20 clients, non-IID data
+NSGA-II 50 clients non-IID
+500-th generation
+
+NSGA-II 50 clients IID
+
+0.35
+
+500-th generation
+
+0.30
+
+0.175
+
+High
+
+0.150
+High
+
+0.125
+
+FLOPs MAC(G)
+
+0.25
+
+FLOPs MAC(G)
+
+The master model used in this work is a deep neural network
+with multiple branches containing a total of 28 layers (12
+choice blocks, each containing two convolution layers). The
+number of channels for all block layers are [64, 64, 64,
+128, 128, 128, 256, 256, 256, 512, 512, 512]. The overall
+structure of the master model is shown in Fig. 3. Apart from
+this, the trainable parameters in the batch normalization layer
+may slow down the convergence speed in federated learning,
+since they perform poorly for learning with small batch sizes
+[53] and weight sharing training paradigms [39], [54], [55],
+especially for non-IID scenarios. In addition, we disable both
+the variables and exponential moving average variables in the
+batch normalization layer because we found that they may
+cause the divergence of the master model.
+We adopt Cifar10 [56] as the dataset, which contains
+50000 training and 10000 testing 32x32 RGB images with
+10 different kinds of objects. For IID federated simulations,
+all training image data are evenly and randomly distributed to
+each local client without overlaps. For experiments on non-IID
+data, each client has images with 5 different kinds of objects.
+We do not consider very extreme cases where each client has
+data with only 1 or 2 classes, since this is not realistic in
+the real world environment. For instance, it is not beneficial
+to collaboratively train a global model with clients having
+completely different datasets.
+Note that we do not apply any data augmentation [57] in
+our simulation, since the server cannot do any operations on
+the client data in federated learning.
+In all experiments, we use one GTX 1080Ti GPU.
+
+0.25
+
+NSGA-II 20 clients non-IID
+500-th generation
+
+0.40
+
+500-th generation
+
+0.200
+
+0.20
+
+(b) 10 clients, non-IID data
+
+0.125
+
+C. Model and Dataset Settings
+
+Knee
+
+0.10
+
+0.10
+
+FLOPs MAC(G)
+
+18 Layers
+
+FLOPs MAC(G)
+
+Output Size
+
+500-th generation
+0.20
+
+High
+
+FLOPs MAC(G)
+
+Layer Name
+
+NSGA-II 10 clients non-IID
+
+NSGA-II 10 clients IID
+
+0.20
+
+Knee
+
+0.100
+
+Knee
+
+0.15
+
+0.075
+
+0.10
+
+0.050
+
+0.05
+
+0.025
+
+0.00
+0.25
+
+0.30
+
+0.35
+
+0.40
+
+Test error
+
+0.45
+
+0.50
+
+(e) 50 clients, IID data
+
+0.55
+
+0.24
+
+0.26
+
+0.28
+
+0.30
+
+Test error
+
+0.32
+
+0.34
+
+(f) 50 clients, non-IID data
+
+Fig. 8. Pareto optimal solutions obtained on the IID and non-IID data for
+10, 20 and 50 clients.
+
+E. Federated Evolutionary NAS Results
+We adopt three different numbers of clients (10, 20 and 50)
+for real-time multi-objective evolutionary federated NAS and
+the obtained Pareto optimal solutions on both IID and non-IID
+data after 500 rounds (generations) of optimization are shown
+in Fig. 8. From these results we can see that the real-time
+evolutionary federated NAS algorithm is able to achieve a set
+of evenly distributed Pareto optimal solutions.
+The following two observations can be made. First, the
+classification accuracies of the optimized models on the IID
+data are better than those for on the non-IID data. Second, the
+smaller the number of the clients, the better the classification
+performance. These two phenomenons are reasonable, since
+learning on IID data is much easier than learning on non-IID
+data in federated learning. On the other hand, the more the
+number of clients, the less data there is on each client, as the
+amount of data in total is given.
+To take a closer look at the obtained models, we present the
+test accuracies and FLOPs of the model having the highest test
+accuracy (called High) and the knee solution (called Knee),
+as indicated in Fig. 8, as well as that of the ResNet in Table
+IV.
+From these results, we can see that federated learning
+
+10
+
+IID
+
+Test Accuracy
+
+FLOPs (MAC)
+
+ResNet
+High
+Knee
+ResNet
+High
+Knee
+
+10
+10
+10
+10
+10
+10
+
+Yes
+Yes
+Yes
+No
+No
+No
+
+81.14%
+86.68%
+83.36%
+80.29%
+81.27%
+78.94%
+
+0.5587G
+0.2796G
+0.031G
+0.5587G
+0.2272G
+0.0302G
+
+ResNet
+High
+Knee
+ResNet
+High
+Knee
+
+20
+20
+20
+20
+20
+20
+
+Yes
+Yes
+Yes
+No
+No
+No
+
+82.5%
+85.16%
+83.65%
+79.91%
+83.01%
+81.58%
+
+0.5587G
+0.2012G
+0.0398G
+0.5587G
+0.3936G
+0.1098G
+
+ResNet
+High
+Knee
+ResNet
+High
+Knee
+
+50
+50
+50
+50
+50
+50
+
+Yes
+Yes
+Yes
+No
+No
+No
+
+80.78%
+77.1%
+71.46%
+77.63%
+75.1%
+69.22%
+
+0.5587G
+0.3360G
+0.0547G
+0.5587G
+0.1719G
+0.0635G
+
+0.7
+
+0.6
+
+0.6
+
+Test Accuracy
+
+clients
+
+0.7
+
+0.5
+
+0.5
+
+0.4
+
+0.4
+0.3
+
+ResNet18
+High
+Knee
+
+0.2
+0.1
+
+0
+
+100
+
+200
+
+300
+
+Communication Round
+
+400
+
+500
+
+ResNet18
+High
+Knee
+
+0.8
+0.7
+
+Since the proposed method is meant for real-time purposes,
+here we examine the performance of two models during the
+optimization, one is the model having the highest test accuracy
+and the other is the knee solution. For simplicity, we only
+investigate the real-time performance when the number of
+participating clients is 20, which is presented in Fig. 9. For
+comparison, the performance of ResNet18 is also plotted. We
+can see clearly that ResNet18 performs better than both models
+found by the evolutionary search method at the early stage.
+However, the two solutions are able to outperform ResNet after
+approximately 200 communication rounds. We can also find
+that the performance of the best model is very stable during
+the evolutionary search, although the knee solution experiences
+some minor fluctuations in performance. Both models perform
+much more stably than those in the conventional offline
+evolutionary NAS in [7].
+The model FLOPs of the two solutions are shown in Fig.
+9(c)(d), which are smaller than that of the original ResNet18.
+From the above results, we can see that the proposed realtime evolutionary NAS algorithm is not only able to find
+light weighted models, but also ensure stable and competitive
+performance during the optimization.
+
+0
+
+100
+
+200
+
+300
+
+Communication Round
+
+400
+
+500
+
+Model FLOPs for 20 clients
+
+0.9
+
+ResNet18
+High
+Knee
+
+0.8
+0.7
+0.6
+
+0.5
+
+0.5
+
+0.4
+
+0.4
+
+0.3
+
+0.3
+
+0.2
+
+0.2
+
+0.1
+0.0
+
+F. Real-time Performance
+
+0.1
+
+(b) 20 clients, non-IID data
+
+Model FLOPs for 20 clients
+
+0.9
+
+ResNet18
+High
+Knee
+
+0.2
+
+(a) 20 clients, IID data
+
+0.6
+
+with a total of 10 and 20 clients, the model having the
+highest accuracy found by the proposed algorithm is better
+than the original ResNet in accuracy and has a much lower
+computational complexity. For 10 clients, the knee solutions
+found by the proposed algorithm have a much lower model
+FLOPS than the original ResNet. By contrast for 20 clients, the
+model FLOPs of the knee solutions is again must lower than
+that of the ResNet and the performance on both IID and nonIID data is better. However, for 50 clients, the test accuracies of
+the models found by the proposed algorithm is worse than the
+ResNet, although the model FLOPs are lower. This indicates
+that it becomes harder to find an optimal global model as the
+amount of data on each client becomes less.
+
+0.3
+
+Model FLOPs (MAC)
+
+Model
+
+Test Accuracies for 20 clients
+0.8
+
+Test Accuracy
+
+SOLUTIONS
+
+Test Accuracies for 20 clients
+0.8
+
+Model FLOPs (MAC)
+
+TABLE IV
+C OMPARISON BETWEEN R ES N ET AND NSGA-II EVOLVED TWO PARETO
+
+0.1
+
+0
+
+100
+
+200
+
+300
+400
+Communication Round
+
+(c) 20 clients, IID data
+
+500
+
+0.0
+
+0
+
+100
+
+200
+
+300
+
+Communication Round
+
+400
+
+500
+
+(d) 20 clients, non-IID data
+
+Fig. 9. Test accuracies and the model FLOPs of the best model and the knee
+solution in each round (generation) of the evolutionary search.
+
+G. Comparison with Offline Federated NAS
+Here, we also compare the proposed algorithm with the
+offline evolutionary federated NAS optimization. In the conventional offline model, the sampled model is downloaded to
+all clients with the same structure and offspring models should
+be reinitialized and trained from scratch, similar to the settings
+in [7].
+For a fair comparison, models are collaboratively trained
+with one communication round for fitness evaluations. The
+number of clients is set to be 20 and the Pareto optimal
+solutions obtained on the non-IID data after 50 generations
+are plotted in Fig. 10. Only four solutions are found in the
+last generation. Finally, the model having the highest accuracy
+and the knee solution as indicated in Fig. 10 are selected to
+be trained from scratch for 500 communication rounds and
+their learning curve is shown in Fig. 11. From these results
+we can see that the performance of the best model found by
+the offline evolutionary NAS is lower than 75% in this case,
+which is attributed to the very fast convergence in the early
+stage of the evolutionary search. These results also imply that
+in the offline evolutionary NAS, it is non-trivial to define the
+number of training rounds at each generation.
+It takes about 16.1 hrs/gpu for the real-time evolutionary
+NAS to run 500 generations (rounds). In contrast, the offline
+evolutionary NAS for 50 generations needs about 6.55 hrs/gpu
+without considering the re-training time. This means that on
+average, the real-time evolutionary NAS is approximately five
+times faster than the offline evolutionary NAS algorithm for
+each round of search.
+
+11
+
+Offline optimization for 20 clients
+50-th generation
+
+0.12
+
+High
+
+0.10
+
+FLOPs MAC(G)
+
+Knee
+
+framework. In the future, we are going to verify and extend
+the the proposed algorithm for real-time NAS in large-scale
+federated learning systems. In addition, new techniques remain
+to be developed to deal with data that are vertically partitioned
+and distributed on the clients.
+
+0.08
+
+R EFERENCES
+
+0.06
+0.04
+0.02
+0.57
+
+0.58
+
+0.59
+
+0.60
+
+Test error
+
+0.61
+
+0.62
+
+0.63
+
+Fig. 10. Pareto optimal solutions found by the offline evolutionary federated
+NAS.
+
+Test Accuracies for two selected Pareto solutions
+0.75
+0.70
+
+Test accuracy
+
+0.65
+0.60
+0.55
+0.50
+0.45
+
+knee point
+highest accuracy
+
+0.40
+0
+
+100
+200
+300
+400
+Communication rounds
+
+500
+
+Fig. 11. Test accuracies of the two selected solutions found by the offline
+evolutionary NAS.
+
+V. C ONCLUSIONS AND F UTURE W ORK
+This paper proposes a real-time multi-objective evolutionary method for federated NAS, which can effectively avoid
+extra communication costs and computational resources and
+maintain a stable performance of the models during the
+optimization. This is achieved by a double-sampling approach
+that samples a master model shared by all individuals in
+the same population and samples the participating clients
+for training the global model. This way, one generation of
+evolutionary optimization can be embedded and completed
+within one single communication round, thereby reducing both
+communication and computation costs.
+The experimental results demonstrate that the proposed
+evolutionary federated NAS framework is able to find a set of
+evenly distributed Pareto optimal solutions for both IID and
+non-IID datasets. Among these Pareto optimal solutions, we
+can obtain models having different architectures that present
+a trade-off between classification performance and computational complexity. In addition, we show that these models are
+computationally much simpler than the standard model while
+the performance is still highly competitive. The high computational efficiency of the proposed real-time evolutionary
+NAS is also confirmed by the comparative results with the
+conventional offline evolutionary method.
+The present work is a first valuable step towards the application of neural architecture search to the federated learning
+
+[1] H. B. McMahan, E. Moore, D. Ramage, S. Hampson, et al.,
+“Communication-efficient learning of deep networks from decentralized
+data,” arXiv preprint arXiv:1602.05629, 2016.
+[2] R. Shokri and V. Shmatikov, “Privacy-preserving deep learning,” in
+Proceedings of the 22nd ACM SIGSAC conference on computer and
+communications security, pp. 1310–1321, ACM, 2015.
+[3] J. Konečnỳ, H. B. McMahan, F. X. Yu, P. Richtárik, A. T. Suresh, and
+D. Bacon, “Federated learning: Strategies for improving communication
+efficiency,” arXiv preprint arXiv:1610.05492, 2016.
+[4] S. Caldas, J. Konečny, H. B. McMahan, and A. Talwalkar, “Expanding
+the reach of federated learning by reducing client resource requirements,” arXiv preprint arXiv:1812.07210, 2018.
+[5] S. Han, H. Mao, and W. J. Dally, “Deep compression: Compressing
+deep neural networks with pruning, trained quantization and huffman
+coding,” arXiv preprint arXiv:1510.00149, 2015.
+[6] Y. Chen, X. Sun, and Y. Jin, “Communication-efficient federated deep
+learning with asynchronous model update and temporally weighted
+aggregation,” arXiv preprint arXiv:1903.07424, 2019.
+[7] H. Zhu and Y. Jin, “Multi-objective evolutionary federated learning,”
+IEEE transactions on neural networks and learning systems, 2019.
+[8] B. Zoph and Q. V. Le, “Neural architecture search with reinforcement
+learning,” arXiv preprint arXiv:1611.01578, 2016.
+[9] H. Pham, M. Y. Guan, B. Zoph, Q. V. Le, and J. Dean, “Efficient neural architecture search via parameter sharing,” arXiv preprint
+arXiv:1802.03268, 2018.
+[10] M. Suganuma, S. Shirakawa, and T. Nagao, “A genetic programming
+approach to designing convolutional neural network architectures,” in
+Proceedings of the Genetic and Evolutionary Computation Conference,
+pp. 497–504, ACM, 2017.
+[11] E. Real, A. Aggarwal, Y. Huang, and Q. V. Le, “Regularized evolution
+for image classifier architecture search,” in Proceedings of the AAAI
+Conference on Artificial Intelligence, vol. 33, pp. 4780–4789, 2019.
+[12] E. Real, S. Moore, A. Selle, S. Saxena, Y. L. Suematsu, J. Tan, Q. V.
+Le, and A. Kurakin, “Large-scale evolution of image classifiers,” in
+Proceedings of the 34th International Conference on Machine LearningVolume 70, pp. 2902–2911, JMLR. org, 2017.
+[13] H. Liu, K. Simonyan, O. Vinyals, C. Fernando, and K. Kavukcuoglu,
+“Hierarchical representations for efficient architecture search,” arXiv
+preprint arXiv:1711.00436, 2017.
+[14] H. Liu, K. Simonyan, and Y. Yang, “Darts: Differentiable architecture
+search,” arXiv preprint arXiv:1806.09055, 2018.
+[15] X. Dong and Y. Yang, “Searching for a robust neural architecture in
+four gpu hours,” in Proceedings of the IEEE Conference on Computer
+Vision and Pattern Recognition, pp. 1761–1770, 2019.
+[16] Y. Sun, H. Wang, B. Xue, Y. Jin, G. G. Yen, and M. Zhang, “Surrogateassisted evolutionary deep learning using an end-to-end random forestbased performance predictor,” IEEE Transactions on Evolutionary Computation, 2019. DOI: 10.1109/TEVC.2019.2924461.
+[17] M. Tan, B. Chen, R. Pang, V. Vasudevan, M. Sandler, A. Howard,
+and Q. V. Le, “Mnasnet: Platform-aware neural architecture search for
+mobile,” in Proceedings of the IEEE Conference on Computer Vision
+and Pattern Recognition, pp. 2820–2828, 2019.
+[18] S. J. Pan and Q. Yang, “A survey on transfer learning,” IEEE Transactions on knowledge and data engineering, vol. 22, no. 10, pp. 1345–
+1359, 2009.
+[19] L. Torrey and J. Shavlik, “Transfer learning,” in Handbook of research
+on machine learning applications and trends: algorithms, methods, and
+techniques, pp. 242–264, IGI Global, 2010.
+[20] S. Ioffe and C. Szegedy, “Batch normalization: Accelerating deep
+network training by reducing internal covariate shift,” arXiv preprint
+arXiv:1502.03167, 2015.
+[21] M. Ammad-ud din, E. Ivannikova, S. A. Khan, W. Oyomno,
+Q. Fu, K. E. Tan, and A. Flanagan, “Federated collaborative filtering
+for privacy-preserving personalized recommendation system,” arXiv
+preprint arXiv:1901.09888, 2019.
+[22] K. He, X. Zhang, S. Ren, and J. Sun, “Deep residual learning for image
+recognition,” in Proceedings of the IEEE conference on computer vision
+and pattern recognition, pp. 770–778, 2016.
+
+12
+
+[23] L. Bottou, “Stochastic gradient learning in neural networks,” Proceedings of Neuro-Nımes, vol. 91, no. 8, p. 12, 1991.
+[24] Y. LeCun, Y. Bengio, and G. Hinton, “Deep learning,” nature, vol. 521,
+no. 7553, pp. 436–444, 2015.
+[25] Y. LeCun, Y. Bengio, et al., “Convolutional networks for images, speech,
+and time series,” The handbook of brain theory and neural networks,
+vol. 3361, no. 10, p. 1995, 1995.
+[26] A. Krizhevsky, I. Sutskever, and G. E. Hinton, “Imagenet classification
+with deep convolutional neural networks,” in Advances in neural information processing systems, pp. 1097–1105, 2012.
+[27] C. Szegedy, V. Vanhoucke, S. Ioffe, J. Shlens, and Z. Wojna, “Rethinking
+the inception architecture for computer vision,” in Proceedings of the
+IEEE conference on computer vision and pattern recognition, pp. 2818–
+2826, 2016.
+[28] G. Huang, Z. Liu, L. Van Der Maaten, and K. Q. Weinberger, “Densely
+connected convolutional networks,” in Proceedings of the IEEE conference on computer vision and pattern recognition, pp. 4700–4708, 2017.
+[29] C. Szegedy, S. Ioffe, V. Vanhoucke, and A. A. Alemi, “Inception-v4,
+inception-resnet and the impact of residual connections on learning,” in
+Thirty-First AAAI Conference on Artificial Intelligence, 2017.
+[30] C. Szegedy, W. Liu, Y. Jia, P. Sermanet, S. Reed, D. Anguelov, D. Erhan,
+V. Vanhoucke, and A. Rabinovich, “Going deeper with convolutions,”
+in Proceedings of the IEEE conference on computer vision and pattern
+recognition, pp. 1–9, 2015.
+[31] B. Zoph, V. Vasudevan, J. Shlens, and Q. V. Le, “Learning transferable
+architectures for scalable image recognition,” in Proceedings of the IEEE
+conference on computer vision and pattern recognition, pp. 8697–8710,
+2018.
+[32] B. Baker, O. Gupta, N. Naik, and R. Raskar, “Designing neural
+network architectures using reinforcement learning,” arXiv preprint
+arXiv:1611.02167, 2016.
+[33] Z. Zhong, J. Yan, W. Wu, J. Shao, and C.-L. Liu, “Practical block-wise
+neural network architecture generation,” in Proceedings of the IEEE
+Conference on Computer Vision and Pattern Recognition, pp. 2423–
+2432, 2018.
+[34] M. Schuster and K. K. Paliwal, “Bidirectional recurrent neural networks,” IEEE Transactions on Signal Processing, vol. 45, no. 11,
+pp. 2673–2681, 1997.
+[35] P. J. Angeline, G. M. Saunders, and J. B. Pollack, “An evolutionary
+algorithm that constructs recurrent neural networks,” IEEE transactions
+on Neural Networks, vol. 5, no. 1, pp. 54–65, 1994.
+[36] X. Yao, “Evolving artificial neural networks,” Proceedings of the IEEE,
+vol. 87, no. 9, pp. 1423–1447, 1999.
+[37] M. A. Trick, “A linear relaxation heuristic for the generalized assignment
+problem,” Naval Research Logistics (NRL), vol. 39, no. 2, pp. 137–151,
+1992.
+[38] L. Bottou, “Large-scale machine learning with stochastic gradient descent,” in Proceedings of COMPSTAT’2010, pp. 177–186, Springer,
+2010.
+[39] Z. Guo, X. Zhang, H. Mu, W. Heng, Z. Liu, Y. Wei, and J. Sun, “Single
+path one-shot neural architecture search with uniform sampling,” arXiv
+preprint arXiv:1904.00420, 2019.
+[40] G. Bender, “Understanding and simplifying one-shot architecture
+search,” 2018.
+[41] B. Shahriari, K. Swersky, Z. Wang, R. P. Adams, and N. De Freitas,
+“Taking the human out of the loop: A review of bayesian optimization,”
+Proceedings of the IEEE, vol. 104, no. 1, pp. 148–175, 2015.
+[42] K. Kandasamy, W. Neiswanger, J. Schneider, B. Poczos, and E. P. Xing,
+“Neural architecture search with bayesian optimisation and optimal
+transport,” in Advances in Neural Information Processing Systems,
+pp. 2016–2025, 2018.
+[43] K. Deb, Multi-objective Optimization using Evolutionary Algorithms.
+Wiley, 2005.
+[44] Y. Jin, ed., Multi-objective Machine Learning. Springer, 2006.
+[45] K. Deb, S. Agrawal, A. Pratap, and T. Meyarivan, “A fast elitist nondominated sorting genetic algorithm for multi-objective optimization:
+Nsga-ii,” in International conference on parallel problem solving from
+nature, pp. 849–858, Springer, 2000.
+[46] M. Sandler, A. Howard, M. Zhu, A. Zhmoginov, and L.-C. Chen,
+“Mobilenetv2: Inverted residuals and linear bottlenecks,” in Proceedings
+of the IEEE Conference on Computer Vision and Pattern Recognition,
+pp. 4510–4520, 2018.
+[47] F. Chollet, “Xception: Deep learning with depthwise separable convolutions,” in Proceedings of the IEEE conference on computer vision and
+pattern recognition, pp. 1251–1258, 2017.
+
+[48] A. G. Howard, M. Zhu, B. Chen, D. Kalenichenko, W. Wang,
+T. Weyand, M. Andreetto, and H. Adam, “Mobilenets: Efficient convolutional neural networks for mobile vision applications,” arXiv preprint
+arXiv:1704.04861, 2017.
+[49] D. Han, J. Kim, and J. Kim, “Deep pyramidal residual networks,” in
+Proceedings of the IEEE Conference on Computer Vision and Pattern
+Recognition, pp. 5927–5935, 2017.
+[50] G. Yu, Y. Jin, and M. Olhofer, “Benchmark problems and performance
+indicators for search of knee points in multiobjective optimization,”
+IEEE Transactions on Cybernetics, pp. 1–14, 2019.
+[51] G. Yu, Y. Jin, and M. Olhofer, “A method for a posteriori identification
+of knee points based on solution density,” in 2018 IEEE Congress on
+Evolutionary Computation (CEC), pp. 1–8, July 2018.
+[52] X. Zhang, Y. Tian, and Y. Jin, “A knee point-driven evolutionary
+algorithm for many-objective optimization,” IEEE Transactions on Evolutionary Computation, vol. 19, pp. 761–776, Dec 2015.
+[53] S. Ioffe, “Batch renormalization: Towards reducing minibatch dependence in batch-normalized models,” in Advances in neural information
+processing systems, pp. 1945–1953, 2017.
+[54] J. Yu, L. Yang, N. Xu, J. Yang, and T. Huang, “Slimmable neural
+networks,” arXiv preprint arXiv:1812.08928, 2018.
+[55] X. Chu, B. Zhang, R. Xu, and J. Li, “Fairnas: Rethinking evaluation
+fairness of weight sharing neural architecture search,” arXiv preprint
+arXiv:1907.01845, 2019.
+[56] A. Krizhevsky, V. Nair, and G. Hinton, “Cifar-10 (canadian institute for
+advanced research),”
+[57] L. Perez and J. Wang, “The effectiveness of data augmentation in image
+classification using deep learning,” arXiv preprint arXiv:1712.04621,
+2017.
+
+

@@ -1,0 +1,3623 @@
+FLIPS: F EDERATED L EARNING USING I NTELLIGENT
+PARTICIPANT S ELECTION
+
+arXiv:2308.03901v2 [cs.LG] 30 Sep 2023
+
+A P REPRINT
+Rahul Atul Bhope
+UC Irvine
+rbhope@uci.edu
+
+K. R. Jayaram
+IBM Research AI
+jayaramkr@us.ibm.com
+
+Nalini Venkatasubramanian
+UC Irvine
+nalini@uci.edu
+
+Ashish Verma
+Amazon Inc.∗
+draverma@amazon.com
+
+Gegi Thomas
+IBM Research AI
+gegi@us.ibm.com
+
+October 3, 2023
+
+A BSTRACT
+This paper presents the design and implementation of FLIPS, a middleware system to manage data
+and participant heterogeneity in federated learning (FL) training workloads. In particular, we examine the benefits of label distribution clustering on participant selection in federated learning. FLIPS
+clusters parties involved in an FL training job based on the label distribution of their data apriori,
+and during FL training, ensures that each cluster is equitably represented in the participants selected.
+FLIPS can support the most common FL algorithms, including FedAvg, FedProx, FedDyn, FedOpt
+and FedYogi. To manage platform heterogeneity and dynamic resource availability, FLIPS incorporates a straggler management mechanism to handle changing capacities in distributed, smart community applications. Privacy of label distributions, clustering and participant selection is ensured
+through a trusted execution environment (TEE). Our comprehensive empirical evaluation compares
+FLIPS with random participant selection, as well as three other “smart” selection mechanisms –
+Oort [51], TiFL [16] and gradient clustering [29] using two real-world datasets, two benchmark
+datasets, two different non-IID distributions and three common FL algorithms (FedYogi, FedProx
+and FedAvg). We demonstrate that FLIPS significantly improves convergence, achieving higher
+accuracy by 17-20 percentage points with 20-60% lower communication costs, and these benefits
+endure in the presence of straggler participants.
+
+1
+
+Introduction
+
+Federated Learning (FL) [45] is the process by which multiple participants (parties) collaborate to train a common
+machine learning (ML) model, without sharing data among themselves or with a centralized cloud-hosted machine
+learning service. FL allows parties to retain private data within their controlled domains. Only model updates are
+typically shared to a central aggregation server hosted by one of the parties or a cloud service provider. This, along with
+transformations applied to model updates (e.g., homomorphic encryption [40] and addition of noise for differential
+privacy [5]) make FL privacy preserving.
+Why FL? From a participant perspective, a key goal of FL is to access diverse training data to enhance the robustness
+of machine learning models by promoting generalization, outlier detection and bias mitigation. FL allows the training
+of machine learning models using data distributed across multiple devices or edge nodes from different demographies
+and geographical locations. This distributed nature allows for diverse datasets, as each device may have unique data
+reflecting various user behaviors, preferences, or contexts. The privacy-preserving aspect encourages a wider range
+∗
+
+Ashish Verma was affiliated with IBM Research during this work.
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+of participants to contribute their data, including those who may be concerned about sharing personal information or
+those restricted by regulations like HIPAA and GDPR, further leading to a more representative and inclusive dataset.
+Benefits of Diverse Datasets: A diverse training dataset provides a broader representation of the real-world scenarios
+and variations that the model may encounter during inference. By exposing the model to a wide range of data samples,
+including different classes, variations, edge cases and outliers, the model can learn more generalized patterns and
+make better predictions on unseen data. Outliers can be valuable in identifying rare events or unusual patterns that
+may not be present in a homogeneous dataset. Also, including diverse samples that represent different demographics,
+backgrounds, and perspectives, models can learn to be more equitable and avoid perpetuating bias. It enables the
+model to make predictions that are more representative and fair for a broader range of individuals.
+non-IID Data in FL. The diversity of real-world entities and their private data also implies that FL techniques and
+algorithms have to be designed to handle non-IID (non Independent and identically distributed) data. Parties not only
+have different data items, but also often have wildly different types of data items, corresponding to different labels.
+Several leading FL researchers [84, 45] have noted that the presence of IID data is the exception rather than the
+norm [84].
+Intermittent Participation. FL, in general, is characterized by intermittent participation, which means that for every
+FL round, each party trains at its convenience, or feasibility. This may be when devices are connected to power in
+the case of mobile phones, tablets and laptops (FL over edge devices); when (local) resource utilization from other
+computations is low and when there are no pending jobs with higher priority (both in edge and datacenter use cases).
+The aggregator expects to hear from the parties eventually - typically over several minutes or hours. Parties in FL jobs
+are often highly unreliable and are expected to drop and rejoin frequently.
+Participant Selection: Due to the intermittent nature of parties, existing FL algorithms like FedAvg, FedProx,
+FedMA, FedDyn, etc. only select a subset of parties in each round, often employing randomization to select parties [84, 45]. Random selection eventually offers each party an opportunity to participate in the FL job, but does not
+take into account the type of data present at each party, and does not ensure that parties with diverse datasets are
+selected in each round. There is also significant empirical evidence that Non-IID data combined with random selection significantly increases the time taken for models to converge [62, 33, 53] (we reproduce some of these results in
+Section 5).
+There is increasing recognition that random selection is suboptimal for other reasons as well. The selected participant
+could have compute or communication constraints and might actually not be able to participate in the round. There is
+existing research on selecting participants for each round based on the ability to participate, amount of data present at
+each participant, history of reliable participation, and communication constraints [44, 51, 28]. But said research has
+not considered the label distribution among participants. This is unfortunate because it is vital for model generalization
+in FL to equitably consider all participants, including outliers. This paper makes the following contributions:
+• FLIPS, a middleware for effective management of data and platform heterogeneity in FL using clustering
+techniques based on label distributions.
+• An algorithm to use the generated clusters to select diverse participants at each round of an FL training job,
+ensuring that parties are equitably represented while offering each party a fair opportunity to participate.
+• A private mechanism using trusted execution environments (TEEs) to cluster participants in FL jobs based
+on the label distributions of their data and identify the diversity in their data in a secure manner.
+• A thorough empirical evaluation comparing FLIPS with the predominant random participant selection, as
+well as two other “smart” selection mechanisms – Oort [51] and gradient clustering [29] using two real
+world datasets, two benchmark datasets, two different non-IID distributions and three common FL algorithms (FedYogi, FedProx and FedAvg). We demonstrate that FLIPS significantly improves convergence,
+achieving superior accuracy with much lower communication costs, and these benefits endure in the presence
+of stragglers.
+
+2
+
+Federated Learning and Heterogeneity
+
+A typical FL setting consists of parties with local data and an aggregator server (when the number of parties is small)
+or service (e.g., a microservice using Apache Spark to aggregate model updates when number of parties is large) to
+orchestrate FL. An FL job proceeds over several rounds, also called synchronization rounds. An aggregator typically
+coordinates the entire FL job, in addition to aggregating model updates and distributing the updated model back to the
+parties. Co-ordination, includes, agreeing on the following FL job parameters before the job starts: (i) model architecture (ResNet, EfficientNet, etc), (ii) FL algorithm (FedAvg, FedYogi, etc.) and any algorithm specific parameters
+2
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+like minimum number of parties required for each round, (iii) how to initialize the global model (whether random, or
+from existing pre-trained models), (iv) hyperparameters to be used (batch size, learning rate etc.), and (v) termination
+criteria, whether the FL job ends after a specific number of rounds, or when a majority of parties decide that the model
+is satisfactory (e.g., has reached a desired level of accuracy).
+Model update A
+Party A
+
+Model update B
+Updated
+Global
+Model
+
+Aggregator
+
+Party B
+Local Training
+
+Private Data
+
+Party C
+Model update C
+
+Figure 1: Overview of Federated Learning
+At each FL job round, each participant trains a local model using its local data. The local model is initialized with the
+global model parameters received from the aggregator. The local training process typically involves several iterations
+or epochs (this is part of the hyperparameters agreed at the start) to improve the model’s performance on the local
+dataset. After local training, the participants generate model updates, which typically consist of the updated model
+parameters or gradients. These updates capture the local knowledge learned from the device’s data. The aggregator
+combines these updates, and applies the aggregated update to construct the global model using the optimizer. The new
+global model parameters are sent to the participants selected for the next round. The FL process typically involves
+multiple rounds of local training, model updates, aggregation, and distribution. This iterative process allows the model
+to be refined and improved over time by leveraging the collective intelligence of the participating devices.
+2.1
+
+Common FL Algorithms
+
+FL algorithms [84] primarily differ in how model updates are aggregated and the mathematical formula (called the
+OPTIMIZER in machine learning literature) used to apply the aggregated model update to the global model.
+For FedAvg [64], the aggregator selects a random subset S (r) ⊂ S of parties for every round r. The aggregator in
+P
+(r)
+FedAvg computes the weighted average of all participant updates (gradients): N1 i∈S (r) ni xi to compute the global
+model update x(r) and update the global model (for the next round) m(r+1) using SGD as the OPTIMIZER. This
+process proceeds for a set number R of rounds or (less typically) until a majority of the parties vote to terminate. The
+term ni in the weighted average is the number
+of training samples at party i, and N is the total number of training
+P
+samples involved in the round, i.e., N = i∈S (r) ni . FedAvg is the first widely-deployed FL algorithm but does not
+result in an optimized global model when the data distribution is not IID.
+When the entire set of parties S is used in every round, and SGD is the OPTIMIZER, we get FedSGD. FedAdam and
+FedAdagrad are the same FedAvg with Adam [49] and AdaGrad [27] as the OPTIMIZER, respectively. FedProx [55] is
+a variation of the FedAvg that aims to produce better global models in the presence of non-IID data. FedProx includes
+a Proximal term in the OPTIMIZER with penalty parameter µ. If Fk (xr,k ) is the local loss function at a party k at round
+r. Then the local loss function in FedProx includes µ which then translates to Fk (x(r,k) ) + µ2 ||m(r) − x(r,k) ||. This
+brings the model x(r,k) closer to m(r) at each party k. By requiring the updates to be close to the starting point, a big
+µ could potentially hinder convergence, but a small µ might have no effect.
+FedYoGi [51, 73], which has been shown to outperform FedAvg and FedProx [51] with non-IID data, uses an adaptive
+optimizer to update the global model. The server OPTIMIZER maintains a per-parameter learning rate, updated based
+on the history of gradients gr(r,k) = x(r,k) − m(r) . This allows the server OPTIMIZER to adapt to the local data
+distributions of the clients. FedYoGi introduces a moving average of gradients term mt = β1 ∗ mt + (1 − β1 ) ∗ gr(r,k)
+and moving average of squared gradients vt = β2 ∗ vt + (1 − β2 ) ∗ (gr(r,k) )2 , with 2 momentum hyperparameters β1
+t
+and β2 . m(r) is updated by m(r) − lr ∗ √vtm+eps
+, where lr is the learning-rate and eps is a small constant to prevent
+division by 0.
+3
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+2.2
+
+A P REPRINT
+
+Data Heterogeneity : Dealing with Non-IID Data
+
+Despite advances in FL, the ability of current techniques to deal with variabilities and diversity in real-world data is
+still limited. The term non-IID (non-independent and identically distributed) data distributions in the context of FL
+refers to the situation in which the data on each device or node taking part in the FL process is not independently and
+identically distributed across all devices. This can happen when data is collected from several sources or under various
+circumstances, resulting in variances in the data and/or label distribution on each device.
+In FedAvg, FedProx and FedYoGi at each round r, S (r) parties are sampled randomly from the given pool. |S (r) | is
+typically small when compared to |S|, typically less than 20% in real deployments [11, 37]. This will result in some
+rounds, where parties with similar data distributions are chosen and thus lead to class imbalance, when certain classes
+of data are underrepresented on certain parties. This leads to model divergence in rounds when parties with diverse
+data are chosen, and the model to be biased towards the overrepresented classes. To understand why this happens, it
+is helpful to consider the centralized learning setting, where the training typically makes a pass over the entire dataset
+in every training round (epoch), and outlier and diverse data is considered in every training epoch. With random
+selection, outlier data may get omitted continuously for several rounds in FL, especially with typical values of |S (r) |.
+To further illustrate the significance, we consider a real-world use-case from Senior Care focusing on smartspaces and
+assisted living (name hidden for anonymity). One application investigated for FL is Arrhythmia detection using ECG
+signals [65] from wearables where data exhibits non-IIDness, as more data points are recorded for normal heartbeats.
+Abnormal heartbeats are recorded in devices worn by people with heart ailments, a small fraction of all the parties in
+FL [65]. With random selection in any FL algorithm, there is always a higher chance of selecting a party with majority
+Normal beats at any round, biasing the model towards classifying most heartbeats as Normal.
+2.3
+
+Platform Heterogeneity : Stragglers
+
+In federated learning (FL) deployments in the real world, Platform Heterogeneity plays a significant role in the convergence of the global model. Platform heterogeneity across different parties causes some of them to be stragglers which
+exhibit intermittent failure. Stragglers are devices that take longer than expected in an FL environment to complete
+their local training. These gadgets have the potential to stall the FL process and perhaps fail. Stragglers can appear in
+real-world FL deployments for a variety of reasons. Among the most popular explanations are:
+• Data transfer between devices may experience delays due to network congestion. As a result, some devices
+cannot get the information they require to finish a task as quickly as they should.
+• Stragglers can also be caused by device faults. A gadget might crash or run out of battery life, preventing it
+from finishing a task.
+• Devices deployed in challenged settings may be more likely to have restricted resources, such as memory or
+computing power. This is because the workload of an FL task may be too much for these devices to handle
+quickly.
+One of the major roadblocks in FL is straggler parties, among the S (r) . These parties stall the overall FL training
+as they do not communicate their models within the given time threshold for local training. This results in underrepresenting the straggler’s data while aggregating the global model.
+2.4
+
+Security and Privacy of FL
+
+Recent research [34, 26, 96, 31, 90, 97] on reverse engineering attacks has demonstrated that while parties in federated
+learning (FL) do not share training data, sharing model updates may not ensure privacy. Two common types of
+reverse engineering attacks are (i) Data reconstruction attacks and (ii) Membership/Property inference attacks. Data
+reconstruction [31, 96, 97] aims to reconstruct most, if not all of the original training data of a participant from the
+global model updates (gradients). Membership inference [76, 34] aims to determine whether a specific data point
+was used to train the global model. This can be done by analyzing the performance of the global model on carefully
+crafted inputs. Property inference aims to infer certain properties of the participants’ data, such as their location or
+demographics. This can be done by analyzing the global model updates or by training a new model to predict these
+properties from the global model updates. Empirically, these attacks work well only on gradients corresponding to
+individual data items or on aggregated gradients computed from a small number (e.g., up to batch sizes of 16 for
+[31, 96, 97]) of data items. Therefore, individual model updates have to be private, and FL is not considered private
+when the number of parties is less than three.
+4
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+Secure aggregation [13, 37, 11] is a vital technique in federated learning (FL) that safeguards data privacy and security
+from individual devices or clients, facilitating collaborative model training. The primary objective is to preserve the
+privacy of individual updates while still allowing them to contribute to enhancing the global model. Four key secure
+aggregation techniques, which can be combined as needed for defense-in-depth, include: (i) Homomorphic Encryption
+(HE), (ii) Differential Privacy (DP), (iii) Secure Multi-Party Computation (SMPC), and (iv) Trustworthy Execution
+Environments (TEEs) or Secure Enclaves.
+HE (e.g., [68, 14]) for FL involves parties sharing a common public/private keypair. Parties encrypt the model updates
+before transmitting them to the aggregator which performs the aggregation computation on the encrypted data. Aggregated model updates can then be decrypted by the parties. HE does not change model utility, but is computationally
+expensive – two or three orders of magnitude even with the use of specialized hardware [92, 81, 82], and also results
+in significant increase in the size of the model update (e.g., 64× for Paillier HE [92] which is sufficient for many
+FL algorithms). While HE is practical for FL in cross-silo datacenter/cloud settings where its latency and bandwidth
+requirements can be accommodated, the need for all participants to share a common keypair makes it impractical for
+large scale settings.
+Differential privacy [5, 77, 79, 89] is a statistical technique that adds controlled noise to the model updates before
+aggregation. This noise ensures that individual updates do not reveal sensitive information about the data used for
+training, defeating data reconstruction and membership inference attacks. Some techniques also clip the model updates (gradients) to a predefined range before the addition of noise. This further limits the information that can be
+extracted from the updates. By carefully controlling the amount of noise, differential privacy provides a trade-off
+between privacy and utility. However, this is non-trivial, and model utility is very sensitive to an optimal choice of
+hyperparameters which is difficult in large-scale FL settings.
+Secure Multi-Party Computation (SMPC) protocols [48, 22, 23, 40, 13] allow multiple parties (devices in this context)
+to perform computations on their inputs while keeping those inputs private. In FL, SMPC is used to aggregate model
+updates securely. Each party encrypts its update, and multiple parties perform computations on the encrypted updates
+without revealing the raw data. The result is an aggregated update that can be used to update the global model. Many
+SMPC protocols also suffer similar drawbacks as HE, with increased communication and computation time, lower in
+magnitude than HE but still significant, and the need for effective key distribution.
+A trusted execution environment (TEE) [1, 2] is a secure area of a main processor that provides security features for
+isolated execution and guarantees the integrity of applications executing within, along with the confidentiality of their
+data assets. ARM TrustZone [4] and Intel SGX [3] are examples of TEEs. For aggregation in FL, they are attractive
+because their computational overhead is low, and their computations and software can be audited by participants with
+the help of attestation services. At least one FL system deployed at scale – Papaya [37] uses TEEs for aggregation.
+
+3
+
+FLIPS: Design
+
+Participant selection is a key challenge in FL. It is the process of choosing which devices will participate in each
+round of training, and is predominantly random [55, 83, 11, 84]. There is existing research on participant selection
+to optimize communication costs and computation limitations, which does not consider parties’ data distribution and
+data diversity. For example, [36] models the client selection process as a Lyapunov optimization problem. The authors propose a C2MAB-based method to estimate the model exchange time between each client and the server. They
+then design an algorithm called RBCS-F to solve the problem. VF-PS [43] is a framework for selecting important
+participants in vertical FL (VFL) efficiently and securely. It works by estimating the mutual information between each
+participant’s data and the target variable and then selects the most important participants based on their scores. To
+ensure efficiency, VF-PS uses a group testing-based search procedure. To ensure security, it uses a secure aggregation protocol. VF-PS achieves the target accuracy faster than training a naive VFL model. FedMCCS [6] addresses
+challenges in using FL with IoT devices. FedMCCS considers the CPU, memory, energy, and time of the client devices to predict whether they are able to perform the FL task. In each round, FedMCCS maximizes the number of
+clients while considering their resources and capability to train and send the needed updates successfully. FedMCCS outperforms other approaches by reducing the number of communication rounds to reach the intended accuracy,
+maximizing the number of clients, ensuring the least number of discarded rounds and optimizing the network traffic.
+[67] takes a similar approach as FedMCCS, prioritizing resource availability. Another approach considers data valuation for compensating valuable data owners [87]. They use the Shapley value as a fair allocation mechanism that
+assigns a value to each data source based on its contribution to the model’s performance to enhance system robustness,
+security, and efficiency; such mechanisms could be used for aiding participant selection. [18] proposes Power-ofChoice, a communication- and computation-efficient client selection framework, which randomly selects a fraction of
+5
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+participants in each round, but biases selection towards those with higher local losses. [18] proves theoretically and
+empirically that this biased selection leads to faster convergence. Oort [51] takes a similar approach.
+In this section, we introduce FLIPS, our approach to intelligent participant selection that improves model convergence,
+addresses diversity in datasets and incurs low communication overheads. First, FLIPS mitigates the above-mentioned
+class imbalance issue, (Algorithm 1) and improves feature and participant representation in FL by selecting parties
+that are likely to have dissimilar data at each FL round. The techniques implemented within FLIPS are based on one
+of the federated learning’s core goals – to increase the diversity of data and ensure that the global model in each FL
+round does not overfit local data.
+3.1
+
+Finding Similar Parties using Clustering
+
+The objective of FLIPS is to identify sets of similar parties by measuring the label distribution of each party and
+using it as a semantic representation of a party’s local dataset. There are N parties, p1 , p2 , . . . , pN , with datasets
+d1 , d2 , . . . , dN and label distributions ld1 , ld2 , . . . , ldN , respectively. The label distribution vector at party pi with
+dataset di is ldi = {l1 , l2 , . . . , lg }, where lj is the number of data points for the label j th present in the party and g is the
+number of labels in the dataset. The set of label distributions for all N parties is denoted as LD = {ld1 , ld2 , . . . , ldN }.
+Our next step is to group the label distributions from various parties into non-intersecting subsets that are similar.
+Here, we define a similarity metric between subsets that is based on the average distance between all objects in a given
+subset and the average distancebetween subsets. Let Sm be the set of all possible subsets of LD of size m, where
+N
+m ϵ [1, N ]. Hence, there are m
+subsets within Sm . Let Li = {lda , ldb , ....}, be a subset ϵ Sm , ∆(Li ) is the average
+Euclidean distance between all objects in the set Li . Given 2 subsets Li and Lj , δ(Li , Lj ) is the average Euclidean
+distance between objects in sets Li and those in Lj .
+The idea behind finding similar parties is to find k disjoint subsets across all Sm , where m ϵ [1, N ], such that:
+k
+
+minimizeSm
+
+k
+
+1 X X ∆(Li ) + ∆(Lj )
+, i ̸= j.
+k i=1 j=1
+δ(Li , Lj )
+
+(1)
+
+Note that this problem is a subset enumeration problem, where we have to find k subsets across all Sm , where the
+condition is (1). This problem is known to be NP-complete [80]. There are several heuristics to solve this problem,
+we use K-Means [59] clustering to solve this problem which obtains a k-partition, where k is unknown, across all Sm ,
+denoted by clusters C = (C1 , C2 , . . . , Ck ), such that :
+minimize
+
+k
+N X
+X
+
+ωxy ||ldx − cy ||2
+
+(2)
+
+x=1 y=1
+
+Here, ωxy is a binary variable that indicates whether the xth datapoint is assigned to the cluster Cy , whose centroid is
+cy .
+
+Davies-Bouldin score
+
+0.20
+0.15
+0.10
+0.05
+0.00
+
+Elbow Point
+
+5
+
+10
+
+15
+20
+Cluster Size
+
+25
+
+30
+
+Figure 2: Elbow point determination for optimal k
+We opted for K-Means due to its simplicity and lower time complexity. K-Means clustering has a time complexity
+of O(N kI ∗ d), where N is the number of data points, k is the number of clusters, I is the number of iterations,
+and d is the number of dimensions. This makes it a suitable choice for resource-limited settings. Furthermore, we
+use kmeans ++ [9] to initialize the centroids in K-Means clustering. This has been demonstrated to scale to millions
+of data points, i.e., parties [10]. However, K-means does require the number of clusters k to be known beforehand,
+which is a problem in FL. The knowledge about the number of unique label distributions in the parties’ datasets is
+6
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+unknown while performing clustering, as each party’s data is kept private. To find the optimal number of clusters k,
+which is analogous to the number of unique label distributions, we use a purity metric called the Davies-Bouldin index
+(dbi) [24], which is the ratio of the intra-cluster distance to the inter-cluster distance and similar to (1). The optimal k
+is determined by :
+dbi(k) − dbi(k − 1)
+|.
+(3)
+koptimal = argmink |
+dbi(k − 1)
+where dbi is the Davies-Bouldin index.
+When k is small, the clusters cannot accurately represent the unique label distributions, impacting FL performance
+and cost because there is no equitable representation at each round. When k is large, clustering leads to overfitting;
+clusters generated are sparse, impacting FL performance and cost. To determine the optimal cluster size in FLIPS
+empirically, we experiment with different cluster sizes in succession, repeated T = 20 number of times (because
+K-Means is sensitive to the centroid initialization) and average the dbi for each k ∈ {2, . . . , K}, where K = N . This
+gives us T different dbi for each cluster size k. The cluster size k for which there is a (first) sharp change in the slope
+of the curve (elbow point) is chosen as the optimal cluster size. As illustrated in Figure 2, the optimal cluster size at
+which there is a sharp change in slope for k vs dbi is 10. Hence, we choose 10 as the cluster size for K-Means.
+3.2
+
+Intelligent Participant selection
+
+Given a set of clusters of parties, C, from the clustering technique described above, FLIPS (Algorithm 1) implements
+participant selection for a round by choosing one party at a time from each cluster in a round-robin manner until the
+number of parties required for the round, Nr , is reached. Typically in FL training, the number of parties per round
+Nr is fixed across all the rounds. This ensures that Nr is spread among as many clusters as possible increasing the
+diversity of data in the FL training process. It is recommended that Nr be a multiple of the number of clusters |C|
+since Nr can then be easily split among the number of available clusters (|C|), ensuring equal representation from each
+r
+cluster ( N
+|C| ). FLIPS also keeps track of the number of times a party was chosen to ensure that each party within a
+cluster is given an equal opportunity to participate. In the case where the number of parties per round is less than the
+number of clusters, not every cluster can participate in every round. So FLIPS additionally tracks the number of times
+a cluster is selected to participate.
+Consider the example of using ECG signals from wearables for Arrhythmia detection, FLIPS will improve label
+representation by picking parties with normal and abnormal heartbeats at each round, improving the detection rate for
+arrhythmia and preventing class/label imbalance. To improve participant representation, FLIPS will try to incorporate
+parties that were not used in the previous training rounds. This will help bring knowledge from a diverse set of
+participants and will make the global model more robust. This helps solve the data heterogeneity issues in FL.
+To mitigate the effect of Stragglers, FLIPS uses the popularly used over-provisioning technique [12]. Once we identify
+the average straggler rate strg. FLIPS overprovisions strg ∗ S (r) parties in the subsequent training rounds. The
+r
+overprovisioned parties in round r + 1 are selected from the clusters Hsc
+that the straggler parties in round r were a
+part of. In this manner, we maintain the representation of all the unique label distributions in FL. This is illustrated in
+Algorithm 1.
+3.3
+
+Privacy in FLIPS
+
+There are two additional pieces of private information that needs to be secured in FLIPS, when compared to traditional
+FL (see Section 2.4). One is the parties’ label distribution used for clustering. This information gives away the types
+of data present at a party, and can be used by other parties to gain a competitive advantage. The other is cluster
+membership – should a party know which cluster it belongs to, Attacks on FL algorithms based on cluster membership
+are currently unknown, given that the concept and use in FL is new. But, akin to data and model poisoning, parties
+could lie about their label distributions to work themselves into smaller clusters. In FLIPS, we treat cluster membership
+as private information because parties do not need to know this. A party simply needs to know whether it is selected
+for a round.
+Hence, FLIPS needs a mechanism to establish trust and execute clustering privately and securely. For this, we have
+chosen to use secure enclaves (Section 2.4) over secure multiparty computation (SMPC) and homomorphic encryption (HE).Figure 3 illustrates the end-to-end system design of FLIPS and the associated flow of information. The key
+components include the FL parties which hold local data and generate local models, an aggregator which acts as the
+centralized coordinator, the TEE within the centralized aggregator, and an attestation server that verifies the aggregator’s TEE. The clustering code is loaded on the TEE and all parties share an attestation server to verify the remote
+TEE’s hardware. Together, this establishes the TEE as a secure enclave.
+7
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+Algorithm 1: FLIPS Party & Straggler Handling
+1 Participant Side
+(r)
+2 RECV global model (m
+) from aggregator
+(r,1)
+3 Local model x
+← m(r)
+4 for k ∈ {1, 2, . . . , τ } do
+// τ local iterations
+5
+6
+
+Compute local stochastic gradient gi (x(r,k) )
+x(r,k+1) ← OPTIMIZER(xr,k , −gi (x(r,k) ), η (r) )
+
+(r,τ )
+to aggregator
+Aggregator using FLIPS
+9 LD = {ld1 , ld2 , . . . , ldn }
+10 C ← OPTIMIZED CLUSTERS (LD)
+11 H ← {} // parties used per cluster
+12 Hc ← MIN - HEAP () // clusters used
+r
+r
+13 Hs ← {}, Hsc ← MAX - HEAP (), count strg ← 0, Stragglers = F alse // track straggler parties, their
+7 SEND x
+8
+
+clusters and counts
+
+Initial model m1 , Parties per round Nr
+15 for c ∈ {1, 2, . . . , C} do
+16
+c.picks ← 0, INSERT(Hc , c), h ← MIN - HEAP ()
+17
+for p ∈ {1, 2 . . . c} do
+18
+p.picks ← 0, INSERT(h, p)
+19
+H[c.id] ← h
+20 for r ∈ {1, 2, . . . , R} do
+21
+S (r) ← {}
+22
+for i ∈ {1, 2, . . . , Nr } do
+23
+c ← EXTRACT MIN(Hc ), H ← H[c.id], p ← EXTRACT MIN(H)
+24
+INCREEMENT(p.picks, 1), INSERT (H, p)
+25
+INCREEMENT(c.picks, 1), INSERT (Hc , c)
+S
+26
+Select unique parties :S (r) ← S (r) {p}
+27
+if Stragglers then
+28
+for i ∈ {1, 2, . . . , int(strg ∗ N r )} do
+r
+), H ← H[c.id] // choose cluster with most stragglers
+29
+c ← EXTRACT MAX(Hsc
+30
+c : p ← EXTRACT MIN(H) not in Hsr // pick a non-straggler part in c
+S
+31
+S (r) ← S (r) {p}
+14
+
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+
+SEND m(r) to each i ∈ S (r)
+(r)
+
+for RECV model update xi from each i ∈ S (r) do
+if xri not RECV then
+r
+Hsr ← i, Hsc
+← cluster of i
+Stragglers=True, count strg + +
+else
+if i in Hsr then
+Hsr .remove(i)
+r
+Hsc
+.remove(cluster of i)
+if len(Hsr ) == 0 then
+Stragglers = F alse
+P
+(r)
+Aggregate x(r) ← N1 i∈S (r) ni xi
+(r)
+m(r+1) ← OPTIMIZER(mr , xi )
+r
+strg
+strg = strg∗N +count
+Nr
+
+8
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+Attestation
+Server
+
+Party - 1
+
+P1’s LABEL DISTRIBUTION (P1’s LD)
+
+Secure Channel
+
+TEE
+Clustering Code
+P1’s LD
+
+P2’s LD
+
+…
+PN’s LD
+
+P2’s LABEL DISTRIBUTION (P2’s LD)
+
+Party - 2
+
+Secure Channel
+
+Clusters
+…
+
+…
+
+Cluster k
+PN’s LABEL DISTRIBUTION (PN’s LD)
+
+Party - N
+
+Cluster 2
+Cluster 1
+
+Secure Channel
+
+Aggregator
+
+Figure 3: End-to-end integrated system design for Private Clustering in FLIPS
+
+5
+
+Party 1
+
+Straggler
+
+Intelligent
+Participant Selection
+
+TEE
+Party 2
+
+1
+
+4
+
+Party 3
+
+6
+
+Equitable Participant
+selection across clusters
+
+Orchestrate local
+training and model
+sharing
+
+Aggregator
+
+2 Explore less selected
+
+Overprovisioning
+party in the next
+round from the
+same cluster as
+the straggler
+
+parties within each
+cluster
+
+3
+
+…
+
+…
+
+Query the TEE to
+get the subset of
+participants
+
+Parties
+Information : Clustered - Participant Pool
+
+Party N
+
+Figure 4: Workflow: Intelligent Participant Selection in FLIPS
+
+Next, each party establishes a secure channel (eg: TLS channel) with the TEE for transmitting secrets, the label distribution vector in our case. The clustering code (a K-means variant) computes the clusters on these label distribution
+vectors in the secure enclave. The TEE maintains the clusters securely and deletes all information at the end of the FL
+job (this can be attested by the attestation server).
+
+3.4
+
+FLIPS in Context
+
+FLIPS differs from other FL systems, in that it targets participant selection using label distribution clustering. kmeans++ clustering based on label distributions has the advantage of being fast and minuscule relative to FL training
+time, and has been demonstrated to scale [10, 66] to millions of data points (participants). Clustering has to be performed only once, as long as the set of participants or the data at participants does not change significantly. Centralizing
+this clustering and participant selection in a TEE also has the advantage of fitting nicely into the predominant mold
+of FL, as it is deployed today, based on a single aggregator [45]. However, FLIPS can also be used with a distributed
+aggregator (e.g., [11, 37, 39, 41]) by separating the clustering and participant selection module from the aggregation
+module. This applies to cloud-hosted aggregation or aggregation using homomorphic encryption or secure multiparty
+computation. In fact, clustering, participant selection and aggregation are logically separate with clear interfaces, and
+can be individually hosted and secured. This also implies that FLIPS is as scalable as the underlying aggregation
+algorithm and the method used to secure it.
+
+4
+
+Validating FLIPS
+
+Our primary goal is to examine the impact of FLIPS’s participant selection on model convergence and accuracy at a
+reasonable scale. Hence, we implemented and evaluated FLIPS in a distributed cluster environment. All the parties,
+i.e. participants, were executed as nodes on a cluster for local training as seen in Figure 3. The cluster consists 13
+nodes, each with four Nvidia V100 (16GB) GPUs, Intel(R) Xeon(R) Silver 4114 CPU, and ∼ 16 GB RAM per node.
+We train local models using the GPUs available on this cluster. The aggregator node is executed on a machine with a
+2.9Ghz 6-core Ryzen 5 processor with 16GB RAM and 512GB SSD. To enable trusted execution for label distribution
+clustering, we use the AMD Secure Encrypted Virtualization (SEV) [1] on the aggregator.
+9
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+4.1
+
+A P REPRINT
+
+Techniques for Comparison
+
+We compare FLIPS with 3 popular participant selection strategies across different datasets and study the impact on
+convergence in the presence of stragglers. The first is the widely-used random selection [63, 55, 72] method. This selects each party with the same probability and can lead to class imbalance, where certain classes are underrepresented,
+as explained in Section 2.2. This may cause the model to be biased towards the overrepresented classes, leading to
+poor performance. This harms convergence as it takes more training rounds to reach the desired accuracy.
+Second, we compare FLIPS with OORT [51]. OORT uses the idea that parties with a higher local loss can contribute
+more to an FL job [42] and introduces a statistical and systemic utility metric for participant selection. The system
+sorts the parties according to the party utility metric which is a combination of its statistical and systemic utility and
+selects parties with a higher utility and explores new parties at each training round.
+The third strategy is GradClus [29], which uses the idea of clustering gradients from parties to identify parties with
+similar data. It performs hierarchical clustering over a similarity matrix constructed across gradients from all the
+parties in the FL job. The gradients assigned in the beginning are random numbers and get iteratively updated as the
+party gets picked. At the aggregator, GradClus [29] performs hierarchical clustering and S (r) number of clusters are
+formed. GradClus chooses one party from each cluster randomly.
+The fourth strategy is TiFL [16], which groups parties into tiers based on their training performance and selects parties
+from the same tier in each training round to mitigate the straggler problem. To further solve the non-IID problem, TiFL
+employs an adaptive tier selection approach to update the tiering on the fly based on the observed training performance
+and accuracy.
+4.2
+
+Datasets and models used
+
+We focus on two real-world datasets from the healthcare/senior care domain and two benchmark datasets:
+• MIT-BIH-ECG-Dataset [65] partitioned across 200 parties trained using a 1-D CNN [56].
+• Skin cancer HAM10000 [19] partitioned across 200 parties trained using Densenet-121 [35].
+• FEMNIST [55] partitioned across 200 parties trained using Le-Net5 [52].
+• FashionMNIST [88] partitioned across 200 parties trained using Le-Net-5 [52].
+The MIT-BIH ECG dataset [65] comprises digitized electrocardiogram (ECG) recordings used for arrhythmia identification. Collected by MIT Biomedical Engineering Department and Beth Israel Hospital, it includes both normal
+and aberrant rhythms. The dataset is annotated with AAMI labels [85], a widely accepted standard for ECG rhythm
+classification. These labels define performance criteria, improve algorithm generalization, and include N (normal
+beats), S(supra-ventricular ectopic beats), V (ventricular ectopic beats), F (fusion beats), and Q (unclassifiable beats).
+The dataset predominantly comprises of N beats, necessitating federated learning (FL) to enhance label and participant
+representation. The dataset is distributed across 200 parties in a non-IID manner. Training involves a 1-D CNN with
+a learning rate 0.001 and a decay applied every 20 rounds. FL training is limited to a maximum of 400 rounds.
+The HAM10000 dataset [19] contains diverse dermatoscopic images of pigmented skin lesions. It includes 10015
+images representing important skin cancer diagnostic categories: akiec, bcc, bkl, df, mel, nv, and vasc. The dataset
+is suitable for training and evaluating machine learning models for automated diagnosis. The nv images are the most
+abundant, potentially dominating other categories due to their prevalence caused by UV radiation. This non-IID
+behavior highlights the need for federated learning. The dataset is distributed across 200 parties, and training involves
+DenseNet121 with a learning rate of 0.001. A decay is applied every 30 FL rounds, and the maximum number of FL
+rounds is 400.
+The EMNIST (Extended MNIST) dataset [20] contains handwritten letters and numbers and is an expansion of the
+MNIST dataset. The EMNIST dataset contains characters from numerous alphabets, including numerals and letters
+from the English alphabet. It also has a collection of symbols from different languages. This dataset is frequently
+used for testing and training machine learning models for tasks like text classification and handwriting recognition.
+We subsample 10 lowercase characters (’a’-’j’) from EMNIST. This federated variant of EMNIST is known as FEMNIST [55]. We train Le-Net-5 [52] model at each party which outputs a class label between 0 (a) and 9 (j).
+Fashion-MNIST [88] is a dataset of images of clothing items that are commonly used as a benchmark for machine
+learning models. It consists of 60,000 training and 10,000 test images, each 28x28 pixels in size and labeled with
+one of 10 different clothing categories, such as t-shirts, trousers, bags, etc. FL applied in the fashion-MNIST dataset
+will mimic a personalized customer recommendation system. A model trained on the customer’s device or organization using FL will understand the customer’s preferences, which can then be used to suggest personalized clothing
+recommendations. The dataset is distributed across 100 parties and training involves Le-Net5 [52].
+10
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+4.3
+
+A P REPRINT
+
+Emulating Non-IID data distributions
+
+As in the Tensorflow Federated [12] and LEAF [15] FL benchmarks, we emulate a non-IID setting in our experiments
+by using different data partitioning strategies. We use Dirichlet Allocation [91] a widely used technique [12, 15] to
+partition a dataset among several parties in a non-IID manner. It samples p ∼ DirN (α), where α is the control
+parameter and pl,i becomes the proportion of the number of data points of label l allocated to the party i. An α of 0
+corresponds to each party having data corresponding to only one label (which is non-IID at its extreme) and an α ≥ 1
+corresponds to an IID distribution. As recommended in other federated learning research [30, 71, 15], we evaluate
+FLIPS using two different values of α = 0.3 and 0.6. At each round, we sample 20% and 15% parties which is more
+than the number of clusters of similar parties formed in FLIPS.
+4.4
+
+Metrics
+
+In FL, datasets are local to the parties, which partition them into local training and test sets. To compare FLIPS and
+other techniques for this study, we use a global test set consisting of data corresponding to all the labels in the distributed dataset. The datapoints in this dataset are unknown to any party in our emulation. Hence it is a valid test set.
+This test set also helps us evaluate the techniques at each training round to get a closer look at convergence. Generally,
+global test sets are not used in FL practice; just while designing FL algorithms. We maintain the global test set inside
+the aggregator’s TEE in our implementation.
+We report the test accuracy of the global model against the test dataset after each round. This test accuracy is computed
+as:
+lA1 + lA2 . . . + lAm
+m
+Correct P redictions f or label i
+lAi =
+T otal number of datapoints f or label i
+
+Acc =
+
+This is done to mitigate the effect of label imbalance while computing the accuracy for each test set, as each label may
+have a different number of datapoints. The accuracy numbers reported are an average of 6 runs for each experiment.
+We report both (i) the highest accuracy obtained using a specific FL technique within the FL rounds threshold and
+(ii) the number of communication rounds needed for the global model to reach a target/desired accuracy. The latter
+depicts how fast any participant selection technique converges.
+
+Results
+
+80
+
+80
+
+60
+
+60
+
+40
+
+15 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+20
+0
+
+0
+
+80 160 240 320 400
+Communication Rounds
+
+Accuracy %
+
+Accuracy %
+
+5
+
+20 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+0
+
+40
+20
+0
+
+80 160 240 320 400
+Communication Rounds
+
+(a) α = 0.3 without stragglers
+
+15 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+0
+
+80 160 240 320 400
+Communication Rounds
+
+20 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+0
+
+80 160 240 320 400
+Communication Rounds
+
+(b) α = 0.6 without stragglers
+
+Figure 5: Convergence plots on MIT BIH ECG Dataset, FL Algorithm: FedYoGi
+We our results in this paper Tables 1–24. Without stragglers, we perform a total of 60 (5 × 3 × 2 × 2) experiments
+– comparing FLIPS with 4 other participant selection mechanisms (random, GradClus, Oort, TiFL), for 3 different
+FL algorithms (FedAvg, FedProx and FedYoGi), 2 levels of non-IIDness (α = 0.3 and α = 0.6) and 2 levels of
+11
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+15 % Parties
+
+Accuracy %
+
+60
+40
+
+80
+
+20 % Parties
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+20
+0
+
+0
+
+80 160 240 320 400
+Communication Rounds
+
+0
+
+15 % Parties
+
+40
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+20
+0
+
+80 160 240 320 400
+Communication Rounds
+
+20 % Parties
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+60
+Accuracy %
+
+80
+
+A P REPRINT
+
+0
+
+(a) α = 0.3 with stragglers
+
+80 160 240 320 400
+Communication Rounds
+
+0
+
+80 160 240 320 400
+Communication Rounds
+
+(b) α = 0.6 with stragglers
+
+Figure 6: Convergence plots on MIT BIH ECG Dataset in the presence of Stragglers, FL Algorithm: FedYoGi
+
+15 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+Accuracy %
+
+60
+40
+
+80
+
+20 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+20
+0
+
+0
+
+80 160 240 320 400
+Communication Rounds
+
+0
+
+20 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+60
+Accuracy %
+
+80
+
+40
+20
+0
+
+80 160 240 320 400
+Communication Rounds
+
+(a) α = 0.3 without stragglers
+
+15 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+0
+
+80 160 240 320 400
+Communication Rounds
+
+0
+
+80 160 240 320 400
+Communication Rounds
+
+(b) α = 0.6 without stragglers
+
+Figure 7: Convergence plots on HAM 10000 (Skin Lesions) dataset, FL Algorithm: FedYoGi
+
+participation (20% and 15%) per dataset. From these 60 experiments, we choose the 3 best-performing techniques
+FLIPS , OORT and TiFL and observe how they perform in the presence of stragglers. We emulate stragglers by
+dropping 10% or 20% of participants involved in an FL round, resulting in another 72 experiments per dataset.
+5.1
+
+TEE Clustering Overhead
+
+Clustering label distributions, by itself, is fairly efficient and takes less than one second for all our datasets (≈100ms
+for HAM10000 dataset with 200 parties and lower for other datasets on a 2.3 Ghz 4 core Intel Core i9 equipped server
+with 16GB RAM and 512GB SSD). The overhead of using TEEs to perform clustering is approximately 5% (105.4 ms
+vs. 100.5ms) in the case of AMD SEV on a server running the aggregator. Hence, using TEEs gives us a reasonable
+way to implement private label distribution clustering for FLIPS.
+5.2
+
+Data Heterogeneity
+
+Tables 1 – 8 summarize our results for FedYogi. Tables 9 – 16 summarize our results for FedProx. Tables 17 – 24
+summarize our results for FedAvg. At a high level, we observe that FLIPScan reach target accuracies much faster and
+achieve much higher peak accuracy.
+Table 1: MIT ECG Dataset : Rounds required to attain Target Accuracy (60%)
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+>400
+>400
+>400
+>400
+
+Rounds required to attain 60 % accuracy, FL Algorithm : FedYoGi
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+157
+373
+>400
+>400
+193
+>400
+>400
+192
+>400
+>400
+172
+187
+>400
+>400
+263
+>400
+>400
+214
+>400
+>400
+242
+280
+>400
+>400
+>400
+>400
+>400
+326
+>400
+>400
+214
+>400
+>400
+>400
+292
+>400
+>400
+>400
+>400
+>400
+
+12
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+Table 2: MIT ECG Dataset: highest accuracy attained within the rounds threshold
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+44.86
+45.48
+48.55
+48.83
+
+Highest accuracy attained, FL Algorithm : FedYoGi
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+78.53
+61.75
+48.62
+48.21
+74.66
+37.27
+50.51
+74.20
+43.64
+44.37
+76.92
+71.35
+45.40
+47.67
+71.09
+49.19
+48.41
+67.14
+42.34
+49.09
+63.79
+63.74
+48.10
+41.97
+57.21
+42.55
+52.18
+60.50
+47.15
+48.20
+61.35
+57.47
+53.54
+53.16
+60.55
+49.42
+54.13
+58.18
+56.54
+54.19
+
+Table 3: HAM10000 (Skin lesion) dataset : Rounds required to attain Target Accuracy (60%)
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+>400
+>400
+>400
+>400
+
+Rounds required to attain 60 % accuracy, FL Algorithm : FedYoGi
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+167
+262
+>400
+>400
+211
+>400
+>400
+202
+>400
+>400
+190
+>400
+>400
+>400
+263
+>400
+>400
+190
+>400
+>400
+231
+306
+>400
+>400
+313
+>400
+>400
+388
+>400
+>400
+263
+>400
+>400
+>400
+265
+>400
+>400
+347
+>400
+>400
+
+Table 4: HAM10000 (Skin lesion) dataset : highest accuracy attained in the rounds threshold
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+48.26
+41.35
+46.50
+46.55
+
+Highest accuracy attained, FL Algorithm : FedYoGi
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+66.76
+61.12
+46.48
+42.39
+63.39
+46.28
+49.11
+64.13
+38.25
+41.59
+66.41
+59.86
+45.25
+43.70
+62.76
+43.14
+47.09
+64.42
+49.86
+51.81
+62.84
+62.36
+54.74
+45.17
+60.58
+41.94
+44.72
+60.71
+43.08
+44.81
+62.39
+59.79
+54.66
+55.94
+61.78
+48.13
+50.46
+60.86
+43.46
+46.85
+
+Table 5: FEMNIST : Rounds required to attain Target Accuracy (80%)
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+146
+181
+107
+115
+
+Rounds required to attain 80 % accuracy, FL Algorithm : FedYoGi
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+62
+81
+168
+124
+69
+102
+113
+78
+85
+194
+62
+83
+168
+127
+76
+105
+141
+79
+103
+106
+68
+66
+89
+104
+89
+69
+103
+89
+84
+94
+75
+55
+115
+106
+86
+83
+108
+78
+88
+106
+
+Table 6: FEMNIST dataset : highest accuracy attained in the rounds threshold
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+80.97
+82.60
+83.94
+82.44
+
+Highest accuracy attained, FL Algorithm : FedYoGi
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+86.60
+85.27
+80.97
+82.17
+86.75
+83.21
+81.95
+85.85
+84.69
+80.20
+86.86
+84.61
+82.51
+81.44
+86.68
+85.24
+80.36
+86.78
+84.74
+80.89
+85.37
+85.36
+84.21
+84.23
+85.13
+85.44
+84.39
+85.69
+85.00
+84.35
+84.51
+85.51
+83.08
+84.40
+85.00
+86.19
+84.59
+86.04
+84.87
+84.97
+
+Table 7: Fashion MNIST : Rounds required to attain Target Accuracy (80%)
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+62
+60
+52
+54
+
+Rounds required to attain 80 % accuracy, FL Algorithm : FedYoGi
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+48
+72
+62
+92
+44
+83
+101
+48
+72
+91
+51
+74
+58
+107
+53
+69
+91
+42
+82
+104
+42
+62
+51
+73
+37
+65
+71
+48
+63
+81
+36
+75
+60
+79
+36
+70
+79
+40
+81
+82
+
+Table 8: Fashion MNIST dataset : highest accuracy attained in the rounds threshold
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+83.92
+83.62
+84.49
+84.40
+
+Highest accuracy attained, FL Algorithm : FedYoGi
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+85.14
+82.45
+83.88
+81.93
+85.29
+82.24
+81.82
+84.51
+83.16
+81.99
+84.75
+82.44
+83.91
+81.85
+84.98
+82.35
+82.53
+85.02
+82.48
+82.19
+85.56
+83.12
+84.65
+83.29
+85.70
+82.89
+82.84
+85.03
+83.18
+82.56
+86.03
+82.66
+84.03
+82.63
+85.88
+82.74
+82.90
+85.33
+82.52
+82.70
+
+13
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+Table 9: MIT ECG Dataset : Rounds required to attain Target Accuracy (60%)
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+>400
+>400
+>400
+>400
+
+Rounds required to attain 60 % accuracy, FL Algorithm : FedProx
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+129
+198
+>400
+>400
+143
+>400
+>400
+255
+>400
+>400
+146
+197
+>400
+>400
+204
+>400
+>400
+215
+>400
+>400
+182
+334
+>400
+>400
+383
+>400
+>400
+389
+>400
+>400
+203
+>400
+>400
+>400
+398
+>400
+>400
+>400
+>400
+>400
+
+Table 10: MIT ECG Dataset: highest accuracy attained within the rounds threshold
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+46.39
+50.63
+45.18
+47.84
+
+Highest accuracy attained, FL Algorithm : FedProx
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+76.25
+72.31
+48.99
+41.81
+75.26
+46.94
+50.09
+68.14
+46.40
+44.64
+74.82
+71.29
+46.58
+50.40
+72.48
+45.03
+51.09
+70.24
+46.22
+46.75
+65.58
+61.40
+44.86
+53.83
+60.16
+46.04
+55.04
+60.10
+49.87
+54.86
+69.02
+56.68
+50.20
+52.06
+60.41
+50.12
+51.15
+58.00
+56.83
+50.15
+
+Table 11: HAM10000 (Skin Lesion) dataset : Rounds required to attain Target Accuracy (60%)
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+>400
+>400
+>400
+>400
+
+Rounds required to attain 60 % accuracy, FL Algorithm : FedProx
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+151
+323
+>400
+>400
+206
+>400
+>400
+172
+>400
+>400
+201
+298
+>400
+>400
+198
+>400
+>400
+198
+>400
+>400
+276
+>400
+>400
+>400
+>400
+>400
+>400
+364
+>400
+>400
+308
+345
+>400
+>400
+383
+>400
+>400
+363
+>400
+>400
+
+Table 12: HAM10000 (Skin Lesion) dataset: highest accuracy attained within the rounds threshold
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+47.08
+41.59
+43.66
+45.58
+
+Highest accuracy attained, FL Algorithm : FedProx
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+64.53
+60.32
+46.84
+65.76
+42.13
+46.07
+67.15
+48.24
+51.71
+66.71
+62.25
+46.16
+46.48
+65.55
+44.07
+40.26
+66.74
+43.23
+39.01
+63.55
+58.67
+53.65
+54.4
+58.89
+50.15
+54.36
+60.87
+51.07
+46.38
+66.71
+61.20
+53.57
+60.87
+50.62
+54.16
+60.31
+48.44
+53.89
+
+Table 13: FEMNIST dataset : Rounds required to attain Target Accuracy (80%)
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+128
+104
+84
+86
+
+Rounds required to attain 80 % accuracy, Optimizer : FedProx
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+47
+71
+157
+103
+65
+130
+98
+78
+128
+146
+54
+70
+149
+111
+72
+118
+110
+67
+156
+116
+62
+53
+84
+110
+90
+82
+108
+80
+77
+98
+56
+62
+88
+85
+78
+91
+88
+86
+85
+94
+
+Table 14: FEMNIST dataset: highest accuracy attained within the rounds threshold
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+82.80
+83.24
+85.60
+85.58
+
+Highest accuracy attained, FL Algorithm : FedProx
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+90.43
+86.59
+81.78
+82.96
+87.33
+83.21
+82.53
+86.56
+83.81
+80.47
+89.72
+86.51
+83.34
+83.33
+87.02
+83.81
+82.73
+86.82
+82.43
+81.97
+88.99
+87.45
+85.05
+85.29
+85.23
+86.11
+84.29
+85.72
+85.91
+84.87
+89.27
+86.49
+83.91
+86.21
+86.20
+85.28
+85.06
+85.13
+85.35
+84.90
+
+Table 15: Fashion MNIST Dataset: : Rounds required to attain Target Accuracy (80%)
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+74
+62
+52
+52
+
+Rounds required to attain 80 % accuracy, Optimizer : FedProx
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+47
+83
+66
+82
+48
+74
+101
+45
+70
+91
+42
+75
+69
+78
+48
+82
+91
+48
+71
+104
+46
+64
+49
+70
+36
+70
+71
+47
+71
+82
+42
+69
+60
+69
+42
+82
+79
+41
+75
+81
+
+14
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+Table 16: Fashion MNIST Dataset: : highest accuracy attained within the rounds threshold
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+83.91
+83.66
+84.48
+84.56
+
+Highest accuracy attained, FL Algorithm : FedProx
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+85.04
+82.52
+83.46
+82.36
+85.10
+82.52
+81.82
+85.31
+82.89
+81.99
+85.46
+82.61
+83.83
+82.01
+84.98
+81.97
+82.53
+84.93
+82.16
+82.19
+85.52
+82.86
+84.67
+83.11
+86.14
+82.60
+82.84
+85.02
+82.95
+82.56
+85.71
+82.83
+84.00
+83.03
+85.29
+82.75
+82.90
+85.37
+82.56
+82.70
+
+Table 17: MIT ECG Dataset: Rounds required to attain Target Accuracy (60%)
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+>400
+>400
+>400
+>400
+
+Rounds required to attain 60 % accuracy, FL Algorithm : FedAvg
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+136
+344
+>400
+>400
+210
+>400
+>400
+200
+>400
+>400
+162
+192
+>400
+>400
+263
+>400
+>400
+214
+>400
+>400
+378
+393
+>400
+>400
+>400
+>400
+>400
+397
+>400
+>400
+393
+>400
+>400
+>400
+395
+>400
+>400
+>400
+>400
+>400
+
+Table 18: MIT BIH ECG Dataset: : highest accuracy attained within the rounds threshold
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+47.92
+48.06
+51.97
+54.69
+
+Highest accuracy attained, FL Algorithm : FedAvg
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+73.33
+63.02
+45.26
+45.76
+73.16
+36.53
+48.53
+72.71
+42.77
+46.48
+72.81
+70.12
+44.09
+48.16
+69.67
+48.21
+49.32
+65.80
+41.49
+53.75
+63.76
+60.67
+48.10
+46.86
+56.07
+41.70
+44.86
+60.29
+46.20
+52.05
+60.17
+58.65
+53.64
+52.60
+60.34
+48.43
+56.85
+57.02
+55.41
+53.31
+
+Table 19: HAM10000 (Skin Lesion) Dataset: : Rounds required to attain Target Accuracy (60%)
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+>400
+>400
+>400
+>400
+
+Rounds required to attain 60 % accuracy, FL Algorithm : FedAvg
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+329
+271
+>400
+>400
+250
+>400
+>400
+234
+>400
+>400
+300
+323
+>400
+>400
+201
+>400
+>400
+217
+>400
+>400
+300
+385
+>400
+>400
+376
+>400
+>400
+356
+>400
+>400
+385
+>400
+>400
+>400
+395
+>400
+>400
+398
+>400
+>400
+
+Table 20: HAM10000 (Skin Lesion) Dataset: : highest accuracy attained within the rounds threshold
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+46.76
+41.83
+46.50
+46.55
+
+Highest accuracy attained, FL Algorithm : FedAvg
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+64.79
+62.05
+47.56
+44.58
+62.96
+42.99
+45.73
+63.51
+49.50
+51.46
+64.82
+61.70
+46.87
+45.62
+63.65
+54.70
+56.88
+65.71
+48.96
+49.37
+62.42
+60.56
+54.48
+50
+60.14
+52.50
+55.22
+60.58
+55.48
+57.93
+60.61
+55.55
+54.4
+48.18
+60.00
+50.70
+52.50
+60.21
+47.94
+50.28
+
+Table 21: FEMNIST Dataset: : Rounds required to attain Target Accuracy (80%)
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+130
+112
+99
+99
+
+Rounds required to attain 80 % accuracy, Optimizer : FedAvg
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+46
+71
+168
+118
+65
+130
+123
+78
+128
+153
+62
+70
+168
+112
+72
+118
+>400
+67
+156
+142
+69
+53
+89
+96
+90
+82
+92
+80
+77
+102
+58
+62
+115
+90
+78
+91
+109
+86
+85
+88
+
+Table 22: FEMNIST Dataset: : highest accuracy attained within the rounds threshold
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+82.37
+82.48
+84.37
+84.89
+
+Highest accuracy attained, FL Algorithm : FedAvg
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+90.64
+86.59
+80.97
+81.78
+87.33
+83.21
+80.09
+86.46
+83.81
+80.41
+89.08
+86.51
+82.51
+81.19
+87.02
+83.81
+79.77
+86.82
+82.43
+80.61
+88.20
+87.45
+84.21
+85.33
+85.23
+86.11
+85.16
+85.72
+85.91
+84.32
+89.04
+86.49
+83.08
+85.63
+86.20
+85.28
+85.17
+85.13
+85.35
+85.21
+
+15
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+15 % Parties
+
+Accuracy %
+
+60
+40
+
+80
+
+20 % Parties
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+20
+0
+
+0
+
+80 160 240 320 400
+Communication Rounds
+
+0
+
+15 % Parties
+
+40
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+20
+0
+
+80 160 240 320 400
+Communication Rounds
+
+20 % Parties
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+60
+Accuracy %
+
+80
+
+A P REPRINT
+
+0
+
+(a) α = 0.3 with stragglers
+
+80 160 240 320 400
+Communication Rounds
+
+0
+
+80 160 240 320 400
+Communication Rounds
+
+(b) α = 0.6 with stragglers
+
+100
+
+100
+
+80
+
+80
+Accuracy %
+
+Accuracy %
+
+Figure 8: Convergence plots on HAM10000 (Skin Lesions) Dataset in the presence of Stragglers, FL Algorithm:
+FedYoGi
+
+60
+15 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+40
+20
+0
+
+0
+
+20 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+40 80 120 160 200
+Communication Rounds
+
+0
+
+60
+15 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+40
+20
+0
+
+40 80 120 160 200
+Communication Rounds
+
+(a) α = 0.3 without stragglers
+
+0
+
+40 80 120 160 200
+Communication Rounds
+
+20 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+0
+
+40 80 120 160 200
+Communication Rounds
+
+(b) α = 0.6 without stragglers
+
+Figure 9: Convergence plots on FEMNIST dataset, FL Algorithm: FedYoGi
+
+When considering the number of rounds needed to reach targeted accuracies for the MIT-ECG (60%) and HAM10000
+(60%) datasets, we observe that Random selection, TiFL and Gradient Clustering take more than 400 rounds in the
+case of FedAvg, FedYogi and FedProx. While the performance of Random selection is not surprising considering
+all the reasons outlined so far in this paper, GradClus’s performance is surprising, given that it also clusters parties,
+albeit using gradients. TiFL’s adaptive tiering approach is unable to group the parties with under-represented labels
+into a single tier, which explains its performance. OORT’s statistical utility function does enable it to perform better
+than Random, TiFL and GradClus. This trend can also be observed from example convergence plots in Figures 5
+and 7. From Table 1, we observe that FLIPS reaches target accuracy up to 1.15-1.86× faster, i.e., in fewer rounds
+when compared to OORT when α = 0.6 and 1.08-2.37× faster when α = 0.3. Hence, when the degree of “nonIIDness” of the data increases (corresponding to decreasing α as explained in Section 4.3), FLIPS performs better.
+This reduction in the number of rounds not only saves time but also results in much lower communication costs, as a
+result of having to participate in much fewer rounds. In the case of the HAM10000 dataset in Table 3, the performance
+benefits of FLIPS is more pronounced. Speedup (fewer rounds) is 1.32-1.52× for α = 0.6 and 1.56-2.10× for
+α = 0.3. We see a similar trend in the case of FedProx in Tables 9 and 11, with 1.12-2× speedup for α = 0.6 and
+1.35-2.14× speedup for α = 0.3 for MIT-ECG and HAM10000 datasets.
+Also, in a world where training jobs are rerun for 1-2 percentage point, improvements in accuracy (in absolute terms),
+Tables 2 and 4 for FedYogi illustrate that FLIPS improves peak model accuracy by > 30 percentage points for MITTable 23: Fashion MNIST Dataset: : Rounds required to attain Target Accuracy (80%)
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+56
+70
+53
+48
+
+Rounds required to attain 80 % accuracy, Optimizer : FedAvg
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+48
+67
+53
+91
+48
+67
+100
+49
+83
+92
+43
+65
+62
+92
+52
+80
+110
+54
+78
+105
+37
+70
+55
+74
+45
+75
+75
+40
+73
+62
+37
+65
+50
+71
+37
+71
+71
+40
+83
+78
+
+16
+
+100
+
+100
+
+80
+
+80
+Accuracy %
+
+Accuracy %
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+60
+15 % Parties
+
+40
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+20
+0
+
+20 % Parties
+
+0
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+40 80 120 160 200
+Communication Rounds
+
+0
+
+60
+15 % Parties
+
+40
+
+0
+
+20 % Parties
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+20
+
+40 80 120 160 200
+Communication Rounds
+
+A P REPRINT
+
+0
+
+40 80 120 160 200
+Communication Rounds
+
+(a) α = 0.3
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+0
+
+40 80 120 160 200
+Communication Rounds
+
+(b) α = 0.6
+
+100
+
+100
+
+80
+
+80
+Accuracy %
+
+Accuracy %
+
+Figure 10: Convergence plots on FEMNIST dataset in the presence of stragglers, FL Algorithm: FedYoGi
+
+60
+15 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+40
+20
+0
+
+0
+
+20 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+40 80 120 160 200
+Communication Rounds
+
+0
+
+60
+15 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+40
+20
+0
+
+40 80 120 160 200
+Communication Rounds
+
+(a) α = 0.3 without stragglers
+
+0
+
+40 80 120 160 200
+Communication Rounds
+
+20 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+0
+
+40 80 120 160 200
+Communication Rounds
+
+(b) α = 0.6 without stragglers
+
+Figure 11: Convergence plots on Fashion MNIST dataset, FL Algorithm: FedYoGi
+
+ECG and > 20 percentage points for HAM10000 when α = 0.3 vs. random selection in the case of FedYogi.
+Even for a “less non-IID” distribution corresponding to α = 0.6 FLIPS improves accuracy by more than 12 and 15
+percentage points for MIT-ECG and HAM10000, respectively. These benefits endure when compared to GradClus
+(≈ 8-30 % point improvements in accuracy) and TiFL (≈ 6 - 30 % point improvements in accuracy). They are lower
+when compared to OORT, but still significant – ≈ 3-15 and 2-5 percentage points corresponding to α of 0.3 and 0.6,
+respectively. A similar trend is seen for FedProx and FedAvg in Tables 10, 12, 18 and 20 where accuracy of FLIPS
+increases by tens of percentage points vis-a-vis random selection, TiFL and GradClus. Unlike in FedYogi and FedProx,
+where the peak accuracy of FLIPS is higher than that of OORT, peak accuracies of OORT are closer to FLIPS in the
+case of FedAvg, and significant in many cases as illustrated in Tables 17–20.
+Next, we move on to the FEMNIST dataset. This dataset is more IID in its centralized version, and in Table 5 we
+observe that for all the party selection techniques, the target accuracy is reached within the threshold of 200 rounds.
+The highest accuracy obtained is 86.86 % for FLIPS. In Table 5, we can see that FLIPS achieves the target accuracy
+1.3x faster than the most comparable OORT technique for α = 0.3. While for α = 0.6, OORT reaches the target
+accuracy almost at the same number of rounds as FLIPS . FLIPS is 1.5x - 2.9x faster than Random selection, 1.3x 2.7x faster than GradCls and 1.4x - 2x faster than TiFL. In Figure 11, we can see that for α = 0.3, FLIPS performs
+better than all the other techniques, while for α = 0.6, OORT performs similar to FLIPS .
+For the Fashion MNIST dataset, FLIPS performs better than all the other techniques this can be seen in Figure7.
+All the techniques attain the target accuracy in the given rounds threshold. FLIPS is 1.2x - 1.5x faster than Random
+Table 24: Fashion MNIST Dataset: : highest accuracy attained within the rounds threshold
+Setting
+α
+0.3
+0.3
+0.6
+0.6
+
+party %
+20
+15
+20
+15
+
+Random
+84.13
+83.67
+84.95
+84.48
+
+Highest accuracy attained, FL Algorithm : FedAvg
+0 % Stragglers
+10 % Stragglers
+20 % Stragglers
+FLIPS OORT GradCls TiFL FLIPS OORT TiFL FLIPS OORT TiFL
+85.00
+82.59
+83.99
+82.28
+84.85
+82.73
+82.21
+85.05
+82.39
+81.86
+85.55
+83.02
+83.6
+81.76
+84.69
+82.15
+81.61
+84.82
+82.72
+82.06
+85.80
+82.82
+84.77
+82.99
+85.53
+82.46
+83.12
+85.23
+82.81
+83.35
+85.63
+82.87
+84.04
+82.08
+85.67
+82.72
+83.04
+85.42
+82.30
+82.77
+
+17
+
+100
+
+100
+
+80
+
+80
+Accuracy %
+
+Accuracy %
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+60
+15 % Parties
+
+40
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+20
+0
+
+20 % Parties
+
+0
+
+40 80 120 160 200
+Communication Rounds
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+0
+
+60
+15 % Parties
+
+40
+
+0
+
+20 % Parties
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+20
+
+40 80 120 160 200
+Communication Rounds
+
+A P REPRINT
+
+0
+
+flips 10 % Stragglers
+flips 20 % Stragglers
+oort 10 % Stragglers
+oort 20 % Stragglers
+tifl 10 % Stragglers
+tifl 20 % Stragglers
+
+40 80 120 160 200
+Communication Rounds
+
+(a) α = 0.3
+
+0
+
+40 80 120 160 200
+Communication Rounds
+
+(b) α = 0.6
+
+Figure 12: Convergence plots on Fashion MNIST dataset in the presence of stragglers, FL Algorithm: FedYoGi
+
+selection, 1.45x - 2x faster than OORT, 1.13x - 1.66x faster than GradCls and 1.73x - 2.2x faster than TiFL. FLIPS
+attains the highest accuracy 85.14 %, which is higher than all the other techniques. This is consistent across all the
+other FL algorithms.
+We also observe that FLIPS achieves the highest model accuracy in all scenarios.
+
+15 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+Accuracy %
+
+60
+40
+
+80
+
+20 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+20
+0
+
+0
+
+80 160 240 320 400
+Communication Rounds
+
+0
+
+15 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+60
+Accuracy %
+
+80
+
+40
+20
+0
+
+80 160 240 320 400
+Communication Rounds
+
+(a) Accuracy of detecting arrhythmia
+
+20 % Participation
+random
+oort
+grad_cls
+flips
+tifl
+
+0
+
+80 160 240 320 400
+Communication Rounds
+
+0
+
+80 160 240 320 400
+Communication Rounds
+
+(b) Accuracy of bcc skin cancer label
+
+Figure 13: Convergence curves on underrepresented labels for ECG and HAM10000 datasets
+This improvement in accuracy can be accredited to the fact that FLIPS improves the accuracy of the underrepresented
+labels. This can be seen in Figure 13. We can see that FLIPS brings in the most accuracy improvement for the
+underrepresented labels.
+5.3
+
+Platform Heterogeneity
+
+We take the best performing techniques FLIPS and OORT and evaluate them under different platform heterogeneity
+constraints. OORT selects 1.3x the parties in FL at each round to overprovision for straggler parties.
+In Table 1 and 2, we can observe that under 10 % Straggler rate OORT is unable to attain the target accuracy even after
+400 rounds of training, while FLIPS attains the target accuracy 3 out of 4 times while missing the target accuracy by a
+mere 2.8 % when α = 0.6 and party % = 20. Under the 20 % straggler rate, the results are similar, OORT cannot reach
+the target accuracy in all 4 settings, while FLIPSattains the target accuracy 3 out of 4 times. FLIPS attains the accuracy
+of 74.66 %, which is the highest in presence of 10 % stragglers and 74.20 % in 20 % stragglers. This is approximately
+4 percentage points less than the 0 % straggler rate or the ideal scenario. In Table 1 and Table 2, we can see that for
+10 % straggler rate, FLIPS is faster by 1.3x - 2x than OORT except for the α = 0.6 and party % = 20 condition, and
+attains 11-38 percentage points higher accuracy than OORT. For the 20 % Straggler rate, FLIPS is faster by 1.2x - 2x
+than OORT except for the α = 0.6 and party % = 15 condition, and attains 2 % - 30 % higher accuracy than OORT.
+Figure 6 also shows that FLIPSis more robust to stragglers than OORT.
+For the HAM10000 (Skin Lesion) Dataset, FLIPS outperforms OORT across all straggler rates. This can be seen in
+Tables 3 and 4. OORT cannot reach the target accuracy in all cases, while FLIPS does in all. FLIPS is 1.2x - 1.9x faster
+than OORT under 10 % straggler rate, while it is 1.1x - 2.1x faster than OORT under 20 % straggler rate. FLIPS attains
+13 - 17 % higher accuracy in classification of skin lesions under 10 % straggler rate and 14 - 26 % higher accuracy
+18
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+under 20 % straggler rate. The Figure 8 depicts the better performance of FLIPS under stragglers via convergence
+curves.
+In the case of the FEMNIST dataset in Table 5, FLIPS outperforms OORT and TiFL, when α = 0.6, the performance
+is comparable to OORT. For α = 0.3, FLIPS is 1.3x - 1.4x faster than OORT and 1.15x to 1.85x faster than TiFL,
+while for α = 0.6, OORT’s performance is similar to FLIPS . This is because the data distribution is more IID for the
+10 % Straggler rate. For 20 % FLIPS is 1x - 1.3x faster than OORT and is 1.15 - 1.25x faster than TiFL. Additionally,
+FLIPS achieves 1.5 - 3.5 % higher accuracy than OORT, for a 10 % straggler rate, while for the 20 % straggler rate
+FLIPS attains higher accuracy in all the cases by 0.7 - 2 % as seen in Figure 5.
+For Fashion MNIST we observe that FLIPSoutperforms OORT and TiFL in all settings. It achieves 3 - 4 % points
+improvements in accuracy as seen in Table 8 and is 1.3 - 2.2 faster than OORT and TiFL. These improvements are
+consistent across FedAvg and FedProx too.
+FLIPS is robust against data heterogeneity and platform heterogeneity (presence of stragglers) where data distributions are non-IID. Using intelligent party selection, we improve the terminal accuracy and reduce the communication
+overheads in FL by using fewer rounds than other techniques.
+To summarize FLIPS provides a middleware support system for FL by:
+• Improving the terminal accuracy when the communication overheads (FL rounds) are fixed.
+• Reducing communication overheads required to attain the desired/target accuracy.
+• Reducing the time required for FL to attain a target accuracy by lowering the number of FL rounds required.
+
+6
+
+Related Work
+
+The Intelligent Participant Selection in FLIPS deals both with platform and data heterogeneity using a data-driven
+approach to cluster similar parties and outperforms existing techniques like OORT and GradCls.
+Data Heterogenenity: Non-IID datasets in FL introduce client drift in the global model, which hampers its convergence. Many solutions exist to reduce client drift and solve data heterogeneity. [47, 46] propose a client-drift
+correction update (m − mp ) between the server model (m) and each party’s model mp to mitigate client drift. This
+improves convergence. [30] introduces a penalty and gradient correction term in the local loss function to account for
+the local drift to bridge the gap between the m and mp for faster convergence in non-IID settings. [7] performs more
+optimizations on the local/party level by introducing dynamic regularization terms to bring the global and local models
+closer, reducing client drift.
+Several studies have examined clustering techniques to personalize models in FL by grouping similar parties in FL
+based on local model similarity [78]. [70] discuss clustering local model updates using cosine similarity to identify
+parties with similar data distributions and address data heterogeneity. They create personalized models for each group
+of parties after a fixed interval, involving re-clustering periodically. IFCA [32] assigns each party a cluster identity
+based on their data and tailors model parameters for each cluster using gradient descent to improve model convergence
+for similar parties.
+FedLabCluster [93] performs label presence clustering, aggregating models within each cluster to enhance convergence for models specific to each cluster. Another study [54] investigates sharing encoded data among parties and
+clustering datasets using K-Means to achieve high clustering accuracy in FL. CMFL [86] dynamically identifies irrelevant local model updates by comparing them to the global model, and discards updates irrelevant to the global model,
+addressing data heterogeneity in non-IID cases. In a hierarchical federated learning (HFL) setting, [25] improves convergence by selecting parties with the lowest KL divergence between local and edge aggregator’s data. FedCBS [94]
+computes the Quadratic Class-Imbalance Degree from label distributions to choose parties with more balanced grouped
+datasets, addressing data heterogeneity. However, none of these studies focus on intelligent participant selection or
+discuss confidentiality approaches in FL.
+Platform Heterogeneity: Solutions like Aergia [21] deal with platform heterogeneity by offloading the training of
+stragglers to other parties with similar datasets. This reduces the time required for federated learning while maintaining
+accuracy similar to the baseline techniques. FLIPS leverages the knowledge of similar parties to perform participant
+selection across parties to make a 2-fold improvement across accuracy and training time, using lesser communication
+rounds in intermittent FL scenarios. [50] solves the straggler issue by using Locality Sensitive Hashing to cluster
+models/parties and drops duplicate and slow model updates. Further, it requires parties to train locally without knowing
+whether their models will be used, often wasting local computing resources, which may be undesirable in edge settings.
+FedLesScan [28] a clustering framework clusters parties into three groups: rookies, participants and stragglers based
+on the device variations. Parties are selected from these clusters to mitigate the effect of stragglers to reduce training
+19
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+time and cost. FLIPS uses a more data-driven approach to pick to compensate for the straggler parties. [74] uses a
+mechanism where it selects faster parties in the beginning to attain a target accuracy and then incorporates the slower
+parties to improve the global model. [69] deals with platform heterogeneity by using model grouping and weighting
+based on arrival delay to identify stragglers and entropy-based approaches to mitigate adversaries. [75] uses gradient
+coding to introduce redundancy in model training to mitigate the effect of stragglers. FedAT [17] uses a straggleraware, weighted aggregation heuristic to solve the platform heterogeneity issue. This heuristic assigns higher weights
+to faster devices, which helps to compensate for the slower devices. FedCS [58] is a communication-efficient federated
+learning framework inspired by quantized compressed sensing. It compresses gradients at client devices using block
+sparsification, dimensional reduction, and quantization. Then, it reconstructs gradients at the parameter server and
+achieves almost identical performance as no compression, while significantly reducing communication overhead.
+
+7
+
+Towards FLIPS in real deployments
+
+We implement FLIPS in smartspaces and assisted living for older adults, analyzing real-time data from multiple
+facilities and individuals. We aim to monitor residents, identify health and safety incidents, and detect changes in
+daily activities, falls, illnesses, and wandering events. By utilizing federated learning (FL) and FLIPS, we ensure
+robust and timely analysis of personal health records and device data while maintaining data privacy.
+A specific area of interest is using ECG data from portable devices to detect arrhythmias and heart irregularities. Machine learning models trained on ECG datasets have shown promise in early detection and treatment of cardiac issues.
+With FLIPS, we can train heart rhythm and fall models without compromising sensitive personal data, thus enhancing
+both privacy and model robustness. We have partnered with a senior-care community consisting of approximately
+50 facilities, which serves as a trusted entity for storing confidential resident information. These communities act as
+aggregators and trusted parties, facilitating label distribution in a FLIPS deployment.
+Additionally, we focus on the detection and localization of falls in assisted living facilities using data from cameras,
+acoustic sensors, and wearable tags with accelerometers, gyroscopes, and location-based sensors. Our efforts involve
+developing robust event detection models to handle device heterogeneity and variations in fall risk [8]. Privacy concerns are addressed by ensuring secure collection, communication, and storage of remotely obtained data to prevent
+unauthorized access and misuse.
+While FLIPS employs federated and decentralized learning, the clustering aspect is centralized and demonstrated
+using a centralized aggregator in Section 3. We chose this approach because it aligns with the most commonly used
+architecture in real-world federated learning systems, such as Google FL [13, 11], IBM FL [60, 38], FATE [57], and
+Facebook FL [37]. The centralized aggregator offers simplicity, statelessness, fault tolerance, and ease of storing FL
+job data and accounting information in fault-tolerant cloud object stores or key-value stores. In case of aggregator
+failure, data can be recovered, and aggregation can be resumed from the last round. Communication and aggregator
+failures are easily recovered by requesting retransmission of lost model updates from the parties, assuming each party
+securely stores its local model.
+
+8
+
+Conclusions and Future Work
+
+In this article, we present FLIPS: Federated Learning using Intelligent Participant Selection, which improves label and
+participant representation in FL to improve convergence, attain higher accuracy and reduce communication overheads.
+Our empirical evaluation indicates that FLIPS on an average speeds FL algorithms by 1.2× - 2.9× and improves
+terminal accuracy by 5-30 percentage points when compared to the existing techniques.
+We are currently exploring the following research directions: (1) personalization in Federated Learning (FL), (2)
+handling changing data distributions (3) decentralized clustering of label distributions and (4) FLIPS and adversarial
+robustness. Personalization in FL involves adapting to individual users’ or devices’ unique requirements and characteristics. Instead of a centralized dataset, we plan to train the model using data from similar parties or devices
+separately, allowing for personalized models that account for specific patterns and differences in each party’s or device’s data. Additionally, we plan to address the issue of changing data distributions, which is relevant in IoT settings
+with streaming data that can introduce shifts in data distributions. FLIPS , will capture these changes and train robust
+models while optimizing resource usage. We anticipate that as datasets and AI-based analytics techniques continue to
+expand, the ability to handle multiple requirements like privacy, performance, and latency will become crucial, and
+FLIPS represents a step in that direction.
+Decentralized FL architectures rely on secure multi-party computation (SMPC) with or without homomorphic encryption to ensure model update privacy. However, their higher computational requirements make them less popular.
+20
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+To implement FLIPS using SMPC, Algorithm 1, clustering must be computed using an SMPC protocol. Participant
+selection can be achieved through leader election, with the leader implementing the FLIPS selection protocol and
+other parties auditing the process. Finally, we are interested in investigating the interplay between diverse datasets in
+FL and techniques used for adversarial robustness – whether such techniques [61, 95] exclude valid underrepresented
+data classes. We also plan to investigate changes needed to make label distribution clustering work with adversarially
+robust FL.
+
+References
+[1] Amd secure encrypted virtualization (sev). https://developer.amd.com/sev/.
+[2] Aws graviton processor. https://aws.amazon.com/ec2/graviton/.
+[3] Intel® software guard extensions. https://www.intel.com/content/www/us/en/developer/tools/
+software-guard-extensions/overview.html.
+[4] Trustzone for cortex-a. https://www.arm.com/technologies/trustzone-for-cortex-a.
+[5] Martin Abadi, Andy Chu, Ian Goodfellow, H. Brendan McMahan, Ilya Mironov, Kunal Talwar, and Li Zhang.
+Deep learning with differential privacy. In CCS ’16, 2016.
+[6] Sawsan Abdulrahman, Hanine Tout, Azzam Mourad, and Chamseddine Talhi. Fedmccs: Multicriteria client
+selection model for optimal iot federated learning. IEEE Internet of Things Journal, 8:4723–4735, 2021.
+[7] Durmus Alp Emre Acar, Yue Zhao, Ramon Matas Navarro, Matthew Mattina, Paul N. Whatmough, and
+Venkatesh Saligrama. Federated learning based on dynamic regularization, 2021.
+[8] Nailah Saleh Alhassoun, Md Yusuf Sarwar Uddin, and Nalini Venkatasubramanian. Context-aware energy optimization for perpetual iot-based safe communities. Sustainable Computing: Informatics and Systems, 22:96–
+106, 2019.
+[9] David Arthur and Sergei Vassilvitskii. K-means++: The advantages of careful seeding. In Proceedings of the
+Eighteenth Annual ACM-SIAM Symposium on Discrete Algorithms, SODA ’07, page 1027–1035, USA, 2007.
+Society for Industrial and Applied Mathematics.
+[10] Bahman Bahmani, Benjamin Moseley, Andrea Vattani, Ravi Kumar, and Sergei Vassilvitskii. Scalable kmeans++. Proc. VLDB Endow., 5(7):622–633, mar 2012.
+[11] Keith Bonawitz, Hubert Eichner, Wolfgang Grieskamp, Dzmitry Huba, Alex Ingerman, Vladimir Ivanov, Chloe
+Kiddon, Jakub Konečnỳ, Stefano Mazzocchi, H Brendan McMahan, et al. Towards federated learning at scale:
+System design. arXiv preprint arXiv:1902.01046, 2019.
+[12] Keith Bonawitz, Hubert Eichner, Wolfgang Grieskamp, Dzmitry Huba, Alex Ingerman, Vladimir Ivanov, Chloe
+Kiddon, Jakub Konečný, Stefano Mazzocchi, H. Brendan McMahan, Timon Van Overveldt, David Petrou, Daniel
+Ramage, and Jason Roselander. Towards federated learning at scale: System design, 2019.
+[13] Keith Bonawitz, Vladimir Ivanov, Ben Kreuter, Antonio Marcedone, H Brendan McMahan, Sarvar Patel, Daniel
+Ramage, Aaron Segal, and Karn Seth. Practical secure aggregation for privacy-preserving machine learning. In
+Proceedings of the 2017 ACM SIGSAC Conference on Computer and Communications Security, pages 1175–
+1191. ACM, 2017.
+[14] Zvika Brakerski, Craig Gentry, and Vinod Vaikuntanathan. (leveled) fully homomorphic encryption without
+bootstrapping. ACM Trans. Comput. Theory, 6(3), jul 2014.
+[15] Sebastian Caldas, Peter Wu, Tian Li, Jakub Konečnỳ, H Brendan McMahan, Virginia Smith, and Ameet Talwalkar. Leaf: A benchmark for federated settings. arXiv preprint arXiv:1812.01097, 2018.
+[16] Zheng Chai, Ahsan Ali, Syed Zawad, Stacey Truex, Ali Anwar, Nathalie Baracaldo, Yi Zhou, Heiko Ludwig,
+Feng Yan, and Yue Cheng. Tifl: A tier-based federated learning system. In Proceedings of the 29th International
+Symposium on High-Performance Parallel and Distributed Computing, HPDC ’20, page 125–136, New York,
+NY, USA, 2020. Association for Computing Machinery.
+[17] Zheng Chai, Yujing Chen, Ali Anwar, Liang Zhao, Yue Cheng, and Huzefa Rangwala. Fedat: A highperformance and communication-efficient federated learning system with asynchronous tiers. In Proceedings
+of the International Conference for High Performance Computing, Networking, Storage and Analysis, SC ’21,
+New York, NY, USA, 2021. Association for Computing Machinery.
+[18] Yae Jee Cho, Jianyu Wang, and Gauri Joshi. Client selection in federated learning: Convergence analysis and
+power-of-choice selection strategies, 2021.
+21
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+[19] Noel Codella, Veronica Rotemberg, Philipp Tschandl, M. Emre Celebi, Stephen Dusza, David Gutman, Brian
+Helba, Aadi Kalloo, Konstantinos Liopyris, Michael Marchetti, Harald Kittler, and Allan Halpern. Skin lesion
+analysis toward melanoma detection 2018: A challenge hosted by the international skin imaging collaboration
+(isic), 2019.
+[20] Gregory Cohen, Saeed Afshar, Jonathan Tapson, and André van Schaik. Emnist: an extension of mnist to
+handwritten letters, 2017.
+[21] Bart Cox, Lydia Y. Chen, and Jérémie Decouchant. Aergia: Leveraging heterogeneity in federated learning
+systems. In Proceedings of the 23rd ACM/IFIP International Middleware Conference, Middleware ’22, page
+107–120, New York, NY, USA, 2022. Association for Computing Machinery.
+[22] Ivan Damgård, Valerio Pastro, Nigel Smart, and Sarah Zakarias. Multiparty computation from somewhat homomorphic encryption. In Proceedings of the 32nd Annual Cryptology Conference on Advances in Cryptology —
+CRYPTO 2012 - Volume 7417, page 643–662, Berlin, Heidelberg, 2012. Springer-Verlag.
+[23] CSIRO Data61. Multi-Protocol SPDZ, 2020.
+[24] David L. Davies and Donald W. Bouldin. A cluster separation measure. IEEE Transactions on Pattern Analysis
+and Machine Intelligence, PAMI-1(2):224–227, 1979.
+[25] Yongheng Deng, Feng Lyu, Ju Ren, Yongmin Zhang, Yuezhi Zhou, Yaoxue Zhang, and Yuanyuan Yang. Share:
+Shaping data distribution at edge for communication-efficient hierarchical federated learning. In 2021 IEEE 41st
+International Conference on Distributed Computing Systems (ICDCS), pages 24–34, 2021.
+[26] Deep Leakage From Gradients. https://github.com/mit-han-lab/dlg, 2020.
+[27] John Duchi, Elad Hazan, and Yoram Singer. Adaptive subgradient methods for online learning and stochastic
+optimization. Journal of Machine Learning Research, 12(61):2121–2159, 2011.
+[28] Mohamed Elzohairy, Mohak Chadha, Anshul Jindal, Andreas Grafberger, Jianfeng Gu, Michael Gerndt, and
+Osama Abboud. Fedlesscan: Mitigating stragglers in serverless federated learning, 2022.
+[29] Yann Fraboni, Richard Vidal, Laetitia Kameni, and Marco Lorenzi. Clustered sampling: Low-variance and
+improved representativity for clients selection in federated learning. In Marina Meila and Tong Zhang, editors,
+Proceedings of the 38th International Conference on Machine Learning, volume 139 of Proceedings of Machine
+Learning Research, pages 3407–3416. PMLR, 18–24 Jul 2021.
+[30] Liang Gao, Huazhu Fu, Li Li, Yingwen Chen, Ming Xu, and Cheng-Zhong Xu. Feddc: Federated learning with
+non-iid data via local drift decoupling and correction. In IEEE Conference on Computer Vision and Pattern
+Recognition, 2022.
+[31] Jonas Geiping, Hartmut Bauermeister, Hannah Dröge, and Michael Moeller. Inverting gradients–how easy is it
+to break privacy in federated learning? arXiv preprint arXiv:2003.14053, 2020.
+[32] Avishek Ghosh, Jichan Chung, Dong Yin, and Kannan Ramchandran. An efficient framework for clustered
+federated learning. In H. Larochelle, M. Ranzato, R. Hadsell, M.F. Balcan, and H. Lin, editors, Advances in
+Neural Information Processing Systems, volume 33, pages 19586–19597. Curran Associates, Inc., 2020.
+[33] Harry Hsu, Hang Qi, and Matthew Brown. Measuring the effects of non-identical data distribution for federated
+visual classification. 2019.
+[34] Hongsheng Hu, Zoran Salcic, Lichao Sun, Gillian Dobbie, Philip S. Yu, and Xuyun Zhang. Membership inference attacks on machine learning: A survey. ACM Comput. Surv., 54(11s), sep 2022.
+[35] Gao Huang, Zhuang Liu, Laurens van der Maaten, and Kilian Q. Weinberger. Densely connected convolutional
+networks, 2018.
+[36] Tiansheng Huang, Weiwei Lin, Wentai Wu, Ligang He, Keqin Li, and Albert Zomaya. An efficiency-boosting
+client selection scheme for federated learning with fairness guarantee. IEEE Transactions on Parallel and Distributed Systems, pages 1–1, 2020.
+[37] Dzmitry Huba, John Nguyen, Kshitiz Malik, Ruiyu Zhu, Mike Rabbat, Ashkan Yousefpour, Carole-Jean Wu,
+Hongyuan Zhan, Pavel Ustinov, Harish Srinivas, Kaikai Wang, Anthony Shoumikhin, Jesik Min, and Mani
+Malek. Papaya: Practical, private, and scalable federated learning, 2022.
+[38] IBM. https://github.com/IBM/federated-learning-lib, 2021.
+[39] K. R. Jayaram, Vinod Muthusamy, Gegi Thomas, Ashish Verma, and Mark Purcell. Adaptive aggregation for
+federated learning. In 2022 IEEE International Conference on Big Data (Big Data), pages 180–185, 2022.
+22
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+[40] K. R. Jayaram, Archit Verma, Ashish Verma, Gegi Thomas, and Colin Sutcher-Shepard. Mystiko: Cloudmediated, private, federated gradient descent. In 2020 IEEE 13th International Conference on Cloud Computing
+(CLOUD), pages 201–210. IEEE, 2020.
+[41] K. R. Jayaram, Ashish Verma, Gegi Thomas, and Vinod Muthusamy. Just-in-time aggregation for federated learning. In 2022 30th International Symposium on Modeling, Analysis, and Simulation of Computer and Telecommunication Systems (MASCOTS), pages 1–8, 2022.
+[42] Yae Jee Cho, Jianyu Wang, and Gauri Joshi. Towards understanding biased client selection in federated learning.
+In Gustau Camps-Valls, Francisco J. R. Ruiz, and Isabel Valera, editors, Proceedings of The 25th International
+Conference on Artificial Intelligence and Statistics, volume 151 of Proceedings of Machine Learning Research,
+pages 10351–10375. PMLR, 28–30 Mar 2022.
+[43] Jiawei Jiang, Lukas Burkhalter, Fangcheng Fu, Bolin Ding, Bo Du, Anwar Hithnawi, Bo Li, and Ce Zhang. VFPS: How to select important participants in vertical federated learning, efficiently and securely? In Alice H. Oh,
+Alekh Agarwal, Danielle Belgrave, and Kyunghyun Cho, editors, Advances in Neural Information Processing
+Systems, 2022.
+[44] Yibo Jin, Lei Jiao, Zhuzhong Qian, Sheng Zhang, Sanglu Lu, and Xiaoliang Wang. Resource-efficient and
+convergence-preserving online participant selection in federated learning. In 2020 IEEE 40th International Conference on Distributed Computing Systems (ICDCS), pages 606–616, 2020.
+[45] Peter Kairouz, H. Brendan McMahan, Brendan Avent, Aurélien Bellet, Mehdi Bennis, Arjun Nitin Bhagoji, Keith
+Bonawitz, Zachary Charles, Graham Cormode, Rachel Cummings, Rafael G. L. D’Oliveira, Salim El Rouayheb,
+David Evans, Josh Gardner, Zachary A. Garrett, Adrià Gascón, Badih Ghazi, Phillip B. Gibbons, Marco Gruteser,
+Zaı̈d Harchaoui, Chaoyang He, Lie He, Zhouyuan Huo, Ben Hutchinson, Justin Hsu, Martin Jaggi, Tara Javidi,
+Gauri Joshi, Mikhail Khodak, Jakub Konecný, Aleksandra Korolova, Farinaz Koushanfar, Oluwasanmi Koyejo,
+Tancrède Lepoint, Yang Liu, Prateek Mittal, Mehryar Mohri, Richard Nock, Ayfer Özgür, Rasmus Pagh, Mariana
+Raykova, Hang Qi, Daniel Ramage, Ramesh Raskar, Dawn Xiaodong Song, Weikang Song, Sebastian U. Stich,
+Ziteng Sun, Ananda Theertha Suresh, Florian Tramèr, Praneeth Vepakomma, Jianyu Wang, Li Xiong, Zheng Xu,
+Qiang Yang, Felix X. Yu, Han Yu, and Sen Zhao. Advances and open problems in federated learning. ArXiv,
+abs/1912.04977, 2019.
+[46] Sai Praneeth Karimireddy, Martin Jaggi, Satyen Kale, Mehryar Mohri, Sashank J. Reddi, Sebastian U. Stich, and
+Ananda Theertha Suresh. Mime: Mimicking centralized stochastic algorithms in federated learning, 2020.
+[47] Sai Praneeth Karimireddy, Satyen Kale, Mehryar Mohri, Sashank Reddi, Sebastian Stich, and Ananda Theertha
+Suresh. SCAFFOLD: Stochastic controlled averaging for federated learning. In Hal Daumé III and Aarti Singh,
+editors, Proceedings of the 37th International Conference on Machine Learning, volume 119 of Proceedings of
+Machine Learning Research, pages 5132–5143. PMLR, 13–18 Jul 2020.
+[48] Marcel Keller and Avishay Yanai. Efficient maliciously secure multiparty computation for ram. In EUROCRYPT
+(3), pages 91–124. Springer, 2018.
+[49] Diederik P. Kingma and Jimmy Ba. Adam: A method for stochastic optimization, 2017.
+[50] Georgios Kollias, Theodoros Salonidis, and Shiqiang Wang. Sketch to skip and select: Communication efficient
+federated learning using locality sensitive hashing. In Randy Goebel, Han Yu, Boi Faltings, Lixin Fan, and Zehui
+Xiong, editors, Trustworthy Federated Learning, pages 72–83, Cham, 2023. Springer International Publishing.
+[51] Fan Lai, Xiangfeng Zhu, Harsha V. Madhyastha, and Mosharaf Chowdhury. Efficient federated learning via
+guided participant selection. In USENIX Symposium on Operating Systems Design and Implementation (OSDI),
+2021.
+[52] Yann Lecun, Leon Bottou, Y. Bengio, and Patrick Haffner. Gradient-based learning applied to document recognition. Proceedings of the IEEE, 86:2278 – 2324, 12 1998.
+[53] Qinbin Li, Yiqun Diao, Quan Chen, and Bingsheng He. Federated learning on non-iid data silos: An experimental
+study. CoRR, abs/2102.02079, 2021.
+[54] Songze Li, Sizai Hou, Baturalp Buyukates, and Salman Avestimehr. Secure federated clustering, 2022.
+[55] Tian Li, Anit Kumar Sahu, Manzil Zaheer, Maziar Sanjabi, Ameet Talwalkar, and Virginia Smith. Federated
+optimization in heterogeneous networks. In I. Dhillon, D. Papailiopoulos, and V. Sze, editors, MLSys, pages
+429–450, 2020.
+[56] Daoqin Lin, Yuchun Guo, Huan Sun, and Yishuai Chen. Fedcluster: A federated learning framework for crossdevice private ecg classification. In IEEE INFOCOM 2022 - IEEE Conference on Computer Communications
+Workshops (INFOCOM WKSHPS), pages 1–6, 2022.
+23
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+[57] Yang Liu, Tao Fan, Tianjian Chen, Qian Xu, and Qiang Yang. Fate: An industrial grade platform for collaborative
+learning with data protection. Journal of Machine Learning Research, 22(226):1–6, 2021.
+[58] Ye Liu, Shan Chang, and Yiqi Liu. Fedcs: Communication-efficient federated learning with compressive sensing.
+In 2022 IEEE 28th International Conference on Parallel and Distributed Systems (ICPADS), pages 17–24, 2023.
+[59] S. Lloyd. Least squares quantization in pcm. IEEE Transactions on Information Theory, 28(2):129–137, 1982.
+[60] Heiko Ludwig, Nathalie Baracaldo, Gegi Thomas, Yi Zhou, Ali Anwar, Shashank Rajamoni, Yuya Ong, Jayaram Radhakrishnan, Ashish Verma, Mathieu Sinn, Mark Purcell, Ambrish Rawat, Tran Minh, Naoise Holohan,
+Supriyo Chakraborty, Shalisha Whitherspoon, Dean Steuer, Laura Wynter, Hifaz Hassan, Sean Laguna, Mikhail
+Yurochkin, Mayank Agarwal, Ebube Chuba, and Annie Abay. Ibm federated learning: an enterprise framework
+white paper v0.1. arXiv preprint arXiv:2007.10987, 2020.
+[61] Hidde Lycklama, Lukas Burkhalter, Alexander Viand, Nicolas Küchler, and Anwar Hithnawi. Rofl: Robustness
+of secure federated learning, 2023.
+[62] Xiaodong Ma, Jia Zhu, Zhihao Lin, Shanxuan Chen, and Yangjie Qin. A state-of-the-art survey on solving
+non-iid data in federated learning. Future Generation Computer Systems, 135:244–258, 2022.
+[63] Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, and Blaise Aguera y Arcas. Communicationefficient learning of deep networks from decentralized data. In Artificial Intelligence and Statistics, pages 1273–
+1282. PMLR, 2017.
+[64] H. Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, and Blaise Agüera y Arcas.
+Communication-efficient learning of deep networks from decentralized data, 2023.
+[65] G.B. Moody and R.G. Mark. The impact of the mit-bih arrhythmia database. IEEE Engineering in Medicine and
+Biology Magazine, 20(3):45–50, 2001.
+[66] Kasper Overgaard Mortensen, Fatemeh Zardbani, Mohammad Ahsanul Haque, Steinn Ymir Agustsson, Davide
+Mottin, Philip Hofmann, and Panagiotis Karras. Marigold: Efficient k-means clustering in high dimensions.
+Proc. VLDB Endow., 16(7):1740–1748, may 2023.
+[67] Takayuki Nishio and Ryo Yonetani. Client selection for federated learning with heterogeneous resources in
+mobile edge. In ICC 2019 - 2019 IEEE International Conference on Communications (ICC). IEEE, may 2019.
+[68] Pascal Paillier. Public-key cryptosystems based on composite degree residuosity classes. In International conference on the theory and applications of cryptographic techniques, pages 223–238. Springer, 1999.
+[69] Jun-Gyu Park, Dong-Jun Han, Minseok Choi, and Jaekyun Moon. Sageflow: Robust federated learning against
+both stragglers and adversaries. In Neural Information Processing Systems, 2021.
+[70] Riccardo Presotto, Gabriele Civitarese, and Claudio Bettini. Fedclar: Federated clustering for personalized
+sensor-based human activity recognition. In 2022 IEEE International Conference on Pervasive Computing and
+Communications (PerCom), pages 227–236, 2022.
+[71] Tensorflow Project. Using tff for federated learning research. https://www.tensorflow.org/federated/
+tff_for_research, 2022.
+[72] Sashank Reddi, Zachary Charles, Manzil Zaheer, Zachary Garrett, Keith Rush, Jakub Konečný, Sanjiv Kumar,
+and H. Brendan McMahan. Adaptive federated optimization, 2020.
+[73] Sashank Reddi, Zachary Burr Charles, Manzil Zaheer, Zachary Garrett, Keith Rush, Jakub Konečný, Sanjiv
+Kumar, and Brendan McMahan, editors. Adaptive Federated Optimization, 2021.
+[74] Amirhossein Reisizadeh, Isidoros Tziotis, Hamed Hassani, Aryan Mokhtari, and Ramtin Pedarsani. Stragglerresilient federated learning: Leveraging the interplay between statistical accuracy and system heterogeneity.
+IEEE Journal on Selected Areas in Information Theory, 3(2):197–205, 2022.
+[75] Reent Schlegel, Siddhartha Kumar, Eirik Rosnes, and Alexandre Graell i Amat. Codedpaddedfl and codedsecagg: Straggler mitigation and secure aggregation in federated learning. IEEE Transactions on Communications, 71(4):2013–2027, 2023.
+[76] R. Shokri, M. Stronati, C. Song, and V. Shmatikov. Membership inference attacks against machine learning
+models. In 2017 IEEE Symposium on Security and Privacy (SP), pages 3–18, 2017.
+[77] Shuang Song, Kamalika Chaudhuri, and Anand D. Sarwate. Stochastic gradient descent with differentially
+private updates. 2013 IEEE Global Conference on Signal and Information Processing, pages 245–248, 2013.
+[78] Alysa Ziying Tan, Han Yu, Lizhen Cui, and Qiang Yang. Towards personalized federated learning. IEEE
+Transactions on Neural Networks and Learning Systems, pages 1–17, 2022.
+24
+
+FLIPS: Federated Learning using Intelligent Participant Selection
+
+A P REPRINT
+
+[79] Stacey Truex, Nathalie Baracaldo, Ali Anwar, Thomas Steinke, Heiko Ludwig, Rui Zhang, and Yi Zhou. A
+hybrid approach to privacy-preserving federated learning. In Proceedings of the 12th ACM Workshop on Artificial Intelligence and Security, AISec’19, page 1–11, New York, NY, USA, 2019. Association for Computing
+Machinery.
+[80] Leslie G. Valiant. The complexity of enumeration and reliability problems. SIAM Journal on Computing,
+8(3):410–421, 1979.
+[81] Alexander Viand, Patrick Jattke, Miro Haller, and Anwar Hithnawi. HECO: Fully homomorphic encryption
+compiler. In 32nd USENIX Security Symposium (USENIX Security 23), pages 4715–4732, Anaheim, CA, August
+2023. USENIX Association.
+[82] Alexander Viand, Patrick Jattke, and Anwar Hithnawi. Sok: Fully homomorphic encryption compilers. CoRR,
+abs/2101.07078, 2021.
+[83] Hongyi Wang, Mikhail Yurochkin, Yuekai Sun, Dimitris Papailiopoulos, and Yasaman Khazaeni. Federated
+learning with matched averaging, 2020.
+[84] Jianyu Wang, Zachary B. Charles, Zheng Xu, Gauri Joshi, H. B. McMahan, Blaise Agüera y Arcas, Maruan AlShedivat, Galen Andrew, Salman Avestimehr, Katharine Daly, Deepesh Data, Suhas N. Diggavi, Hubert Eichner,
+Advait Gadhikar, Zachary Garrett, Antonious M. Girgis, Filip Hanzely, Andrew Hard, Chaoyang He, Samuel
+Horváth, Zhouyuan Huo, Alex Ingerman, Martin Jaggi, Tara Javidi, Peter Kairouz, Satyen Kale, Sai Praneeth
+Karimireddy, Jakub Konecný, Sanmi Koyejo, Tian Li, Luyang Liu, Mehryar Mohri, Hang Qi, Sashank J. Reddi,
+Peter Richtárik, K. Singhal, Virginia Smith, Mahdi Soltanolkotabi, Weikang Song, Ananda Theertha Suresh,
+Sebastian U. Stich, Ameet S. Talwalkar, Hongyi Wang, Blake E. Woodworth, Shanshan Wu, Felix X. Yu, Honglin
+Yuan, Manzil Zaheer, Mi Zhang, Tong Zhang, Chunxiang Zheng, Chen Zhu, and Wennan Zhu. A field guide to
+federated optimization. ArXiv, abs/2107.06917, 2021.
+[85] John Wang. Proposed new requirements for testing and reporting performance results of arrhythmia detection
+algorithms. In Computing in Cardiology 2013, pages 967–970, 2013.
+[86] Luping WANG, Wei WANG, and Bo LI. Cmfl: Mitigating communication overhead for federated learning. In
+2019 IEEE 39th International Conference on Distributed Computing Systems (ICDCS), pages 954–964, 2019.
+[87] Tianhao Wang, Johannes Rausch, Ce Zhang, Ruoxi Jia, and Dawn Song. A Principled Approach to Data Valuation for Federated Learning, pages 153–167. Springer International Publishing, Cham, 2020.
+[88] Han Xiao, Kashif Rasul, and Roland Vollgraf. Fashion-mnist: a novel image dataset for benchmarking machine
+learning algorithms, 2017.
+[89] Runhua Xu, Nathalie Baracaldo, Yi Zhou, Ali Anwar, and Heiko Ludwig. Hybridalpha: An efficient approach
+for privacy-preserving federated learning. In Proceedings of the 12th ACM Workshop on Artificial Intelligence
+and Security, AISec’19, page 13–23, New York, NY, USA, 2019. Association for Computing Machinery.
+[90] Hongxu Yin, Arun Mallya, Arash Vahdat, Jose M Alvarez, Jan Kautz, and Pavlo Molchanov. See through
+gradients: Image batch recovery via gradinversion. arXiv preprint arXiv:2104.07586, 2021.
+[91] Mikhail Yurochkin, Mayank Agarwal, Soumya Ghosh, Kristjan Greenewald, Trong Nghia Hoang, and Yasaman
+Khazaeni. Bayesian nonparametric federated learning of neural networks, 2019.
+[92] Chengliang Zhang, Suyi Li, Junzhe Xia, Wei Wang, Feng Yan, and Yang Liu. BatchCrypt: Efficient homomorphic encryption for Cross-Silo federated learning. In 2020 USENIX Annual Technical Conference (USENIX ATC
+20), pages 493–506. USENIX Association, July 2020.
+[93] Jianfei Zhang and Shuaishuai Lv. Fedlabcluster: A clustered federated learning algorithm based on data sample
+label. In 2021 International Conference on Electronic Information Engineering and Computer Science (EIECS),
+pages 423–428, 2021.
+[94] Jianyi Zhang, Ang Li, Minxue Tang, Jingwei Sun, Xiang Chen, Fan Zhang, Changyou Chen, Yiran Chen, and
+Hai Li. Fed-cbs: A heterogeneity-aware client sampling mechanism for federated learning via class-imbalance
+reduction, 2022.
+[95] Jie Zhang, Bo Li, Chen Chen, Lingjuan Lyu, Shuang Wu, Shouhong Ding, and Chao Wu. Delving into the
+adversarial robustness of federated learning, 2023.
+[96] Bo Zhao, Konda Reddy Mopuri, and Hakan Bilen. idlg: Improved deep leakage from gradients. arXiv preprint
+arXiv:2001.02610, 2020.
+[97] Ligeng Zhu, Zhijian Liu, and Song Han. Deep leakage from gradients. In Advances in Neural Information
+Processing Systems, pages 14774–14784, 2019.
+
+25
+
+
