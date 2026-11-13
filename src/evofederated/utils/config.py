@@ -18,6 +18,7 @@ class DatasetConfig:
     alpha: float = 0.5
     min_samples_per_client: int = 20
     val_ratio: float = 0.3  # val por nodo; test es el test oficial particionado aparte
+    test_ratio: float = 0.2  # solo partición natural (femnist): test local por escritor
     seed: int = 42
     synthetic_n_samples: int = 5000
     synthetic_n_features: int = 64

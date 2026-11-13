@@ -7,10 +7,12 @@
 """
 import numpy as np
 import torch
-from torch.utils.data import Subset
+from torch.utils.data import Subset, TensorDataset
 
 from .datasets import (
     get_dataset,
+    load_femnist,
+    natural_partition,
     make_synthetic_dataset,
     dirichlet_partition,
     get_input_dim_and_n_classes,
@@ -76,6 +78,17 @@ def build_federated_clients(cfg, seed: int | None = None):
             )
         return clients, {"input_dim": input_dim, "n_classes": n_classes,
                          "train_partition": train_part, "test_partition": test_part}
+
+    if name == "femnist":  # partición natural: cliente = escritor, sin Dirichlet; test = split local del propio escritor
+        X, y, writers = load_femnist(cfg.dataset.data_root)
+        base = TensorDataset(torch.from_numpy(X).float().div_(255.0).unsqueeze(1), torch.from_numpy(y).long())
+        part = natural_partition(writers, y, n_clients, seed, cfg.dataset.min_samples_per_client, cfg.dataset.val_ratio, cfg.dataset.test_ratio)
+        clients = {
+            cid: FederatedClient(cid, Subset(base, s["train"]), Subset(base, s["val"]), Subset(base, s["test"]),
+                                 batch_size=cfg.train.batch_size, num_workers=cfg.train.num_workers)
+            for cid, s in part.splits.items()
+        }
+        return clients, {"input_dim": 28 * 28, "n_classes": part.n_classes, "train_partition": part, "test_partition": part}
 
     # imagen: train y test oficiales separados
     train_base = to_tensor_dataset(get_dataset(name, root=cfg.dataset.data_root, train=True, download=True), name)

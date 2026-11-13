@@ -66,3 +66,7 @@ análisis estadístico agregado entre corridas.
 `evolution.objectives` = `per_node` (una accuracy por cluster, del nodo evaluador) o `per_cluster_mean` (media de los miembros no entrenados del cluster, ablación) con
 `evolution.search = nsga3` (direcciones de Das–Dennis, población = nº de direcciones). El tamaño de la red deja de ser objetivo. Hall of fame con C objetivos:
 `final.hof = select_hof` (ver `docs/E5_DESIGN.md`). Diseño, métricas y riesgos en `docs/E5_DESIGN.md`.
+
+
+## FEMNIST (partición natural)
+Cliente = escritor, sin Dirichlet. Cada escritor tiene split local train/val/test; no hay test oficial particionado como en CIFAR-10/Fashion-MNIST. Ver `docs/TRANSFER_DESIGN.md`.

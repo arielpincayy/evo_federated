@@ -58,6 +58,30 @@ def to_tensor_dataset(ds, name: str):
     return TensorDataset(X, y)
 
 
+FEMNIST_URL = "https://huggingface.co/datasets/flwrlabs/femnist/resolve/main/data/train-00000-of-00001.parquet"
+FEMNIST_CLASSES = 62
+
+
+def load_femnist(root: str = "./data"):
+    """FEMNIST (LEAF) desde el parquet de HF. Cachea en npz. Devuelve X uint8 (N,28,28), y (N,), writer (N,) de strings."""
+    import io
+    import urllib.request
+
+    d = os.path.join(root, "femnist")
+    cache, pq_path = os.path.join(d, "femnist.npz"), os.path.join(d, "train.parquet")
+    if not os.path.exists(cache):
+        os.makedirs(d, exist_ok=True)
+        if not os.path.exists(pq_path):
+            urllib.request.urlretrieve(FEMNIST_URL, pq_path)
+        import pyarrow.parquet as pq
+        from PIL import Image
+        t = pq.read_table(pq_path)
+        X = np.stack([np.array(Image.open(io.BytesIO(b["bytes"]))) for b in t.column("image").to_pylist()]).astype(np.uint8)
+        np.savez(cache, X=X, y=t.column("character").to_numpy(), writer=np.array(t.column("writer_id").to_pylist()))
+    z = np.load(cache)
+    return z["X"], z["y"], z["writer"]
+
+
 def make_synthetic_dataset(
     n_samples: int = 5000,
     n_features: int = 64,
@@ -223,6 +247,36 @@ def dirichlet_partition(
         n_classes=n_classes,
         class_distribution=class_dist,
     )
+
+
+def natural_partition(
+    writers: np.ndarray,
+    labels: np.ndarray,
+    n_clients: int,
+    seed: int = 42,
+    min_samples_per_client: int = 100,
+    val_ratio: float = 0.3,
+    test_ratio: float = 0.2,
+    n_classes: int = FEMNIST_CLASSES,
+) -> FederatedPartition:
+    """Partición natural: cada cliente es un escritor (sin Dirichlet). Elige al azar `n_clients` escritores con
+    al menos `min_samples_per_client` muestras y hace un split local train/val/test disjunto."""
+    rng = np.random.RandomState(seed)
+    uw, counts = np.unique(writers, return_counts=True)
+    eligible = uw[counts >= min_samples_per_client]
+    assert len(eligible) >= n_clients, f"solo {len(eligible)} escritores con >= {min_samples_per_client} muestras"
+    chosen = rng.choice(eligible, n_clients, replace=False)
+    client_indices, splits = {}, {}
+    class_dist = np.zeros((n_clients, n_classes), dtype=int)
+    for cid, w in enumerate(chosen):
+        idxs = rng.permutation(np.where(writers == w)[0])
+        n_test, n_val = int(len(idxs) * test_ratio), int(len(idxs) * val_ratio)
+        n_train = len(idxs) - n_test - n_val
+        client_indices[cid] = idxs.tolist()
+        splits[cid] = {"train": idxs[:n_train].tolist(), "val": idxs[n_train:n_train + n_val].tolist(), "test": idxs[n_train + n_val:].tolist()}
+        class_dist[cid] = np.bincount(labels[splits[cid]["train"]], minlength=n_classes)
+    return FederatedPartition(n_clients=n_clients, alpha=float("nan"), seed=seed, min_samples_per_client=min_samples_per_client,
+                              client_indices=client_indices, splits=splits, n_classes=n_classes, class_distribution=class_dist)
 
 
 def heterogeneity_metrics(class_dist: np.ndarray):

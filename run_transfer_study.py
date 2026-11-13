@@ -3,7 +3,7 @@
 
 Por (alpha, semilla): A[s, j] = accuracy en val del nodo j de un modelo entrenado solo en el nodo s.
 Guarda runs/transfer_study/A_alpha{a}_seed{s}.npz (A + etiquetas Δ/oráculo/aleatorio) y, al final, analiza todo.
-Ej: python run_transfer_study.py --seeds 0 1 2 3 4 5 6 7 8 9 --alphas 0.1 0.5 1.0 --epochs 5 --workers 12
+Ej: python run_transfer_study.py --seeds 0 1 2 3 4 5 6 7 8 9 --alphas 0.1 0.5 1.0 --epochs 5 --workers 12   |   --config configs/cs_femnist_natural.yaml --alphas natural
 """
 import argparse
 import copy
@@ -35,7 +35,7 @@ def run_one(args):
         return f"{f.name} ya existe"
     torch.set_num_threads(threads)
     t0 = time.time()
-    cfg = from_dict(_merge(dataclasses.asdict(load_config(cfgpath)), {"dataset": {"alpha": alpha, "seed": seed}}))
+    cfg = from_dict(_merge(dataclasses.asdict(load_config(cfgpath)), {"dataset": ({"seed": seed} if alpha == "natural" else {"alpha": float(alpha), "seed": seed})}))
     clients, info = build_federated_clients(cfg, seed=seed)
     ids = sorted(clients)
     shape = tuple(clients[ids[0]].train_dataset[0][0].shape)
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="configs/cs_cifar10.yaml")
     ap.add_argument("--seeds", type=int, nargs="+", default=list(range(10)))
-    ap.add_argument("--alphas", type=float, nargs="+", default=[0.1, 0.5, 1.0])
+    ap.add_argument("--alphas", nargs="+", default=["0.1", "0.5", "1.0"], help="valores de Dirichlet o 'natural' (femnist)")
     ap.add_argument("--epochs", type=int, default=5)
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--threads", type=int, default=2)

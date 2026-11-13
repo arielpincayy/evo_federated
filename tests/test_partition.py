@@ -29,3 +29,21 @@ def test_reproducibility():
     np.testing.assert_array_equal(p1.class_distribution, p2.class_distribution)
     p3 = dirichlet_partition(labels, n_clients=3, alpha=0.5, seed=999)
     assert not np.array_equal(p1.class_distribution, p3.class_distribution)
+
+
+def test_natural_partition_one_writer_per_client_and_disjoint():
+    from evofederated.data.datasets import natural_partition
+    rng = np.random.RandomState(0)
+    writers = np.array([f"w{i}" for i in rng.randint(0, 30, 3000)])
+    labels = rng.randint(0, 62, 3000)
+    p = natural_partition(writers, labels, n_clients=10, seed=1, min_samples_per_client=50)
+    seen = set()
+    for cid, s in p.splits.items():
+        idx = s["train"] + s["val"] + s["test"]
+        assert len(set(idx)) == len(idx) and not seen & set(idx)
+        seen |= set(idx)
+        assert len(set(writers[idx])) == 1 and len(idx) >= 50
+        assert len(s["val"]) > 0 and len(s["test"]) > 0
+    assert p.class_distribution.shape == (10, 62)
+    q = natural_partition(writers, labels, n_clients=10, seed=1, min_samples_per_client=50)
+    assert p.splits == q.splits

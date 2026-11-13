@@ -24,3 +24,19 @@ Regresión por semilla `A[s,j] ~ mismo_cluster + Hellinger(etiquetas_s, etiqueta
 ## Límites
 Con Dirichlet la similitud funcional depende casi solo de las etiquetas: se valida que Δ la recupera, no que capture algo extra.
 Una sola arquitectura de medición; modelos entrenados en ~350 muestras son débiles (se reporta también la accuracy media).
+
+## Réplica en FEMNIST (partición natural; preregistro, escrito antes de correr)
+Objetivo: en CIFAR-10+Dirichlet la similitud funcional la determinan casi solo las etiquetas. FEMNIST tiene clientes reales
+(escritores), con *feature skew* y label skew suave (en una seed de prueba: mediana de 38 de 62 clases por nodo, clase dominante 9 %).
+- **Datos:** `flwrlabs/femnist` (HF, LEAF), 62 clases, 28×28. Cada seed elige 100 escritores al azar con >= 100 muestras; split local
+  train/val/test por escritor (test no se usa aquí). No hay Dirichlet: `alpha` se ignora (`--alphas natural`).
+- **Medición:** igual que arriba (misma arquitectura distinta de la sonda, misma init, `A[s,j]` en val). Cambia solo `epochs`: con ~92
+  muestras de train por nodo, 5 épocas dejan los modelos casi en azar. Se fijó **epochs=50** con una seed fuera del estudio (100) mirando
+  la accuracy en el val del propio nodo, no el gap: 5 ép. 6.6 %, 20 ép. 7.9 %, 50 ép. 17.3 % (azar 1.6 %). Regla: menor nº de épocas del
+  conjunto {5, 20, 50} con accuracy propia > 10 %.
+- **Seeds:** 20 (cada una con otros 100 escritores y otra sonda). Un solo grupo, así que Holm = p crudo.
+- **Estadístico y decisión:** los mismos (`gap_Δ` vs aleatorio, Wilcoxon pareado unilateral, IC95 bootstrap que excluya 0; `frac_oráculo`).
+- **Pregunta central, exploratoria:** coeficiente de `mismo_cluster(Δ)` en `A ~ mismo_cluster + Hellinger`. Si es > 0 con IC que excluya 0,
+  Δ captura estructura que las etiquetas no explican. Se reporta con IC bootstrap entre seeds. El oráculo por etiquetas puede dejar de ser un techo.
+- **Límites:** nodos de ~92 muestras con 62 clases dan modelos débiles; una sola arquitectura; cambia la semántica del test respecto a
+  CIFAR-10 (aquí no hay test oficial; solo se usa val).
