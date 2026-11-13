@@ -40,3 +40,16 @@ Objetivo: en CIFAR-10+Dirichlet la similitud funcional la determinan casi solo l
   Δ captura estructura que las etiquetas no explican. Se reporta con IC bootstrap entre seeds. El oráculo por etiquetas puede dejar de ser un techo.
 - **Límites:** nodos de ~92 muestras con 62 clases dan modelos débiles; una sola arquitectura; cambia la semántica del test respecto a
   CIFAR-10 (aquí no hay test oficial; solo se usa val).
+
+## DBSCAN (con/sin PCA) vs k-means sobre Δ (exploratorio, escrito antes de correr el estudio completo)
+Pregunta: ¿una agrupación por densidad (que decide sola el nº de clusters) transfiere mejor que k-means C=10? Se evalúa con las A ya calculadas
+(CIFAR-10: `runs/transfer_study`, 3 α × 10 seeds; FEMNIST: `runs/transfer_femnist`, 20 seeds), sin reentrenar. Script: `run_dbscan_study.py`.
+- **Representaciones:** Δ normalizado (raw), PCA 95 % y PCA 80 % de varianza. Como el PCA centró Δ y eso empeoró a k-means, `raw` separa el efecto de DBSCAN del del PCA.
+- **DBSCAN:** distancia coseno, `min_samples=5`, eps = cuantil q de la distancia al 5.º vecino, q ∈ {0.3, 0.5, 0.7, 0.9} (sensibilidad). **Variante principal** por
+  (representación, seed) = la q con mayor silueta coseno entre las no degeneradas (criterio no supervisado, no mira A ni etiquetas).
+- **Ruido:** cada nodo de ruido se asigna al cluster de centroide más cercano (coseno). Se reporta la fracción de ruido. Degenerado = k<2: se cuenta y no entra en gap.
+- **Comparaciones sobre la misma A:** k-means con el **mismo k** que DBSCAN y misma representación (comparación justa, el gap depende de k), k-means C=10 actual, oráculo.
+  Comprobación: la reconstrucción de Δ reproduce las etiquetas k-means guardadas (ARI = 1).
+- **Inferencia (variante principal):** Wilcoxon pareado bilateral de `gap_DBSCAN − gap_kmeans(mismo k)` y `− gap_kmeans10` por (dataset, α), con Holm sobre las 4 celdas
+  (3 α CIFAR + FEMNIST) dentro de cada representación; p por permutación (2 000) por seed. Todo lo demás es sensibilidad descriptiva.
+- No se integra al NAS salvo que DBSCAN supere a k-means(mismo k) y a k-means C=10.

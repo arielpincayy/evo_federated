@@ -2,7 +2,7 @@
 from typing import Dict, Optional
 
 import numpy as np
-from sklearn.cluster import KMeans
+from sklearn.cluster import DBSCAN, KMeans
 from sklearn.metrics import adjusted_rand_score
 
 
@@ -26,6 +26,24 @@ def cluster_delta(delta: np.ndarray, n_clusters: int, method: str = "kmeans", se
             raise ValueError(f"average linkage produjo {len(np.unique(lab))} clusters, se pidieron {c}")
         return lab
     raise ValueError(f"método desconocido: {method}")
+
+
+def cluster_dbscan(z: np.ndarray, q: float, min_samples: int = 5):
+    """DBSCAN con distancia coseno. eps = cuantil `q` de la distancia al `min_samples`-ésimo vecino (sin mirar etiquetas).
+
+    El ruido (-1) se asigna al cluster de centroide más cercano por coseno, para que todo nodo tenga cluster.
+    Devuelve (etiquetas 0..k-1, nº de nodos de ruido). Si no hay ningún cluster, todo es ruido y devuelve ceros (k=1: degenerado).
+    """
+    u = _unit_rows(z)
+    d = np.clip(1.0 - u @ u.T, 0.0, None)
+    eps = float(np.quantile(np.sort(d, axis=1)[:, min_samples], q))  # columna 0 es el propio nodo
+    lab = DBSCAN(eps=max(eps, 1e-12), min_samples=min_samples, metric="precomputed").fit_predict(d)
+    noise = lab < 0
+    if noise.all():
+        return np.zeros(len(u), dtype=int), int(noise.sum())
+    cent = _unit_rows(np.stack([u[lab == c].mean(axis=0) for c in range(lab.max() + 1)]))
+    lab[noise] = np.argmax(u[noise] @ cent.T, axis=1)
+    return lab, int(noise.sum())
 
 
 def cluster_labels_oracle(class_dist: np.ndarray, n_clusters: int, seed: int = 0) -> np.ndarray:
