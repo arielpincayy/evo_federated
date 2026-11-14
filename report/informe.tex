@@ -8,7 +8,7 @@
 \setlength{\emergencystretch}{4em}
 \newcommand{\acc}{\mathrm{acc}}
 
-\title{Validación de los clusters por $\Delta$:\\ PCA, transferencia entre nodos, FEMNIST y DBSCAN}
+\title{Validación de los clusters por $\Delta$ y de la búsqueda de arquitecturas:\\ PCA, transferencia, FEMNIST, DBSCAN, interacción arquitectura $\times$ nodo y P3}
 \author{Proyecto EvoFederated}
 \date{13 de noviembre de 2026}
 
@@ -16,7 +16,7 @@
 \maketitle
 
 \begin{abstract}
-\noindent Se valida la agrupación de nodos federados por similitud de las actualizaciones $\Delta$ de un modelo sonda (k-means esférico, $C=10$, $N=100$ nodos) con cuatro estudios que no entrenan arquitecturas del NAS. \textbf{(1)} Aplicar PCA antes del clustering es igual o peor que usar $\Delta$ crudo; la pérdida viene de centrar, no de reducir dimensiones. \textbf{(2)} En CIFAR-10 con Dirichlet, un modelo entrenado en un nodo rinde entre 10 y 35 puntos de accuracy más en nodos de su cluster que en otros (10 de 10 semillas significativas en los tres $\alpha$); $\Delta$ recupera entre el 76\,\% y el 89\,\% de la ganancia de una agrupación con etiquetas. \textbf{(3)} En FEMNIST, con partición natural por escritor, el efecto es pequeño pero real (3.3 puntos, 20 de 20 semillas) y $\Delta$ iguala a la agrupación con etiquetas; de forma exploratoria, $\Delta$ conserva una señal de $\approx$1 punto al controlar por la distribución de etiquetas. \textbf{(4)} Agrupar por \texttt{hsf\_id} transfiere casi tan bien como $\Delta$ pero son agrupaciones distintas, y DBSCAN, con o sin PCA, no mejora a k-means: encuentra 2--6 clusters grandes con 17--43\,\% de ruido. Los puntos (3) exploratorio y (4) son post hoc.
+\noindent Se valida la agrupación de nodos federados por similitud de las actualizaciones $\Delta$ de un modelo sonda (k-means esférico, $C=10$, $N=100$ nodos) y, a partir de ella, la búsqueda de arquitecturas, con seis estudios que no repiten el NAS completo salvo el último. \textbf{(1)} Aplicar PCA antes del clustering es igual o peor que usar $\Delta$ crudo; la pérdida viene de centrar, no de reducir dimensiones. \textbf{(2)} En CIFAR-10 con Dirichlet, un modelo entrenado en un nodo rinde entre 10 y 35 puntos de accuracy más en nodos de su cluster que en otros (10 de 10 semillas significativas en los tres $\alpha$); $\Delta$ recupera entre el 76\,\% y el 89\,\% de la ganancia de una agrupación con etiquetas. \textbf{(3)} En FEMNIST, con partición natural por escritor, el efecto es pequeño pero real (3.3 puntos, 20 de 20 semillas) y $\Delta$ iguala a la agrupación con etiquetas; de forma exploratoria, $\Delta$ conserva una señal de $\approx$1 punto al controlar por la distribución de etiquetas. \textbf{(4)} Agrupar por \texttt{hsf\_id} transfiere casi tan bien como $\Delta$ pero son agrupaciones distintas, y DBSCAN, con o sin PCA, no mejora a k-means: encuentra 2--6 clusters grandes con 17--43\,\% de ruido. \textbf{(5)} Con un modelo global FedAvg por arquitectura, existe una interacción arquitectura $\times$ nodo estable pero pequeña (SD de 4.7 puntos frente a 18.1 del efecto de arquitectura); el ranking de arquitecturas es casi el mismo en todos los nodos (Spearman 0.92 entre nodos), elegir por nodo o por cluster no supera a la mejor global y bastan pocos nodos para elegir (10 nodos recuperan el 98.5\,\% de la mejora posible). \textbf{(6)} La silueta elige $k=2$ en las 20 federaciones; con ese $k$, NSGA-III con un objetivo por cluster y accuracy penalizada por tamaño no se distingue de NSGA-II con $C=10$ ni de la búsqueda aleatoria (hipervolumen 0.515, 0.518 y 0.499; todos los intervalos incluyen 0, 3 semillas) y usa 4.6 veces menos entrenamientos locales; la evolución mejora a la población pero no al mejor individuo. Los puntos (3) exploratorio, (4) y los análisis de la Sección~\ref{sec:p3} sobre evolución por generación son post hoc; (5) y (6) se preregistraron.
 \end{abstract}
 
 \section{Motivación y medidas}
@@ -140,12 +140,139 @@ FEMNIST & natural & PCA 80 & 20 & 2.0 & 29\,\% & 0.0552 & 0.0548 & 0.65\\
 
 DBSCAN encuentra pocos clusters (2.3 a 5.7 en CIFAR-10, 2.0 en FEMNIST) con 17--43\,\% de ruido, y con $q$ alto todo se fusiona en un solo cluster: entre el 48\,\% y el 90\,\% de las corridas (semilla $\times\,q$) de CIFAR-10 son degeneradas. Frente a k-means del mismo $k$, DBSCAN empata (CIFAR-10 con $\alpha=0.1$ crudo; FEMNIST) o pierde (CIFAR-10 con $\alpha=0.5$ y $1.0$ con PCA, Holm-$p$ 0.016--0.023); la única celda a su favor es CIFAR-10 con $\alpha=0.1$ y PCA 95\,\% ($p=0.041$), con gaps muy bajos. Frente a k-means con $C=10$ los contrastes salen significativos pero no son interpretables, porque $k$ difiere (en CIFAR-10 DBSCAN pierde; en FEMNIST, con $k=2$, el gap es 0.055 frente a 0.033). Para un NAS con unos 10 representantes, DBSCAN da 2--6 clusters grandes, lo que implica mayor varianza del estimador; no se integra como método de muestreo.
 
+\section{Interacción arquitectura $\times$ nodo (FEMNIST, modelo global FedAvg)}
+\label{sec:an}
+La pregunta es si hay arquitecturas que funcionan mejor en unos nodos que en otros o si rinden igual en todos. Importa para el NAS: sin interacción, el ranking global basta y los objetivos por cluster o nodo no aportan. Se entrenan 24 arquitecturas aleatorias del espacio v2 (hasta 3 bloques convolucionales cuyos slots pueden apagarse, hasta 2 capas totalmente conectadas, pooling $2\times2$) con FedAvg sobre los 100 nodos (20 rondas $\times$ 2 épocas, Adam, $\mathrm{lr}=10^{-3}$, elegido con un piloto en una semilla fuera del estudio: 28.2\,\% frente a 22.1\,\% de $10^{-2}$), en 3 federaciones y con 2 réplicas de entrenamiento (otra inicialización y otro orden de datos). Se mide la accuracy de cada modelo en el val y en el test de cada nodo.
+
+\textbf{Estadístico.} Con $Y[a,n]$ la accuracy de la arquitectura $a$ en el nodo $n$ y $R$ su doble centrado ($Y$ menos medias por arquitectura y por nodo, más la media global), la interacción estable es $V=\overline{R_{\mathrm{val}}^{(r)}\cdot R_{\mathrm{test}}^{(r')}}$ con $r\neq r'$. Es un estimador sin sesgo de la varianza de la interacción verdadera, porque el ruido de entrenamiento y el de evaluación son independientes entre los dos factores. Se prueba con 10\,000 permutaciones de los nodos y se acompaña de un intervalo bootstrap sobre nodos y de un control en escala logit.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcc}
+\toprule
+ & accuracy & logit\\
+\midrule
+SD del efecto de \textbf{arquitectura} & 18.1 pp & 1.15\\
+SD del efecto de \textbf{nodo} & 7.4 pp & 0.47\\
+SD de la \textbf{interacción estable} & \textbf{4.7 pp} & 0.17\\
+fracción de la variación residual que se repite & 49\,\% & 20\,\%\\
+IC95 de $V>0$ & 3/3 semillas & 3/3\\
+$p$ por permutación & 0.0001 en cada semilla & 0.0001\\
+\bottomrule
+\end{tabular}
+\caption{Interacción arquitectura $\times$ nodo (media de 3 federaciones; 0.0001 es el mínimo alcanzable con 10\,000 permutaciones).}
+\label{tab:an}
+\end{table}
+
+La interacción existe y se repite con otro entrenamiento y otra muestra del mismo nodo, también en logit, pero es pequeña frente al efecto de la arquitectura (su varianza es $\approx$7\,\% de la de la arquitectura); parte del efecto en accuracy es de escala (49\,\% baja a 20\,\% en logit). El ranking de arquitecturas es casi el mismo en todos los nodos: Spearman 0.97 entre réplicas de entrenamiento, 0.99 entre federaciones y 0.92 entre el ranking de un nodo y el de otro.
+
+\textbf{Consecuencia práctica.} Se elige la arquitectura con el val de una réplica y se evalúa con el test de la otra, comparando con la mejor global elegida con todos los nodos. Elegir \emph{por nodo} cambia la accuracy en $-1.25$ pp y elegir \emph{por cluster} $\Delta$ en $-0.52$ pp; en ningún caso (0 de 3 semillas) el IC95 queda por encima de 0. Con 36--54 muestras por nodo, la señal de la interacción es más débil que el ruido de seleccionar.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcc}
+\toprule
+nodos usados para elegir & de la mejora posible sobre el azar & pierde frente a la mejor\\
+\midrule
+1 & 91.2\,\% & $-2.8$ pp\\
+3 & 96.5\,\% & $-1.1$ pp\\
+10 & 98.5\,\% & $-0.5$ pp\\
+30 & 99.9\,\% & $-0.04$ pp\\
+\bottomrule
+\end{tabular}
+\caption{Elegir la arquitectura con $k$ nodos y evaluarla en el resto (val de una réplica, test de la otra).}
+\label{tab:pick}
+\end{table}
+
+\textbf{¿Hace falta elegir arquitectura?} Sí: la accuracy media entre las 24 arquitecturas va de $\approx$5\,\% (la peor) a $\approx$25\,\% (la mediana) y $\approx$58\,\% (la mejor), y solo una queda a menos de 2 pp de la mejor. Pero basta evaluar con pocos nodos (Tabla~\ref{tab:pick}). Accuracy y parámetros tienen un Spearman de 0.51; 8 de las 24 arquitecturas están en el frente de Pareto (de 8\,062 parámetros y 5.4\,\% a 69\,214 parámetros y 57.9\,\%), y la mejor usa 69 mil de los 354\,494 del espacio.
+
+\section{P3: $k$ óptimo y NSGA-III con un objetivo por cluster}
+\label{sec:p3}
+\textbf{Propuesta.} Elegir el número de clusters $k\le10$, usar un objetivo por cluster (la accuracy del nodo evaluador de ese cluster, con un representante re-sorteado en cada generación) y meter el tamaño dentro de cada objetivo, de modo que el número de objetivos es $k$: $\mathrm{obj}_c=\acc_c-\lambda\,p/p_{\mathrm{ref}}$, con $\lambda=1$, $p$ el número de parámetros y $p_{\mathrm{ref}}=354\,494$ el máximo del espacio. Es E5 (NSGA-III con un objetivo por cluster) más la elección de $k$ y el tamaño dentro del objetivo. El criterio de $k$ es la silueta coseno de k-means esférico sobre $\Delta$ (no supervisado), fijado antes de correr.
+
+\textbf{Elección de $k$.} La silueta decrece de forma monótona con $k$, así que elige $k=2$ en las 20 federaciones (Tabla~\ref{tab:k}); el gap de transferencia también es mayor con $k=2$. En la práctica, P3 fue NSGA-III con \textbf{2 objetivos}, no con hasta 10: la idea de un objetivo por cluster con muchos clusters no se puso a prueba. Es coherente con DBSCAN, que también encontraba $\approx$2 clusters.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lccccccc}
+\toprule
+$k$ & 2 & 3 & 4 & 5 & 6 & 8 & 10\\
+\midrule
+silueta & \textbf{0.291} & 0.234 & 0.118 & 0.089 & 0.071 & 0.059 & 0.039\\
+gap de transferencia & 0.055 & 0.053 & 0.039 & 0.037 & 0.035 & 0.034 & 0.033\\
+\bottomrule
+\end{tabular}
+\caption{Silueta y gap de transferencia por $k$ (media de 20 federaciones de FEMNIST).}
+\label{tab:k}
+\end{table}
+
+\textbf{Brazos.} Tres semillas de datos, con la misma federación y sonda en todos los brazos: \texttt{p3} ($k=2$, NSGA-III con $\lambda=1$, 420 evaluaciones), \texttt{rs} (mismos clusters y objetivos, búsqueda aleatoria, 420 evaluaciones) y \texttt{base} ($C=10$, NSGA-II con (accuracy media, tamaño), 390 evaluaciones). Receta: 20 rondas $\times$ 2 épocas, Adam $\mathrm{lr}=10^{-3}$, evaluador retenido; cada modelo del hall of fame se reentrena una vez con los 100 nodos y se mide en test. La métrica primaria es el hipervolumen de los modelos reentrenados en (accuracy en test, tamaño normalizado).
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lccc}
+\toprule
+ & \texttt{p3} & \texttt{base} & \texttt{rs}\\
+\midrule
+hipervolumen & 0.515 & 0.518 & 0.499\\
+mejor $\acc-\lambda\cdot$tamaño & 0.415 & 0.423 & 0.398\\
+accuracy del mejor modelo & 0.514 & 0.516 & 0.498\\
+tamaño medio del conjunto (normalizado) & 0.078 & 0.060 & 0.092\\
+modelos en el conjunto final & 12 & 4--7 & 12\\
+entrenamientos locales en la búsqueda & 16\,800 & 78\,000 & 16\,800\\
+tiempo por corrida (h) & 0.98 & 1.28 & 0.95\\
+\bottomrule
+\end{tabular}
+\caption{Resultado final (media de 3 semillas; test, modelos reentrenados con los 100 nodos).}
+\label{tab:p3}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{llccc}
+\toprule
+contraste & métrica & media & IC95 & por semilla\\
+\midrule
+\texttt{p3}$-$\texttt{base} & hipervolumen & $-0.0024$ & $[-0.042,+0.019]$ & $+0.019,-0.042,+0.016$\\
+\texttt{p3}$-$\texttt{base} & mejor $\acc-\lambda\cdot$tamaño & $-0.0072$ & $[-0.016,+0.0003]$ & $-0.016,+0.0003,-0.006$\\
+\texttt{p3}$-$\texttt{base} & accuracy del mejor & $-0.0016$ & $[-0.051,+0.026]$ & $+0.021,-0.051,+0.026$\\
+\texttt{p3}$-$\texttt{rs} & hipervolumen & $+0.0162$ & $[-0.032,+0.049]$ & $+0.049,+0.032,-0.032$\\
+\texttt{p3}$-$\texttt{rs} & mejor $\acc-\lambda\cdot$tamaño & $+0.0170$ & $[-0.005,+0.050]$ & $+0.050,-0.005,+0.006$\\
+\texttt{p3}$-$\texttt{rs} & accuracy del mejor & $+0.0158$ & $[-0.040,+0.050]$ & $+0.050,+0.038,-0.040$\\
+\bottomrule
+\end{tabular}
+\caption{Contrastes pareados por semilla (diferencia media e IC95 bootstrap sobre 3 semillas, descriptivo).}
+\label{tab:p3c}
+\end{table}
+
+Todos los intervalos incluyen 0, así que, por la regla fijada de antemano, no se declara ventaja de ningún brazo; ni siquiera en $\acc-\lambda\cdot$tamaño, el criterio que optimiza \texttt{p3}, supera a \texttt{base}. Lo único claro es el coste: \texttt{p3} usa 4.6 veces menos entrenamientos locales (2 representantes por evaluación frente a 10) con resultados que no se distinguen, con solo 3 semillas.
+
+\textbf{¿Hubo evolución?} Sí en la población y poco en el mejor individuo (Tabla~\ref{tab:evo}; solo hijos desde la segunda generación, con $S=$ accuracy estimada $-$ tamaño). En \texttt{p3} la calidad media de los individuos nuevos sube $+0.10$ de la primera a la última generación (positiva en las 3 semillas) y en \texttt{rs} $+0.004$; la diferencia \texttt{p3}$-$\texttt{rs}, con los mismos nodos representantes en ambos brazos en cada generación, pasa de $\approx$0.02 (generación 0) a $\approx$0.12 (generación 3). \texttt{base} mejora $+0.18$ (3 de 3), casi todo en las tres primeras generaciones, y su tamaño medio baja de 0.12 a 0.06. Sin embargo, el mejor $S$ acumulado sube parecido en \texttt{p3} (0.314 a 0.414) y en \texttt{rs} (0.28 a 0.37): parte de la subida de \texttt{rs} es solo tener más muestras aleatorias. Con arquitecturas aleatorias malas en promedio (accuracy estimada de 0.14 en la generación 0), unos cientos de muestras al azar ya incluyen alguna muy buena: la evolución aumenta la proporción de buenas, pero ayuda poco a encontrar la mejor.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lccc}
+\toprule
+generación & \texttt{p3} & \texttt{rs} & \texttt{base}\\
+\midrule
+0 & 0.025 & 0.007 & 0.105\\
+1 & 0.040 & $-0.006$ & --\\
+2 & 0.146 & 0.051 & --\\
+3 & 0.127 & 0.010 & 0.306\\
+última & 0.127 & 0.010 & 0.282 (gen.\ 19)\\
+\bottomrule
+\end{tabular}
+\caption{$S$ medio de los individuos nuevos por generación (media de 3 semillas).}
+\label{tab:evo}
+\end{table}
+
 \section{Límites}
 \begin{itemize}[leftmargin=*,itemsep=2pt]
-\item Los gaps son de accuracy absoluta con modelos débiles (nodos de 90 a 350 muestras); en FEMNIST el efecto es de pocos puntos.
-\item Una sola arquitectura de medición; solo CIFAR-10 y FEMNIST; DBSCAN con un único \texttt{min\_samples}.
+\item Los gaps de transferencia son de accuracy absoluta con modelos débiles (nodos de 90 a 350 muestras); en FEMNIST el efecto es de pocos puntos.
+\item Una sola arquitectura de medición en los estudios de transferencia, un solo \texttt{min\_samples} en DBSCAN; solo CIFAR-10 y FEMNIST.
 \item Con Dirichlet la similitud funcional depende casi solo de las etiquetas. En FEMNIST el coeficiente de $\approx$1 punto sobre Hellinger es exploratorio y no identifica qué captura $\Delta$.
-\item No se midió el efecto de PCA, DBSCAN ni de la elección de clusters sobre el NAS ni sobre la accuracy final.
+\item Arquitectura $\times$ nodo: 24 arquitecturas aleatorias del espacio v2, una receta y solo FEMNIST; test por nodo muy pequeño (36 muestras); el IC bootstrap remuestrea nodos, no arquitecturas; no se identificó qué arquitecturas o nodos generan la interacción.
+\item P3: 3 semillas (intervalos de $\pm0.03$--$0.05$), un $\lambda$, 4 generaciones en \texttt{p3} y \texttt{rs}; evaluaciones casi iguales (420 y 390) pero entrenamientos locales distintos; los conjuntos finales tienen tamaños distintos (el hall of fame de \texttt{base} es su frente no dominado, de 4 a 7 modelos), lo que complica comparar hipervolúmenes; la mejora por generación se mide sobre la accuracy estimada (pocos nodos, ruidosa), no sobre test; la penalización común elimina el frente accuracy-tamaño. Como la silueta eligió $k=2$, no se probó el caso de muchos objetivos.
 \end{itemize}
 
 \end{document}
