@@ -3,7 +3,7 @@ from typing import Dict, Optional
 
 import numpy as np
 from sklearn.cluster import DBSCAN, KMeans
-from sklearn.metrics import adjusted_rand_score
+from sklearn.metrics import adjusted_rand_score, silhouette_score
 
 
 def _unit_rows(m: np.ndarray) -> np.ndarray:
@@ -26,6 +26,17 @@ def cluster_delta(delta: np.ndarray, n_clusters: int, method: str = "kmeans", se
             raise ValueError(f"average linkage produjo {len(np.unique(lab))} clusters, se pidieron {c}")
         return lab
     raise ValueError(f"método desconocido: {method}")
+
+
+def choose_k(delta: np.ndarray, k_max: int = 10, seed: int = 0):
+    """k en 2..k_max con mayor silueta coseno de k-means esférico sobre Δ (no supervisado). Devuelve (k, {k: silueta})."""
+    u = _unit_rows(delta)
+    sil = {}
+    for k in range(2, min(k_max, len(u) - 1) + 1):
+        lab = KMeans(n_clusters=k, n_init=10, random_state=seed).fit_predict(u)
+        if len(np.unique(lab)) == k:
+            sil[k] = float(silhouette_score(u, lab, metric="cosine"))
+    return max(sil, key=sil.get), sil
 
 
 def cluster_dbscan(z: np.ndarray, q: float, min_samples: int = 5):

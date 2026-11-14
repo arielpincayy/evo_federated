@@ -12,10 +12,10 @@ import torch
 
 from ..data.federated_split import build_federated_clients
 from ..evolution.cs_evaluator import ClusterSampleEvaluator
-from ..evolution.cs_nas import HV_REF, _hv, output_front, run_search
+from ..evolution.cs_nas import HV_REF, _hv, auto_partitions, generations_for_budget, n_dirs, output_front, run_search
 from ..evolution.refine import select_hof
 from ..federated.characterization import probe_deltas
-from ..federated.clustering import cluster_delta, cluster_labels_oracle, cluster_quality, cluster_random
+from ..federated.clustering import choose_k, cluster_delta, cluster_labels_oracle, cluster_quality, cluster_random
 from ..models.cnn_genome import CNNGenome, CNNSpace, cnn_to_model, max_n_params
 from ..utils.config import ExperimentConfig, save_config
 
@@ -40,28 +40,41 @@ def run_cs(cfg: ExperimentConfig, output_dir=None, log=print) -> dict:
     device, S = cfg.train.device, cfg.sampling
 
     labels, probe_trainings, quality = None, 0, {}
+    n_clusters, k_search = S.n_clusters, None
     if S.sampler == "cluster":
         probe_model = lambda: cnn_to_model(CNNGenome(2, [8, 16], 3, "relu", 0.0, True), input_shape, n_classes)
         delta = probe_deltas(clients, probe_model, cfg.probe.k_epochs, cfg.train.lr, cfg.train.optimizer, cfg.probe.seed, device)
         probe_trainings = len(ids)
-        labels = cluster_delta(delta, S.n_clusters, S.method, cfg.seed)
+        if S.k_max > 0:  # k óptimo (silueta coseno, 2..k_max); n_clusters se ignora
+            n_clusters, k_search = choose_k(delta, S.k_max, cfg.seed)
+        labels = cluster_delta(delta, n_clusters, S.method, cfg.seed)
     elif S.sampler == "label_cluster":
         labels = cluster_labels_oracle(class_dist, S.n_clusters, cfg.seed)
     elif S.sampler == "random_cluster":
         labels = cluster_random(len(ids), S.n_clusters, cfg.seed)
     if labels is not None:
-        quality = cluster_quality(labels, class_dist, cluster_labels_oracle(class_dist, S.n_clusters, cfg.seed))
-        (out / "clusters.json").write_text(json.dumps({"labels": [int(x) for x in labels], "quality": quality}, indent=1))
-        log(f"clusters: {quality}")
+        quality = cluster_quality(labels, class_dist, cluster_labels_oracle(class_dist, n_clusters, cfg.seed))
+        (out / "clusters.json").write_text(json.dumps({"labels": [int(x) for x in labels], "quality": quality, "k": int(n_clusters), "k_search": k_search}, indent=1))
+        log(f"clusters (k={n_clusters}): {quality}")
 
     ev = ClusterSampleEvaluator(
         clients, input_shape, n_classes, space, dataclasses.asdict(cfg.train),
         {**dataclasses.asdict(cfg.federated), "weight_by_cluster": S.weight_by_cluster}, param_ref,
         labels=labels, sampler=_SAMPLERS[S.sampler], n_reps=S.n_clusters, seed=cfg.seed, device=device, monitor=cfg.monitor, eval_holdout=S.eval_holdout,
-        objectives=cfg.evolution.objectives)
+        objectives=cfg.evolution.objectives, size_penalty=cfg.evolution.size_penalty)
     E = cfg.evolution
-    hist, rows = run_search(ev, space, E.pop_size, E.n_generations, E.search, E.seed, E.crossover_prob, E.crossover_eta,
-                            E.mutation_prob, E.mutation_eta, ref_partitions=E.ref_partitions, checkpoint=str(out / "search_checkpoint.pkl"), log=log)
+    k_obj = ev.n_objectives()
+    pop, ref_p, G = E.pop_size, E.ref_partitions, E.n_generations
+    if ref_p == 0:  # automático: mayor p de Das-Dennis con <= pop_size direcciones; la población (y la búsqueda aleatoria) usa ese nº
+        ref_p = auto_partitions(k_obj, E.pop_size)
+        pop = n_dirs(k_obj, ref_p)
+    elif E.search == "nsga3":
+        pop = n_dirs(k_obj, ref_p)
+    if E.eval_budget > 0:
+        G = generations_for_budget(E.eval_budget, pop)
+    log(f"objetivos={k_obj} población={pop} generaciones={G} ref_partitions={ref_p} size_penalty={E.size_penalty}")
+    hist, rows = run_search(ev, space, pop, G, E.search, E.seed, E.crossover_prob, E.crossover_eta,
+                            E.mutation_prob, E.mutation_eta, ref_partitions=ref_p, checkpoint=str(out / "search_checkpoint.pkl"), log=log)
     pd.DataFrame(hist).to_csv(out / "population.csv", index=False)
     pd.DataFrame(rows).to_csv(out / "generation_metrics.csv", index=False)
 
@@ -98,6 +111,7 @@ def run_cs(cfg: ExperimentConfig, output_dir=None, log=print) -> dict:
             log(f"final {k + 1}/{len(roles)}")
         pd.DataFrame(frows).to_csv(out / "final_front.csv", index=False)
         pd.DataFrame(nrows).to_csv(out / "final_nodes.csv", index=False)
+        hv_test = _hv(np.array([[-r["test_acc_mean"], r["n_params_norm"]] for r in frows if "hof" in r["roles"].split("|")]))
     elif cfg.final.enabled:
         front = {r["genome"]: r for r in sorted(output_front(hist), key=lambda r: -r["acc_rep"])}  # dedup por genoma
         front = list(front.values())[: cfg.final.max_front]
@@ -117,7 +131,7 @@ def run_cs(cfg: ExperimentConfig, output_dir=None, log=print) -> dict:
     cost = {"probe_local_trainings": probe_trainings, "search_local_trainings": ev.n_local_trainings,
             "search_evals": ev.n_evals, "monitor_node_evals": ev.n_monitor_node_evals,
             "final_local_trainings": final_trainings, "elapsed_sec": time.time() - t_start,
-            "n_clients": len(ids), "n_reps_per_eval": len(ev.representatives(0)[0]), "eval_fallback_gen0": int(sum(e == r for e, r in zip(ev.assignment(0)[1], ev.assignment(0)[0]))), "hv_ref": HV_REF.tolist(),
+            "n_clients": len(ids), "k": int(n_clusters), "pop_size": int(pop), "n_generations": int(G), "ref_partitions": int(ref_p), "size_penalty": E.size_penalty, "n_reps_per_eval": len(ev.representatives(0)[0]), "eval_fallback_gen0": int(sum(e == r for e, r in zip(ev.assignment(0)[1], ev.assignment(0)[0]))), "hv_ref": HV_REF.tolist(),
             "hv_test_front": hv_test, "objective_node_evals": ev.n_objective_node_evals, "cluster_quality": quality}
     (out / "cost.json").write_text(json.dumps(cost, indent=1))
     return cost

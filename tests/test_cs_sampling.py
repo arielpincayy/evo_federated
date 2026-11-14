@@ -183,3 +183,28 @@ def test_search_checkpoint_resumes_and_matches_an_uninterrupted_run(toy, tmp_pat
     assert hist2[: len(hist1)] == hist1 and len(rows2) == 3
     assert [h["genome"] for h in hist2] == [h["genome"] for h in hist0]  # misma trayectoria que sin interrupción
     assert ev2.n_evals == len(hist2) and ev2.n_local_trainings == 3 * FED["rounds"] * len(hist2)
+
+
+def test_size_penalty_is_applied_to_obj_acc_only_and_rejected_for_mean_params(toy):
+    import json
+    import pytest
+    clients, groups = toy
+    ref = max_n_params(SPACE, SHAPE, N_CLASSES)
+    ev = ClusterSampleEvaluator(clients, SHAPE, N_CLASSES, SPACE, TRAIN, FED, ref, labels=groups, sampler="cluster", seed=3, monitor=False,
+                                objectives="per_node", size_penalty=0.7)
+    X = np.random.RandomState(0).rand(2, SPACE.n_var)
+    F = ev.evaluate_population(X, 0)
+    for r, f in zip(ev.history, F):
+        raw, pen = np.array(json.loads(r["obj_raw"])), np.array(json.loads(r["obj_acc"]))
+        assert np.allclose(raw - pen, 0.7 * r["n_params_norm"]) and np.allclose(f, -pen)
+        assert abs(r["acc_rep"] - float(np.dot(raw, [1 / 3] * 3))) < 1e-9  # acc_rep sin penalizar
+    with pytest.raises(AssertionError):
+        ClusterSampleEvaluator(clients, SHAPE, N_CLASSES, SPACE, TRAIN, FED, ref, labels=groups, objectives="mean_params", size_penalty=0.5)
+
+
+def test_auto_partitions_and_budget_generations():
+    from evofederated.evolution.cs_nas import auto_partitions, generations_for_budget, n_dirs
+    assert (auto_partitions(10, 60), n_dirs(10, 2)) == (2, 55)
+    assert (auto_partitions(5, 60), n_dirs(5, 3)) == (3, 35)
+    assert (auto_partitions(2, 60), n_dirs(2, 59)) == (59, 60)
+    assert generations_for_budget(390, 55) == 4 and generations_for_budget(390, 10) == 20 and generations_for_budget(10, 55) == 1

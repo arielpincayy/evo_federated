@@ -58,6 +58,7 @@ class ClusterSampleEvaluator:
         monitor: bool = True,
         eval_holdout: bool = True,
         objectives: str = "mean_params",  # mean_params | per_node | per_cluster_mean
+        size_penalty: float = 0.0,  # solo modos por cluster: obj_c = acc_c - size_penalty * n_params/param_ref
     ):
         self.clients = clients
         self.ids = sorted(clients)
@@ -76,7 +77,8 @@ class ClusterSampleEvaluator:
             raise ValueError(f"objectives desconocido: {objectives}")
         if objectives == "per_cluster_mean":
             assert sampler == "cluster", "per_cluster_mean requiere sampler=cluster"
-        self.objectives = objectives
+        assert objectives != "mean_params" or size_penalty == 0, "size_penalty solo aplica a los modos por cluster (en mean_params el tamaño ya es un objetivo)"
+        self.objectives, self.size_penalty = objectives, float(size_penalty)
         self.n_objective_node_evals = 0
         self.history: List[dict] = []
         self.n_evals = 0
@@ -168,9 +170,12 @@ class ClusterSampleEvaluator:
                 obj = self._cluster_mean_acc(fed["model"], reps)
             acc = float(sum(wi * oi for oi, wi in zip(obj, w)))
             npar = n_params(fed["model"])
+            obj_raw = list(obj)
+            if self.size_penalty:  # obj_acc = vector que optimiza la búsqueda (penalizado); acc_rep y obj_raw quedan sin penalizar
+                obj = [o - self.size_penalty * npar / self.param_ref for o in obj]
             rec = {"generation": int(generation), "individual_idx": i, "genome": json.dumps(g.to_dict()),
                    "vector": json.dumps([float(x) for x in vec]),
-                   "acc_rep": acc, "obj_acc": json.dumps(obj), "n_params": npar, "n_params_norm": npar / self.param_ref,
+                   "acc_rep": acc, "obj_acc": json.dumps(obj), "obj_raw": json.dumps(obj_raw), "n_params": npar, "n_params_norm": npar / self.param_ref,
                    "reps": json.dumps(reps), "eval_nodes": json.dumps(evals),
                    "n_eval_fallback": int(sum(e == r for e, r in zip(evals, reps))), "n_local_trainings": int(fed["n_local_trainings"])}
             if self.monitor:  # solo reporte: mismo modelo, todos los nodos (inferencia), jamás entra al fitness

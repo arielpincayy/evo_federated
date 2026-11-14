@@ -46,3 +46,11 @@ def test_dbscan_on_random_data_still_assigns_every_node():
     from evofederated.federated.clustering import cluster_dbscan
     lab, n_noise = cluster_dbscan(np.random.RandomState(0).randn(30, 200), q=0.5, min_samples=5)
     assert len(lab) == 30 and lab.min() == 0 and set(lab) == set(range(lab.max() + 1)) and n_noise > 0
+
+
+def test_choose_k_recovers_known_number_of_groups_and_respects_k_max():
+    from evofederated.federated.clustering import choose_k
+    d, _ = _deltas()
+    k, sil = choose_k(d, k_max=8, seed=0)
+    assert k == 3 and max(sil, key=sil.get) == 3 and set(sil) <= set(range(2, 9))
+    assert choose_k(d, k_max=2, seed=0)[0] == 2

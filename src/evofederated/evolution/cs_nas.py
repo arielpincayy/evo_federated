@@ -9,6 +9,7 @@ Registra por generación: HV, error del estimador (rep vs todos los nodos), éxi
 import json
 import os
 import pickle
+from math import comb
 
 import cloudpickle  # los algoritmos de pymoo no se serializan con pickle estándar
 import numpy as np
@@ -24,6 +25,23 @@ from pymoo.util.ref_dirs import get_reference_directions
 from scipy.stats import kendalltau
 
 HV_REF = np.array([0.0, 1.05])  # (-acc, n_params/n_params_max): peor que cualquier solución
+
+
+def auto_partitions(k: int, max_dirs: int) -> int:
+    """Mayor nº de particiones p de Das-Dennis con C(k+p-1, p) <= max_dirs (al menos 1)."""
+    p = 1
+    while comb(k + p, p + 1) <= max_dirs:
+        p += 1
+    return p
+
+
+def n_dirs(k: int, p: int) -> int:
+    return comb(k + p - 1, p)
+
+
+def generations_for_budget(budget: int, pop: int) -> int:
+    """Generaciones G con pop + (G-1)*2*pop ~ budget evaluaciones (padres + hijos se reevalúan desde la 2ª generación)."""
+    return max(1, round(1 + (budget - pop) / (2 * pop)))
 
 
 def _nd(F: np.ndarray) -> np.ndarray:
