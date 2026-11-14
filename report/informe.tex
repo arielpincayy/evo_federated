@@ -1,0 +1,151 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{lmodern,microtype,booktabs,xcolor,hyperref,amsmath,enumitem}
+\hypersetup{colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black}
+\setlength{\emergencystretch}{4em}
+\newcommand{\acc}{\mathrm{acc}}
+
+\title{Validación de los clusters por $\Delta$:\\ PCA, transferencia entre nodos, FEMNIST y DBSCAN}
+\author{Proyecto EvoFederated}
+\date{13 de noviembre de 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent Se valida la agrupación de nodos federados por similitud de las actualizaciones $\Delta$ de un modelo sonda (k-means esférico, $C=10$, $N=100$ nodos) con cuatro estudios que no entrenan arquitecturas del NAS. \textbf{(1)} Aplicar PCA antes del clustering es igual o peor que usar $\Delta$ crudo; la pérdida viene de centrar, no de reducir dimensiones. \textbf{(2)} En CIFAR-10 con Dirichlet, un modelo entrenado en un nodo rinde entre 10 y 35 puntos de accuracy más en nodos de su cluster que en otros (10 de 10 semillas significativas en los tres $\alpha$); $\Delta$ recupera entre el 76\,\% y el 89\,\% de la ganancia de una agrupación con etiquetas. \textbf{(3)} En FEMNIST, con partición natural por escritor, el efecto es pequeño pero real (3.3 puntos, 20 de 20 semillas) y $\Delta$ iguala a la agrupación con etiquetas; de forma exploratoria, $\Delta$ conserva una señal de $\approx$1 punto al controlar por la distribución de etiquetas. \textbf{(4)} Agrupar por \texttt{hsf\_id} transfiere casi tan bien como $\Delta$ pero son agrupaciones distintas, y DBSCAN, con o sin PCA, no mejora a k-means: encuentra 2--6 clusters grandes con 17--43\,\% de ruido. Los puntos (3) exploratorio y (4) son post hoc.
+\end{abstract}
+
+\section{Motivación y medidas}
+Hasta ahora la calidad de los clusters se medía con $\eta^2$ y ARI, que dependen de la distribución de etiquetas y son un sustituto de lo que importa: que un representante hable por su cluster. Aquí se usan dos medidas.
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+\item \textbf{$\eta^2$ y ARI.} $\eta^2$ es la fracción de la varianza de la distribución de clases entre nodos explicada por los clusters (0 a 1). El ARI mide el acuerdo con el oráculo, que agrupa con k-means sobre la distribución de clases real (información no privada, solo referencia).
+\item \textbf{Transferencia.} $A[s,j]$ es la accuracy en el conjunto de validación del nodo $j$ de un modelo entrenado solo en el nodo $s$ (arquitectura distinta de la sonda, misma inicialización para todas las fuentes). La ganancia es
+\[
+\mathrm{gap}=\frac1N\sum_s\Bigl(\overline{A[s,j\in c(s),j\neq s]}-\overline{A[s,j\notin c(s)]}\Bigr).
+\]
+Por semilla se obtiene un $p$ por permutación de las etiquetas de cluster (10\,000, tamaños conservados); entre semillas se usa Wilcoxon pareado con corrección de Holm e intervalos bootstrap.
+\end{itemize}
+Las hipótesis, el estadístico y los criterios de decisión de los estudios de transferencia se escribieron antes de correr (\texttt{docs/TRANSFER\_DESIGN.md}). Los análisis marcados como exploratorios no estaban en ese preregistro.
+
+\section{PCA frente a $\Delta$ crudo}
+CIFAR-10, 30 semillas por celda, solo calidad de clusters. La Tabla~\ref{tab:pca} resume $\eta^2$ y ARI con el oráculo.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{llccccc}
+\toprule
+$\alpha$ & métrica & crudo & centrado & PCA 95\,\% & PCA 80\,\% & PCA $k{=}5$\\
+\midrule
+0.1 & $\eta^2$ & \textbf{0.696} & 0.510 & 0.520 & 0.518 & 0.395\\
+0.1 & ARI oráculo & \textbf{0.609} & 0.307 & 0.316 & 0.320 & 0.229\\
+0.5 & $\eta^2$ & 0.468 & 0.447 & 0.450 & 0.452 & 0.410\\
+0.5 & ARI oráculo & 0.311 & 0.287 & 0.292 & 0.289 & 0.231\\
+1.0 & $\eta^2$ & 0.424 & 0.404 & 0.413 & 0.418 & 0.381\\
+1.0 & ARI oráculo & 0.252 & 0.232 & 0.240 & 0.248 & 0.212\\
+\bottomrule
+\end{tabular}
+\caption{PCA antes del clustering (media de 30 semillas). ``Centrado'' resta la media sin reducir dimensiones.}
+\label{tab:pca}
+\end{table}
+
+Con heterogeneidad fuerte ($\alpha=0.1$) el crudo gana por mucho (brecha de 0.19 en $\eta^2$); con $\alpha=0.5$ y $1.0$ la diferencia es de 0.01 a 0.03, sin prueba pareada. ``Centrado sin reducir'' rinde igual que el PCA, así que la pérdida viene del centrado; reducir demasiado ($k=5$) empeora siempre. Por qué el centrado perjudica no está comprobado.
+
+\section{Transferencia entre nodos: CIFAR-10 con Dirichlet}
+Diez semillas por $\alpha$, cinco épocas por fuente, $N=100$, $C=10$. El gap de una agrupación aleatoria es cero por construcción (Tabla~\ref{tab:tr}).
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{cccccc}
+\toprule
+$\alpha$ & acc.\ media & gap $\Delta$ (IC95\,\%) & gap oráculo & $\Delta$/oráculo & Holm-$p$\\
+\midrule
+0.1 & 0.134 & \textbf{0.348} (0.335--0.362) & 0.394 & 0.89 & 0.003\\
+0.5 & 0.170 & \textbf{0.166} (0.152--0.179) & 0.210 & 0.81 & 0.003\\
+1.0 & 0.182 & \textbf{0.100} (0.092--0.106) & 0.133 & 0.76 & 0.003\\
+\bottomrule
+\end{tabular}
+\caption{Transferencia en CIFAR-10. En los tres $\alpha$ las 10 semillas tienen $p<0.05$ por permutación; $\Delta$/oráculo es la mediana entre semillas.}
+\label{tab:tr}
+\end{table}
+
+La hipótesis H1 se apoya en los tres $\alpha$. Holm-$p=0.003$ es el mínimo alcanzable con 10 semillas (todas en la misma dirección). El gap mide sobre todo el solapamiento de clases entre nodos: con Dirichlet, la similitud funcional depende casi solo de las etiquetas. De forma exploratoria, el coeficiente de ``mismo cluster'' en la regresión $A\sim\text{mismo cluster}+d_{\text{Hellinger}}$ es 0.077, 0.075 y 0.048.
+
+\section{Réplica en FEMNIST (partición natural)}
+Cada cliente es un escritor, sin Dirichlet: 100 escritores por semilla (con al menos 100 muestras), 20 semillas, mediana de 38 de 62 clases por nodo (clase dominante 9\,\%) y 92 muestras de entrenamiento. Con 5 épocas los modelos quedaban casi en azar, así que se fijaron \textbf{50 épocas} con una semilla fuera del estudio, según la accuracy en el propio nodo (5 épocas: 6.6\,\%; 20: 7.9\,\%; 50: 17.3\,\%; azar: 1.6\,\%) y no según el gap.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{ccccc}
+\toprule
+gap $\Delta$ (IC95\,\%) & gap oráculo & gap aleatorio & semillas $p<0.05$ & Wilcoxon $\Delta$ vs azar\\
+\midrule
+\textbf{0.033} (0.030--0.035) & 0.030 & 0.0002 & 20/20 & $9.5\times10^{-7}$\\
+\bottomrule
+\end{tabular}
+\caption{Transferencia en FEMNIST (accuracy media 0.097).}
+\end{table}
+
+$\Delta$ supera al oráculo en 16 de 20 semillas (diferencia media $+0.0026$). El efecto es pequeño porque cada nodo tiene pocas muestras y 62 clases. \textbf{Exploratorio:} al controlar por la distancia de Hellinger entre etiquetas, el coeficiente de ``mismo cluster'' es 0.0101 (IC95 bootstrap 0.0046--0.0152; positivo en 16/20 semillas; Wilcoxon $p=0.0018$), es decir, $\Delta$ agrupa nodos funcionalmente parecidos más de lo que explican sus etiquetas. Es un modelo lineal sobre una relación que no lo es, por lo que puede quedar confusión residual.
+
+\section{\texttt{hsf\_id} frente a $\Delta$ en FEMNIST (exploratorio)}
+El \texttt{hsf\_id} es la serie de formularios NIST; cada escritor pertenece a una de 7. Se reutilizan las mismas matrices $A$ (Tabla~\ref{tab:hsf}).
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcc}
+\toprule
+agrupación & gap (IC95\,\%) & semillas $p<0.05$\\
+\midrule
+\texttt{hsf\_id} (7 grupos) & 0.0307 (0.0288--0.0325) & 20/20\\
+$\Delta$, $C=10$ & 0.0327 (0.0301--0.0354) & 20/20\\
+$\Delta$, $C=7$ & \textbf{0.0348} (0.0319--0.0375) & 20/20\\
+\bottomrule
+\end{tabular}
+\caption{Agrupar por \texttt{hsf\_id} frente a $\Delta$.}
+\label{tab:hsf}
+\end{table}
+
+Con $C=7$, $\Delta$ supera a hsf en 16 de 20 semillas (Wilcoxon bilateral $p=0.0002$); con $C=10$, en 11 de 20 ($p=0.076$). El ARI entre $\Delta$ y hsf es 0.14 ($C=10$) y 0.17 ($C=7$): son agrupaciones distintas. En la regresión conjunta $A\sim\text{mismo}_\Delta+\text{mismo}_{\text{hsf}}+d_{\text{Hellinger}}$, los coeficientes son 0.0100 (0.0045--0.0150) para $\Delta$ y 0.0059 (0.0051--0.0068) para hsf. Los tamaños de cluster desiguales de $\Delta$ frente a los grupos hsf, parecidos entre sí, no se controlaron.
+
+\section{DBSCAN, con y sin PCA (exploratorio)}
+Mismas matrices $A$, sin reentrenar (CIFAR-10: 3 $\alpha\times$10 semillas; FEMNIST: 20 semillas). Se usan $\Delta$ crudo, PCA 95\,\% y PCA 80\,\%; DBSCAN con distancia coseno, \texttt{min\_samples}$=5$ y $\varepsilon$ igual al cuantil $q\in\{0.3,0.5,0.7,0.9\}$ de la distancia al quinto vecino. La variante principal es la de mayor silueta (criterio no supervisado); el ruido se asigna al centroide más cercano. La comparación justa es con k-means del \emph{mismo} $k$ y misma representación, porque el gap depende de $k$. La reconstrucción de $\Delta$ reproduce los clusters guardados (ARI $=1$).
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{llcrrrrrr}
+\toprule
+datos & $\alpha$ & repr. & válidas & $k$ & ruido & gap DBSCAN & gap k-means & Holm-$p$\\
+\midrule
+CIFAR-10 & 0.1 & crudo & 10 & 5.7 & 25\,\% & 0.217 & 0.237 & 0.54\\
+CIFAR-10 & 0.1 & PCA 95 & 10 & 2.5 & 40\,\% & 0.054 & 0.033 & 0.041\\
+CIFAR-10 & 0.1 & PCA 80 & 10 & 3.4 & 38\,\% & 0.088 & 0.069 & 0.26\\
+CIFAR-10 & 0.5 & crudo & 5 & 2.6 & 25\,\% & 0.054 & 0.072 & --\\
+CIFAR-10 & 0.5 & PCA 95 & 7 & 3.0 & 17\,\% & 0.050 & 0.081 & 0.063\\
+CIFAR-10 & 0.5 & PCA 80 & 9 & 2.8 & 20\,\% & 0.049 & 0.076 & 0.016\\
+CIFAR-10 & 1.0 & crudo & 4 & 2.8 & 23\,\% & 0.031 & 0.047 & --\\
+CIFAR-10 & 1.0 & PCA 95 & 9 & 2.3 & 18\,\% & 0.024 & 0.043 & 0.016\\
+CIFAR-10 & 1.0 & PCA 80 & 8 & 2.6 & 17\,\% & 0.025 & 0.042 & 0.023\\
+FEMNIST & natural & crudo & 20 & 2.05 & 34\,\% & 0.0555 & 0.0551 & 0.54\\
+FEMNIST & natural & PCA 95 & 20 & 2.05 & 30\,\% & 0.0553 & 0.0553 & 0.97\\
+FEMNIST & natural & PCA 80 & 20 & 2.0 & 29\,\% & 0.0552 & 0.0548 & 0.65\\
+\bottomrule
+\end{tabular}
+\caption{DBSCAN (variante de mayor silueta) frente a k-means con el mismo $k$. ``Válidas'': semillas con al menos una variante no degenerada (de 10 en CIFAR-10 y 20 en FEMNIST). Holm sobre las 4 celdas de cada representación; ``--'': muy pocas semillas válidas para el test.}
+\label{tab:db}
+\end{table}
+
+DBSCAN encuentra pocos clusters (2.3 a 5.7 en CIFAR-10, 2.0 en FEMNIST) con 17--43\,\% de ruido, y con $q$ alto todo se fusiona en un solo cluster: entre el 48\,\% y el 90\,\% de las corridas (semilla $\times\,q$) de CIFAR-10 son degeneradas. Frente a k-means del mismo $k$, DBSCAN empata (CIFAR-10 con $\alpha=0.1$ crudo; FEMNIST) o pierde (CIFAR-10 con $\alpha=0.5$ y $1.0$ con PCA, Holm-$p$ 0.016--0.023); la única celda a su favor es CIFAR-10 con $\alpha=0.1$ y PCA 95\,\% ($p=0.041$), con gaps muy bajos. Frente a k-means con $C=10$ los contrastes salen significativos pero no son interpretables, porque $k$ difiere (en CIFAR-10 DBSCAN pierde; en FEMNIST, con $k=2$, el gap es 0.055 frente a 0.033). Para un NAS con unos 10 representantes, DBSCAN da 2--6 clusters grandes, lo que implica mayor varianza del estimador; no se integra como método de muestreo.
+
+\section{Límites}
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+\item Los gaps son de accuracy absoluta con modelos débiles (nodos de 90 a 350 muestras); en FEMNIST el efecto es de pocos puntos.
+\item Una sola arquitectura de medición; solo CIFAR-10 y FEMNIST; DBSCAN con un único \texttt{min\_samples}.
+\item Con Dirichlet la similitud funcional depende casi solo de las etiquetas. En FEMNIST el coeficiente de $\approx$1 punto sobre Hellinger es exploratorio y no identifica qué captura $\Delta$.
+\item No se midió el efecto de PCA, DBSCAN ni de la elección de clusters sobre el NAS ni sobre la accuracy final.
+\end{itemize}
+
+\end{document}
