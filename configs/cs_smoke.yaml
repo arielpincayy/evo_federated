@@ -4,7 +4,7 @@ output_dir: runs/cs_smoke
 seed: 42
 dataset: {name: fashion-mnist, n_clients: 30, alpha: 0.5, val_ratio: 0.3, min_samples_per_client: 20}
 train: {batch_size: 32, device: cpu}
-space: {max_blocks: 2, channels: [8, 16], kernels: [3], activations: [relu]}
+space: {max_blocks: 2, channels: [8, 16], kernels: [3], activations: [relu], max_fc: 1, fc_widths: [16, 32], pool: 2}
 sampling: {sampler: cluster, n_clusters: 5, method: kmeans}
 federated: {rounds: 1, local_epochs: 1}
 evolution: {search: nsga2, pop_size: 4, n_generations: 3}

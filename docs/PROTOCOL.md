@@ -70,3 +70,17 @@ análisis estadístico agregado entre corridas.
 
 ## FEMNIST (partición natural)
 Cliente = escritor, sin Dirichlet. Cada escritor tiene split local train/val/test; no hay test oficial particionado como en CIFAR-10/Fashion-MNIST. Ver `docs/TRANSFER_DESIGN.md`.
+
+## Espacio de arquitecturas v2 (genoma CNN con slots y capas FC)
+Cambio de semántica del experimento, documentado antes de implementarlo.
+- **Vector (todo en [0,1]):** `[conv_1..conv_B, fc_1..fc_F, kernel, activation, dropout, use_bn]`, `n_var = B + F + 4` (B = `max_blocks`, F = `max_fc`).
+  Desaparece el gen `n_blocks`: la profundidad sale de los slots `conv_i`.
+- **Slots:** `conv_1` siempre activo. `conv_i` (i >= 2) y `fc_j` están apagados si `v < off_threshold` (0.25); si no, `pick((v - t)/(1 - t), n)` sobre
+  `channels` / `fc_widths`. Los slots apagados se saltan (la lista se compacta). Kernel y activación son compartidos por todos los bloques.
+- **Red:** `[Conv -> BN? -> act -> MaxPool] x bloques -> AdaptiveAvgPool2d(pool) -> Flatten -> [Dropout -> Linear(w) -> act] x fc -> Dropout -> Linear(clases)`.
+  Con `fc = []` y `pool = 1` es idéntica a la red anterior (la sonda no cambia: 1610 parámetros, mismos Δ y clusters).
+- **Configuración:** `space.max_fc` (0 = sin FC), `space.fc_widths`, `space.pool` (1 = pooling global; 2 = entrada FC de 4·ch), `space.off_threshold`.
+  `off_threshold = 0.25` y `pool = 2` son elecciones propias, no derivadas de un experimento.
+- **`max_n_params`** incluye las FC: cambia la normalización del 2º objetivo (parámetros). Los resultados con este espacio **no son comparables** con E3/E5
+  (que usaron el vector v1; ese código sigue en la rama `experiment/cluster-sampling-nas`). `cs_e3`, `cs_e5`, `cs_fmnist` y `cs_e5_smoke` ya no reproducen E3/E5 exactamente.
+- **Redundancia aceptada:** `(16, off, 32)` y `(16, 32, off)` dan la misma red con genotipos distintos.

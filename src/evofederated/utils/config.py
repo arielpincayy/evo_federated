@@ -44,6 +44,10 @@ class SpaceConfig:
     activations: tuple = ("relu", "elu")
     max_dropout: float = 0.5
     use_batchnorm: bool = True
+    max_fc: int = 0
+    fc_widths: tuple = (32, 64, 128, 256)
+    pool: int = 1
+    off_threshold: float = 0.25
 
 
 @dataclasses.dataclass
@@ -56,6 +60,7 @@ class ProbeConfig:
 class SamplingConfig:
     sampler: str = "cluster"  # cluster | label_cluster | random_cluster | random | full
     n_clusters: int = 10  # C = nº de representantes por evaluación
+    k_max: int = 0  # >0: ignora n_clusters y elige k en 2..k_max por silueta coseno sobre Δ (sampler=cluster)
     method: str = "kmeans"  # kmeans | average
     weight_by_cluster: bool = True  # FedAvg ponderado por tamaño de cluster
     eval_holdout: bool = True  # evaluar en otro nodo del cluster que no entrenó (inferencia)
@@ -71,7 +76,9 @@ class FederatedConfig:
 class EvolutionConfig:
     search: str = "nsga2"  # nsga2 | nsga3 | random
     objectives: str = "mean_params"  # mean_params (acc media, parámetros) | per_node (un objetivo por cluster) | per_cluster_mean
-    ref_partitions: int = 2  # nsga3: particiones de Das-Dennis (nº de direcciones = población)
+    ref_partitions: int = 2  # nsga3: particiones de Das-Dennis (nº de direcciones = población); 0 = automático (mayor p con <= pop_size direcciones)
+    size_penalty: float = 0.0  # lambda: en los modos por cluster, obj_c = acc_c - lambda * n_params/param_ref (en mean_params debe ser 0)
+    eval_budget: int = 0  # >0: nº de generaciones tal que (pop + (G-1)*2*pop) ~ eval_budget evaluaciones
     pop_size: int = 12
     n_generations: int = 10
     crossover_prob: float = 0.9
