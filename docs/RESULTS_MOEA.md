@@ -47,15 +47,70 @@ Frente al v1 A: `nsga3` +0.040 en las semillas 0–4 (0.539 → 0.579) y `rs` �
 
 **Decisión preregistrada (10 semillas): mejora la población, sin ventaja demostrada en el frente final.** La réplica por separado no cumple su criterio (≥ 4 de 5 semillas a favor con media > 0 en la primaria: 3/5 y −0.004).
 
+## 4. Diagnóstico del cuello de botella (pasos A, B y C)
+El v2 optimiza el proxy pero el hipervolumen reentrenado no se distingue de la aleatoria. Preregistrado en `docs/MOEA_DESIGN.md`: A y B reusan datos (`analyze_proxy_gap.py`, `analyze_fidelity.py`, `run_noise_audit.py --reps_per_cluster`); C no hace nueva búsqueda (`run_rerank.py`).
+
+**A: calidad de selección del proxy de 1 representante** (24 arquitecturas, 3 federaciones; accuracy real: mejor 0.56–0.59, mediana 0.24–0.26, peor ≈0.05; el azar daría recall@k ≈ k/24):
+| | E1: un nodo retenido (v1) | E3: todos los miembros (v2) |
+|---|---|---|
+| τ | 0.734 | 0.788 |
+| **τ en la mitad superior real** | 0.361 | **0.496** |
+| recall@3 / @6 / @8 | 0.42 / 0.66 / 0.80 | 0.53 / 0.71 / 0.83 |
+| arrepentimiento si eliges la mejor por proxy | 6.9 pp | 3.4 pp |
+| arrepentimiento con las 3 / 6 mejores por proxy reentrenadas | 2.4 / 0.5 pp | 0.14 / 0.0 pp |
+El proxy ordena bien en conjunto pero mal entre las buenas. Sesgo (proxy − real): −8.2 pp de media (E3), más negativo con BatchNorm (Spearman −0.82), más bloques (−0.67), ELU (−0.52) y más parámetros (−0.56); dropout +0.47. Es decir, penaliza los rasgos de las arquitecturas que ganan de verdad (la mejor, la 18: BatchNorm, ELU, 3 bloques, 69 mil parámetros). Solo 24 arquitecturas con rasgos correlacionados: no se separa cuál causa el sesgo.
+
+**B: fidelidad frente a representantes por cluster** (r representantes al azar por cluster, peso `|G_c|/(r·N)` cada uno; 6 sorteos por (federación, r), 10 para r=1):
+| r | coste | ruido | τ | τ mitad superior | recall@3 | arrepentimiento @1 | sesgo medio | ρ(sesgo, BatchNorm) |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 1× | 0.036 | 0.788 | 0.50 | 0.53 | 3.4 pp | −8.2 pp | −0.82 |
+| 2 | 2× | 0.031 | 0.853 | 0.75 | 0.76 | 0.4 pp | −4.4 pp | −0.69 |
+| 4 | 4× | 0.023 | 0.892 | 0.87 | 0.85 | 0.9 pp | −2.0 pp | −0.66 |
+| 8 | 8× | 0.016 | 0.913 | 0.91 | 0.96 | 0.2 pp | −0.9 pp | −0.46 |
+τ de un sorteo frente a r=1 (IC95 bootstrap pareado): r=2 **+0.064 [+0.009, +0.137]**, r=4 **+0.104 [+0.032, +0.210]**, r=8 +0.124 [+0.048, +0.238]: la regla preregistrada (≥ +0.05 con IC > 0 para r ≤ 4) se cumple. El nivel del sesgo baja con r, pero su relación con BatchNorm y profundidad solo se debilita de verdad con r=4–8.
+
+**C: ¿el archivo del MOEA contiene mejores candidatos?** De cada uno de los 20 archivos del v2 se reentrenan 24 candidatos (`select_hof`, K=24; los 12 ya reentrenados se reutilizan) con los 100 nodos:
+| | `nsga3` | `rs` |
+|---|---|---|
+| hipervolumen con los 12 originales | 0.574 | 0.557 |
+| hipervolumen con los 24 reentrenados | 0.577 | 0.568 |
+| puntos del frente de la unión de ambos brazos (media; por semilla de 7 a 15 frente a 1 a 9) | 11.7 | 4.5 |
+`nsga3 − rs` con 24: +0.009 [−0.013, +0.031], p unilateral 0.25, 7/10 semillas (+0.068, +0.042, +0.020, +0.039, −0.041, +0.002, +0.010, +0.027, −0.023, −0.050). Reentrenar 24 en lugar de 12 ayuda más a `rs` (+0.011) que a `nsga3` (+0.003). El hipervolumen de la unión (media 0.591) supera a `nsga3` en ≈0.014 y a `rs` en ≈0.023: el margen disponible es pequeño. El porcentaje del frente de la unión es descriptivo, no preregistrado.
+
+**Lectura preregistrada:** C no distingue los brazos y A/B muestran un proxy sesgado y poco fiable entre las buenas que mejora con más representantes → el límite es la fidelidad del proxy; se prueba el MOEA con r > 1 a igual coste (v3, `docs/MOEA_DESIGN.md`, `configs/cs_moea3.yaml`).
+
+## 5. v3: 2 representantes por cluster a igual coste de entrenamiento
+Diseño en `docs/MOEA_DESIGN.md` (sección "MOEA v3") y `configs/cs_moea3.yaml`: como el v2 pero con `reps_per_cluster=2` (4 nodos entrenan por evaluación, peso `|G_c|/(r·N)` cada uno), **994 evaluaciones** (los mismos ≈79 500 entrenamientos locales que el v2) y población 15 (≈66 generaciones); `nsga3` y `rs`, semillas 0–9, 20 corridas.
+
+`nsga3 − rs` (10 semillas; diferencia media, IC95 bootstrap, semillas a favor, p unilateral de Wilcoxon):
+| métrica | v3 (r=2, ≈1 000 evaluaciones) |
+|---|---|
+| **hipervolumen reentrenado (primaria)** | +0.005 [−0.010, +0.020], 5/10, p 0.28 |
+| convergencia del archivo | +0.022 [+0.010, +0.034], 9/10, p 0.005 |
+| pendiente de la población | +0.0004 [+0.0002, +0.0006], 9/10, p 0.003 |
+| mejora de la población (últimas 5 gen. − g0) | +0.083 [+0.053, +0.117], **10/10**, p 0.001 |
+Hipervolumen reentrenado medio: 0.582 (`nsga3`) y 0.577 (`rs`); mejor accuracy en test 0.582 y 0.585; tamaño del frente 8.9 en ambos; ≈70 aciertos de caché por corrida de `nsga3`. Decisión preregistrada: **mejora la población, sin ventaja demostrada en el frente final.**
+
+**Fidelidad frente a cantidad (v3 − v2 a igual coste de entrenamiento; descriptivo, Wilcoxon bilateral):**
+| | v2 (r=1, 1 988 evaluaciones) | v3 (r=2, ≈1 000) | cambio (IC95), semillas a favor |
+|---|---|---|---|
+| `nsga3`, hipervolumen reentrenado | 0.574 | 0.582 | +0.009 [−0.006, +0.021], p 0.16, 8/10 |
+| `rs`, hipervolumen reentrenado | 0.557 | 0.577 | +0.021 [+0.002, +0.040], p 0.13, 7/10 |
+| `nsga3`, Kendall τ estimado-test en el hall of fame | 0.794 | 0.788 | −0.006 [−0.070, +0.064], p 0.82 |
+| `rs`, Kendall τ estimado-test en el hall of fame | 0.730 | 0.794 | +0.064 [+0.006, +0.140], p 0.08 |
+Mejor evaluar bien que evaluar mucho, pero poco: ambos brazos suben, más la aleatoria, y ningún contraste bilateral llega a 0.05. La ventaja relativa del MOEA en el frente final no aumenta con el proxy más fiable (+0.005 frente a +0.017 del v2).
+
 ## Conclusiones
 1. El MOEA v2 **optimiza lo que se le pide**: el archivo y la población mejoran frente a la aleatoria en 9 de 10 semillas (p = 0.002), y se replica en ambas mitades.
 2. **No se demuestra una ventaja en el frente final reentrenado**: +0.038 en las 5 primeras semillas se redujo a −0.004 en la réplica (regresión a la media); sobre las 10 semillas es +0.017 con IC que incluye el 0.
 3. Las correcciones del v2 (no reevaluar, sin duplicados, score en todos los miembros) cambiaron el resultado del v1 de "peor que la aleatoria" a "no distinguible o ligeramente mejor", y explicaron por qué el v1 perdía (exploración y ruido); no se separa cuál aportó cuánto.
-4. Hipótesis (no probada) de por qué se diluye: el MOEA optimiza un **proxy** (2 representantes por cluster) que ordena las arquitecturas con Kendall ≈ 0.78 respecto del entrenamiento con los 100 nodos; la aleatoria también elige su hall of fame con ese proxy, y el hipervolumen reentrenado se mide con 12 modelos y una inicialización (SD entre semillas ≈ 0.04).
+4. v3 (r=2 a igual coste): mejorar el proxy sube el hipervolumen reentrenado de ambos brazos (+0.009 `nsga3`, +0.021 `rs`) pero no abre una ventaja del MOEA (+0.005 frente a la aleatoria; 5/10 semillas), mientras la población sigue mejorando (10/10, p = 0.001).
+5. Hipótesis (no probada) principal: el espacio de 9 genes está **saturado** con ~1 000–2 000 evaluaciones: ambos brazos llegan a ≈0.58 de hipervolumen y a ≈0.58 de accuracy máxima, y la unión de los archivos de ambos solo supera a cada brazo en ≈0.014–0.023 (Paso C).
+6. Hipótesis (no probada) de por qué se diluye: el MOEA optimiza un **proxy** (2 representantes por cluster) que ordena las arquitecturas con Kendall ≈ 0.78 respecto del entrenamiento con los 100 nodos; la aleatoria también elige su hall of fame con ese proxy, y el hipervolumen reentrenado se mide con 12 modelos y una inicialización (SD entre semillas ≈ 0.04).
 
 ## Límites
 Un dataset (FEMNIST), un espacio, una receta y un solo MOEA (NSGA-III); 10 semillas en total; la réplica 5–9 es una ampliación posterior al primer análisis (el p combinado es algo optimista). Las tres correcciones del v2 se aplicaron juntas, sin ablaciones. El hipervolumen reentrenado usa una sola inicialización por modelo.
 Evaluar en todos los miembros relaja la premisa de no tocar a todos los nodos (solo inferencia, ≈ +50 % de tiempo por evaluación). Los umbrales de la auditoría de ruido (fiabilidad ≥ 0.90) los fijé yo.
 
-## Siguientes pasos posibles
-Mejorar la fidelidad del proxy antes de elegir el hall of fame: reordenar los ~30 mejores candidatos del archivo con más representantes o reentrenándolos con más nodos, o usar 3 representantes por cluster (auditar de nuevo el Kendall).
+## Siguientes pasos
+Paso D (preregistrado en `docs/MOEA_DESIGN.md`): curva de eficiencia con los archivos del v2, reentrenando los 12 candidatos elegidos tras solo las primeras 250, 500 y 1 000 evaluaciones (`python run_rerank.py --budgets 250 500 1000`). Si no hay ventaja a presupuestos bajos, la siguiente prueba sería un espacio de arquitecturas más difícil (más bloques, canales, kernels y capas FC).
