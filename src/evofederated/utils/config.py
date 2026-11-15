@@ -61,6 +61,7 @@ class SamplingConfig:
     sampler: str = "cluster"  # cluster | label_cluster | random_cluster | random | full
     n_clusters: int = 10  # C = nº de representantes por evaluación
     k_max: int = 0  # >0: ignora n_clusters y elige k en 2..k_max por silueta coseno sobre Δ (sampler=cluster)
+    reps_per_cluster: int = 1  # r representantes que entrenan por cluster (sampler=cluster); peso |G_c|/(r·N) cada uno
     method: str = "kmeans"  # kmeans | average
     weight_by_cluster: bool = True  # FedAvg ponderado por tamaño de cluster
     eval_holdout: bool = True  # evaluar en otro nodo del cluster que no entrenó (inferencia)

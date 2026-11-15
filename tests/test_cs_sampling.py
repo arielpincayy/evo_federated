@@ -281,3 +281,49 @@ def test_run_search_without_reevaluation_evaluates_only_offspring_and_stops_at_b
         assert len(set(genomes)) == len(genomes)  # ninguna arquitectura se evalúa dos veces
         assert all(sum(h["generation"] == g for h in hist) <= 10 for g in range(len(rows)))  # solo hijos: <= pop por generación
         assert ev.n_evals >= 30 and ev.n_evals < 30 + 10 and len(rows) <= 8
+
+
+def _evr(clients, groups, r, objectives="per_cluster_mean_size", cache=True, seed=3):
+    return ClusterSampleEvaluator(clients, SHAPE, N_CLASSES, SPACE, TRAIN, FED, max_n_params(SPACE, SHAPE, N_CLASSES), labels=groups, sampler="cluster", seed=seed,
+                                  monitor=False, objectives=objectives, cache=cache, reps_per_cluster=r)
+
+
+def test_one_rep_per_cluster_matches_the_original_sampling_formula(toy):
+    clients, groups = toy
+    ev = _evr(clients, groups, 1)
+    for g in range(8):  # regresión: mismo flujo aleatorio que antes de añadir reps_per_cluster
+        rng = np.random.RandomState((3 * 1_000_003 + g) % (2**32))
+        expected = [int(rng.choice([i for i in range(len(groups)) if groups[i] == c])) for c in np.unique(groups)]
+        assert ev.assignment(g)[0] == expected
+
+
+def test_two_reps_per_cluster_weights_membership_and_holdout(toy):
+    clients, groups = toy
+    ev, N = _evr(clients, groups, 2), len(groups)
+    for g in range(5):
+        reps, evals, w = ev.assignment(g)
+        assert len(reps) == 6 and len(set(reps)) == 6 and abs(sum(w) - 1) < 1e-12 and len(evals) == 3 and not set(evals) & set(reps)
+        for c in np.unique(groups):
+            assert sum(groups[r] == c for r in reps) == 2
+            assert abs(sum(wi for r, wi in zip(reps, w) if groups[r] == c) - (groups == c).sum() / N) < 1e-12  # el peso del cluster se conserva
+    assert ev.assignment(2) == _evr(clients, groups, 2).assignment(2) and ev.assignment(2)[0] != ev.assignment(3)[0]
+
+
+def test_two_reps_per_cluster_objectives_exclude_all_trainers_and_weight_by_cluster(toy):
+    import json
+    clients, groups = toy
+    ev = _evr(clients, groups, 2)
+    assert ev.n_objectives() == 4 and ev.n_acc_obj == 3
+    ev.evaluate_population(np.random.RandomState(0).rand(1, SPACE.n_var), 0)
+    r = ev.history[0]
+    assert ev.n_objective_node_evals == len(groups) - 6 and len(json.loads(r["reps"])) == 6  # evaluó a los 6 miembros que no entrenaron
+    raw = json.loads(r["obj_raw"])
+    assert abs(r["acc_rep"] - float(np.mean(raw))) < 1e-9  # 3 clusters del mismo tamaño: media de los objetivos por cluster
+    assert r["n_local_trainings"] == FED["rounds"] * 6
+
+
+def test_search_runs_with_two_reps_per_cluster_without_reevaluation(toy):
+    clients, groups = toy
+    ev = _evr(clients, groups, 2)
+    hist, rows = run_search(ev, SPACE, 10, 6, "nsga3", 0, ref_partitions=2, log=lambda *_: None, reeval_parents=False, eval_budget=20)
+    assert len({h["genome"] for h in hist}) == len(hist) and ev.n_evals >= 20 and rows

@@ -61,7 +61,7 @@ def run_cs(cfg: ExperimentConfig, output_dir=None, log=print) -> dict:
         clients, input_shape, n_classes, space, dataclasses.asdict(cfg.train),
         {**dataclasses.asdict(cfg.federated), "weight_by_cluster": S.weight_by_cluster}, param_ref,
         labels=labels, sampler=_SAMPLERS[S.sampler], n_reps=S.n_clusters, seed=cfg.seed, device=device, monitor=cfg.monitor, eval_holdout=S.eval_holdout,
-        objectives=cfg.evolution.objectives, size_penalty=cfg.evolution.size_penalty, cache=not cfg.evolution.reeval_parents)
+        objectives=cfg.evolution.objectives, size_penalty=cfg.evolution.size_penalty, cache=not cfg.evolution.reeval_parents, reps_per_cluster=S.reps_per_cluster)
     E = cfg.evolution
     k_obj = ev.n_objectives()
     pop, ref_p, G = E.pop_size, E.ref_partitions, E.n_generations
@@ -132,7 +132,7 @@ def run_cs(cfg: ExperimentConfig, output_dir=None, log=print) -> dict:
     cost = {"probe_local_trainings": probe_trainings, "search_local_trainings": ev.n_local_trainings,
             "search_evals": ev.n_evals, "monitor_node_evals": ev.n_monitor_node_evals,
             "final_local_trainings": final_trainings, "elapsed_sec": time.time() - t_start,
-            "n_clients": len(ids), "k": int(n_clusters), "pop_size": int(pop), "n_generations": int(G), "ref_partitions": int(ref_p), "size_penalty": E.size_penalty, "reeval_parents": E.reeval_parents, "n_cache_hits": ev.n_cache_hits, "n_distinct_genomes": len({r["genome"] for r in hist}), "n_reps_per_eval": len(ev.representatives(0)[0]), "eval_fallback_gen0": int(sum(e == r for e, r in zip(ev.assignment(0)[1], ev.assignment(0)[0]))), "hv_ref": HV_REF.tolist(),
+            "n_clients": len(ids), "k": int(n_clusters), "pop_size": int(pop), "n_generations": int(G), "ref_partitions": int(ref_p), "size_penalty": E.size_penalty, "reeval_parents": E.reeval_parents, "n_cache_hits": ev.n_cache_hits, "n_distinct_genomes": len({r["genome"] for r in hist}), "n_reps_per_eval": len(ev.representatives(0)[0]), "eval_fallback_gen0": int(sum(e in set(ev.assignment(0)[0]) for e in ev.assignment(0)[1])), "hv_ref": HV_REF.tolist(),
             "hv_test_front": hv_test, "objective_node_evals": ev.n_objective_node_evals, "cluster_quality": quality}
     (out / "cost.json").write_text(json.dumps(cost, indent=1))
     return cost

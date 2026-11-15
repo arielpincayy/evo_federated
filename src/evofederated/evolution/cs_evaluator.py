@@ -62,6 +62,7 @@ class ClusterSampleEvaluator:
         objectives: str = "mean_params",  # mean_params | per_node | per_cluster_size | per_cluster_mean_size | per_cluster_mean
         size_penalty: float = 0.0,  # solo modos por cluster: obj_c = acc_c - size_penalty * n_params/param_ref
         cache: bool = False,  # MOEA v2: una arquitectura decodificada ya evaluada reutiliza su fitness y no entrena
+        reps_per_cluster: int = 1,  # MOEA v3: r representantes por cluster (solo sampler=cluster); con 1 el comportamiento es el original
     ):
         self.clients = clients
         self.ids = sorted(clients)
@@ -72,6 +73,10 @@ class ClusterSampleEvaluator:
         if sampler == "cluster":
             assert labels is not None and len(labels) == len(self.ids), "sampler=cluster requiere una etiqueta por nodo"
         self.labels = None if labels is None else np.asarray(labels)
+        self.reps_per_cluster = int(reps_per_cluster)
+        if self.labels is not None:  # nodo -> índice de su cluster
+            ucl = list(np.unique(self.labels))
+            self._cluster_of = {self.ids[i]: ucl.index(self.labels[i]) for i in range(len(self.ids))}
         self.sampler, self.n_reps = sampler, int(n_reps)
         self.seed = int(seed)
         self.init_seed = self.seed if init_seed is None else int(init_seed)
@@ -112,6 +117,20 @@ class ClusterSampleEvaluator:
             if self.eval_holdout and len(rest) >= len(reps):
                 ev = sorted(int(x) for x in rng.choice(rest, size=len(reps), replace=False))
             return reps, ev, [1.0 / len(reps)] * len(reps)
+        if self.reps_per_cluster > 1:  # r representantes por cluster; peso |G_c|/(r·N) cada uno; un evaluador retenido por cluster entre los que no entrenaron
+            reps, evals, rep_w, picks, pools = [], [], [], [], []
+            for c in np.unique(self.labels):
+                members = [self.ids[i] for i in np.where(self.labels == c)[0] if self.ids[i] in valid]
+                if members:
+                    picks.append([int(x) for x in rng.choice(members, size=min(self.reps_per_cluster, len(members)), replace=False)])
+                    pools.append(members)
+            total = float(sum(len(m) for m in pools))
+            for pick, members in zip(picks, pools):
+                reps += pick
+                rep_w += [len(members) / total / len(pick)] * len(pick)
+                others = [m for m in members if m not in set(pick)]
+                evals.append(int(rng.choice(others)) if self.eval_holdout and others else pick[0])
+            return reps, evals, rep_w
         reps, evals, sizes = [], [], []
         pools = []
         for c in np.unique(self.labels):
@@ -130,23 +149,31 @@ class ClusterSampleEvaluator:
         """Nº de objetivos del vector de fitness (2 en mean_params; C en los modos por cluster)."""
         if self.objectives == "mean_params":
             return 2
-        return len(self.assignment(0)[0]) + (1 if self.objectives in ("per_cluster_size", "per_cluster_mean_size") else 0)
+        return len(self.assignment(0)[1]) + (1 if self.objectives in ("per_cluster_size", "per_cluster_mean_size") else 0)
 
     @property
     def n_acc_obj(self):
         """Nº de objetivos de accuracy (los primeros de obj_acc); None en mean_params."""
-        return None if self.objectives == "mean_params" else len(self.assignment(0)[0])
+        return None if self.objectives == "mean_params" else len(self.assignment(0)[1])  # nodos evaluadores = clusters
 
     def _cluster_mean_acc(self, model, reps: List[int]) -> List[float]:
         """Accuracy media en val de los miembros de cada cluster que no entrenaron (si no hay otro, el propio representante)."""
         valid, out, groups = set(self.valid), [], []
-        for c, r in zip(np.unique(self.labels), reps):
-            members = [self.ids[i] for i in np.where(self.labels == c)[0] if self.ids[i] in valid and self.ids[i] != r]
-            groups.append(members or [r])
+        for ci, c in enumerate(np.unique(self.labels)):
+            trainers = {r for r in reps if self._cluster_of[r] == ci}  # todos los representantes del cluster (uno con r = 1)
+            members = [self.ids[i] for i in np.where(self.labels == c)[0] if self.ids[i] in valid and self.ids[i] not in trainers]
+            groups.append(members or sorted(trainers))
         nodes = sorted({m for g_ in groups for m in g_})
         res = evaluate_global_on_split(model, {m: self.clients[m] for m in nodes}, split="val", device=self.device)
         self.n_objective_node_evals += len(nodes)
         return [float(np.mean([res[m]["accuracy"] for m in g_])) for g_ in groups]
+
+    def _cluster_w(self, reps, w):
+        """Peso de cada cluster = suma de los pesos de sus representantes (|G_c|/N)."""
+        out = [0.0] * len(np.unique(self.labels))
+        for r, wi in zip(reps, w):
+            out[self._cluster_of[r]] += wi
+        return out
 
     def representatives(self, generation: int):
         reps, _, w = self.assignment(generation)
@@ -184,7 +211,8 @@ class ClusterSampleEvaluator:
             obj = [float(per_eval[e]["accuracy"]) for e in evals]
             if self.objectives in ("per_cluster_mean", "per_cluster_mean_size"):
                 obj = self._cluster_mean_acc(fed["model"], reps)
-            acc = float(sum(wi * oi for oi, wi in zip(obj, w)))
+            cw = self._cluster_w(reps, w) if (self.sampler == "cluster" and self.reps_per_cluster > 1) else w  # obj tiene un valor por cluster
+            acc = float(sum(wi * oi for oi, wi in zip(obj, cw)))
             npar = n_params(fed["model"])
             obj_raw = list(obj)
             if self.size_penalty:  # obj_acc = vector que optimiza la búsqueda (penalizado); acc_rep y obj_raw quedan sin penalizar
@@ -195,7 +223,7 @@ class ClusterSampleEvaluator:
                    "vector": json.dumps([float(x) for x in vec]),
                    "acc_rep": acc, "obj_acc": json.dumps(obj), "obj_raw": json.dumps(obj_raw), "n_params": npar, "n_params_norm": npar / self.param_ref,
                    "reps": json.dumps(reps), "eval_nodes": json.dumps(evals),
-                   "n_eval_fallback": int(sum(e == r for e, r in zip(evals, reps))), "n_local_trainings": int(fed["n_local_trainings"])}
+                   "n_eval_fallback": int(sum(e in set(reps) for e in evals)), "n_local_trainings": int(fed["n_local_trainings"])}
             if self.monitor:  # solo reporte: mismo modelo, todos los nodos (inferencia), jamás entra al fitness
                 allc = evaluate_global_on_split(fed["model"], self.clients, split="val", device=self.device)
                 rec.update({f"mon_{k}": v for k, v in _summ(allc).items()})
