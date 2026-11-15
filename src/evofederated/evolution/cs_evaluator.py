@@ -3,6 +3,8 @@
 Fitness de búsqueda (minimización), según `objectives`:
   mean_params      (-acc_estimada, n_params / n_params_max); acc_estimada = sum_c W_c * acc_val(eval_c), W_c = |cluster c| / N.
   per_node         (-acc_val(eval_1), ..., -acc_val(eval_C)): un objetivo por cluster = accuracy del nodo evaluador de ese cluster.
+  per_cluster_size (-acc_val(eval_1), ..., -acc_val(eval_C), n_params/param_ref): un objetivo por cluster y el tamaño como objetivo propio (C+1).
+  per_cluster_mean_size (-m_1, ..., -m_C, n_params/param_ref): lo anterior con la media del cluster (todos los miembros que no entrenaron) y el tamaño como objetivo propio.
   per_cluster_mean (-m_1, ..., -m_C), m_c = media de la accuracy en TODOS los miembros del cluster c que no entrenaron
                    (solo inferencia; ablación de menor ruido que relaja la premisa de no evaluar a todos los nodos).
 En todos los modos se registra `obj_acc` (accuracies por objetivo), `acc_rep` (su media ponderada) y el nº de parámetros.
@@ -57,8 +59,9 @@ class ClusterSampleEvaluator:
         device: str = "cpu",
         monitor: bool = True,
         eval_holdout: bool = True,
-        objectives: str = "mean_params",  # mean_params | per_node | per_cluster_mean
+        objectives: str = "mean_params",  # mean_params | per_node | per_cluster_size | per_cluster_mean_size | per_cluster_mean
         size_penalty: float = 0.0,  # solo modos por cluster: obj_c = acc_c - size_penalty * n_params/param_ref
+        cache: bool = False,  # MOEA v2: una arquitectura decodificada ya evaluada reutiliza su fitness y no entrena
     ):
         self.clients = clients
         self.ids = sorted(clients)
@@ -73,12 +76,13 @@ class ClusterSampleEvaluator:
         self.seed = int(seed)
         self.init_seed = self.seed if init_seed is None else int(init_seed)
         self.device, self.monitor, self.eval_holdout = device, bool(monitor), bool(eval_holdout)
-        if objectives not in ("mean_params", "per_node", "per_cluster_mean"):
+        if objectives not in ("mean_params", "per_node", "per_cluster_size", "per_cluster_mean_size", "per_cluster_mean"):
             raise ValueError(f"objectives desconocido: {objectives}")
-        if objectives == "per_cluster_mean":
-            assert sampler == "cluster", "per_cluster_mean requiere sampler=cluster"
-        assert objectives != "mean_params" or size_penalty == 0, "size_penalty solo aplica a los modos por cluster (en mean_params el tamaño ya es un objetivo)"
+        if objectives in ("per_cluster_mean", "per_cluster_mean_size"):
+            assert sampler == "cluster", f"{objectives} requiere sampler=cluster"
+        assert objectives not in ("mean_params", "per_cluster_size", "per_cluster_mean_size") or size_penalty == 0, "size_penalty solo aplica a per_node/per_cluster_mean (en mean_params y per_cluster_size el tamaño ya es un objetivo)"
         self.objectives, self.size_penalty = objectives, float(size_penalty)
+        self.cache, self._cache, self.n_cache_hits = bool(cache), {}, 0
         self.n_objective_node_evals = 0
         self.history: List[dict] = []
         self.n_evals = 0
@@ -124,7 +128,14 @@ class ClusterSampleEvaluator:
 
     def n_objectives(self) -> int:
         """Nº de objetivos del vector de fitness (2 en mean_params; C en los modos por cluster)."""
-        return 2 if self.objectives == "mean_params" else len(self.assignment(0)[0])
+        if self.objectives == "mean_params":
+            return 2
+        return len(self.assignment(0)[0]) + (1 if self.objectives in ("per_cluster_size", "per_cluster_mean_size") else 0)
+
+    @property
+    def n_acc_obj(self):
+        """Nº de objetivos de accuracy (los primeros de obj_acc); None en mean_params."""
+        return None if self.objectives == "mean_params" else len(self.assignment(0)[0])
 
     def _cluster_mean_acc(self, model, reps: List[int]) -> List[float]:
         """Accuracy media en val de los miembros de cada cluster que no entrenaron (si no hay otro, el propio representante)."""
@@ -161,19 +172,26 @@ class ClusterSampleEvaluator:
         F = np.zeros((len(X), self.n_objectives()))
         for i, vec in enumerate(X):
             g = CNNGenome.from_vector(vec, self.space)
+            gj = json.dumps(g.to_dict())
+            if self.cache and gj in self._cache:  # arquitectura ya evaluada: se reutiliza su fitness (sin entrenar ni registrar)
+                F[i] = self._cache[gj]
+                self.n_cache_hits += 1
+                continue
             t0 = time.time()
             fed = self._train(g, reps, w, self.init_seed)
             sub = {e: self.clients[e] for e in set(evals)}
             per_eval = evaluate_global_on_split(fed["model"], sub, split="val", device=self.device)
             obj = [float(per_eval[e]["accuracy"]) for e in evals]
-            if self.objectives == "per_cluster_mean":
+            if self.objectives in ("per_cluster_mean", "per_cluster_mean_size"):
                 obj = self._cluster_mean_acc(fed["model"], reps)
             acc = float(sum(wi * oi for oi, wi in zip(obj, w)))
             npar = n_params(fed["model"])
             obj_raw = list(obj)
             if self.size_penalty:  # obj_acc = vector que optimiza la búsqueda (penalizado); acc_rep y obj_raw quedan sin penalizar
                 obj = [o - self.size_penalty * npar / self.param_ref for o in obj]
-            rec = {"generation": int(generation), "individual_idx": i, "genome": json.dumps(g.to_dict()),
+            if self.objectives in ("per_cluster_size", "per_cluster_mean_size"):  # el tamaño es un objetivo más; convención: todo se maximiza y F = -obj_acc
+                obj = obj_raw + [-npar / self.param_ref]
+            rec = {"generation": int(generation), "individual_idx": i, "genome": gj,
                    "vector": json.dumps([float(x) for x in vec]),
                    "acc_rep": acc, "obj_acc": json.dumps(obj), "obj_raw": json.dumps(obj_raw), "n_params": npar, "n_params_norm": npar / self.param_ref,
                    "reps": json.dumps(reps), "eval_nodes": json.dumps(evals),
@@ -190,6 +208,8 @@ class ClusterSampleEvaluator:
             self.train_time += time.time() - t0
             self.history.append(rec)
             F[i] = (-acc, npar / self.param_ref) if self.objectives == "mean_params" else -np.array(obj)
+            if self.cache:
+                self._cache[gj] = F[i].copy()
         return F
 
     def evaluate_test(self, genome: CNNGenome, init_seed: int, participation: str = "full", return_nodes: bool = False):

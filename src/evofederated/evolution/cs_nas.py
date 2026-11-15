@@ -15,6 +15,7 @@ import cloudpickle  # los algoritmos de pymoo no se serializan con pickle están
 import numpy as np
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.algorithms.moo.nsga3 import NSGA3
+from pymoo.core.duplicate import ElementwiseDuplicateElimination
 from pymoo.core.problem import Problem
 from pymoo.indicators.hv import HV
 from pymoo.operators.crossover.sbx import SBX
@@ -42,6 +43,12 @@ def n_dirs(k: int, p: int) -> int:
 def generations_for_budget(budget: int, pop: int) -> int:
     """Generaciones G con pop + (G-1)*2*pop ~ budget evaluaciones (padres + hijos se reevalúan desde la 2ª generación)."""
     return max(1, round(1 + (budget - pop) / (2 * pop)))
+
+
+def genome_duplicates(space):
+    """Duplicados a nivel de arquitectura decodificada (no del vector): dos vectores con el mismo genoma son la misma arquitectura."""
+    from ..models.cnn_genome import CNNGenome
+    return ElementwiseDuplicateElimination(cmp_func=lambda a, b: CNNGenome.from_vector(a.X, space).to_dict() == CNNGenome.from_vector(b.X, space).to_dict())
 
 
 def _nd(F: np.ndarray) -> np.ndarray:
@@ -75,18 +82,21 @@ def _gen_stats(recs: list) -> dict:
 
 def run_search(ev, space, pop_size: int, n_generations: int, search: str = "nsga2", seed: int = 42,
                crossover_prob: float = 0.9, crossover_eta: float = 15, mutation_prob: float = 0.2,
-               mutation_eta: float = 20, ref_partitions: int = 2, checkpoint: str = None, log=print):
+               mutation_eta: float = 20, ref_partitions: int = 2, checkpoint: str = None, log=print,
+               reeval_parents: bool = True, eval_budget: int = 0):
     """Devuelve (history de evaluaciones, métricas por generación).
 
     search: nsga2 (2 objetivos), nsga3 (un objetivo por cluster; direcciones de Das-Dennis con `ref_partitions` particiones y
-    población = nº de direcciones) o random (mismo nº de evaluaciones por generación que el método evolutivo equivalente)."""
+    población = nº de direcciones) o random (mismo nº de evaluaciones por generación que el método evolutivo equivalente).
+    `reeval_parents=False` (MOEA v2): solo se evalúan los hijos (la aleatoria sortea `pop_size` por generación), los duplicados se eliminan a nivel de
+    arquitectura decodificada y la búsqueda para al alcanzar `eval_budget` evaluaciones reales (`n_generations` es el tope)."""
     rng = np.random.RandomState(seed)
     gen_rows = []
     multi = ev.objectives != "mean_params"
     evo = search in ("nsga2", "nsga3")
     if evo:
         ops = dict(sampling=FloatRandomSampling(), crossover=SBX(prob=crossover_prob, eta=crossover_eta),
-                   mutation=PM(prob=mutation_prob, eta=mutation_eta), eliminate_duplicates=True)
+                   mutation=PM(prob=mutation_prob, eta=mutation_eta), eliminate_duplicates=True if reeval_parents else genome_duplicates(space))
         if search == "nsga3":
             ref_dirs = get_reference_directions("das-dennis", ev.n_objectives(), n_partitions=ref_partitions)
             algo = NSGA3(ref_dirs=ref_dirs, pop_size=len(ref_dirs), **ops)
@@ -108,13 +118,15 @@ def run_search(ev, space, pop_size: int, n_generations: int, search: str = "nsga
         if evo:
             algo = cloudpickle.loads(st["algo"])
         log(f"reanudando desde la generación {first} ({len(ev.history)} evaluaciones ya hechas)")
+    if eval_budget and not reeval_parents and ev.n_evals >= eval_budget:
+        first = n_generations  # la búsqueda ya había alcanzado su presupuesto
 
     for g in range(first, n_generations):
         start = len(ev.history)
         success = float("nan")
         if evo:
             off = algo.ask()
-            if g == 0:
+            if g == 0 or not reeval_parents:
                 off.set("F", ev.evaluate_population(off.get("X"), g))
             else:
                 parents = algo.pop
@@ -129,7 +141,7 @@ def run_search(ev, space, pop_size: int, n_generations: int, search: str = "nsga
             success = float(np.mean([bool(i.get("is_off")) for i in algo.pop])) if g > 0 else float("nan")
             Xpop = algo.pop.get("X")
         else:
-            n = pop_size if g == 0 else 2 * pop_size  # mismo nº de evaluaciones que NSGA-II (padres + hijos)
+            n = pop_size if (g == 0 or not reeval_parents) else 2 * pop_size  # con reevaluación: mismo nº que el evolutivo (padres + hijos)
             Xpop = rng.rand(n, space.n_var)
             ev.evaluate_population(Xpop, g)
         recs = ev.history[start:]
@@ -137,22 +149,25 @@ def run_search(ev, space, pop_size: int, n_generations: int, search: str = "nsga
         row = {"generation": g, "n_evals": ev.n_evals, "n_local_trainings_search": ev.n_local_trainings,
                "front_size": len(front), "offspring_success": success,
                "diversity": float(np.mean(np.linalg.norm(Xpop[:, None] - Xpop[None], axis=2)) / np.sqrt(space.n_var)),
-               **_gen_stats(recs)}
-        if multi:  # C objetivos: sin HV; se reportan el mejor por media ponderada y por peor objetivo entre todo lo evaluado
+               **(_gen_stats(recs) if recs else {})}
+        if multi and recs:  # C objetivos: sin HV; se reportan el mejor por media ponderada y por peor objetivo entre todo lo evaluado
             allr = ev.history
             row["best_acc_rep"] = float(max(r["acc_rep"] for r in allr))
-            row["best_min_obj"] = float(max(min(json.loads(r["obj_acc"])) for r in allr))
+            row["best_min_obj"] = float(max(min(json.loads(r["obj_acc"])[: ev.n_acc_obj]) for r in allr))
             row["mean_n_params_norm"] = float(np.mean([r["n_params_norm"] for r in recs]))
-        else:
+        elif not multi:
             row["hv_rep"] = _hv(np.array([[-r["acc_rep"], r["n_params_norm"]] for r in front]))
-            if "mon_acc_mean" in recs[0]:
+            if recs and "mon_acc_mean" in recs[0]:
                 row["hv_monitor"] = _hv(np.array([[-r["mon_acc_mean"], r["n_params_norm"]] for r in front]))
         gen_rows.append(row)
         if checkpoint:  # escritura atómica: una interrupción nunca deja un checkpoint a medias
             st = {"g": g, "history": ev.history, "gen_rows": gen_rows, "rng": rng.get_state(), "algo": cloudpickle.dumps(algo) if evo else None,
-                  "counters": {k: getattr(ev, k) for k in ("n_evals", "n_local_trainings", "n_monitor_node_evals", "n_objective_node_evals", "train_time")}}
+                  "counters": {k: getattr(ev, k) for k in ("n_evals", "n_local_trainings", "n_monitor_node_evals", "n_objective_node_evals", "train_time", "n_cache_hits", "_cache")}}
             with open(checkpoint + ".tmp", "wb") as f:
                 pickle.dump(st, f)
             os.replace(checkpoint + ".tmp", checkpoint)
         log(f"gen {g}: evals={row['n_evals']} front={row['front_size']}" + ("" if multi else f" hv_rep={row['hv_rep']:.4f}"))
+        if eval_budget and not reeval_parents and ev.n_evals >= eval_budget:
+            log(f"presupuesto alcanzado: {ev.n_evals} evaluaciones reales ({ev.n_cache_hits} aciertos de caché)")
+            break
     return ev.history, gen_rows

@@ -42,3 +42,15 @@ def test_select_hof_aggregates_by_genome_and_handles_small_archive():
     recs = [_hrec("a", [0.9, 0.1]), _hrec("a", [0.7, 0.3]), _hrec("b", [0.2, 0.9])]
     h = select_hof(recs, K=12)
     assert {x["genome"] for x in h} == {"a", "b"} and next(x for x in h if x["genome"] == "a")["n_evals"] == 2
+
+
+def test_select_hof_max_min_rule_ignores_trailing_size_column():
+    import numpy as np
+    from evofederated.evolution.refine import select_hof
+    # 'high' tiene la mejor media (acc_rep); 'best_min' el mejor mínimo de accuracy; el tamaño (última columna, negativa) no debe contar en el max-min
+    recs = [_hrec("tiny", [0.2, 0.2, -0.01]), _hrec("best_min", [0.6, 0.55, -0.4]), _hrec("high", [0.9, 0.3, -0.6])]
+    for r, a in zip(recs, (0.2, 0.575, 0.9)):
+        r["acc_rep"] = a
+    hof = select_hof(recs, K=3, n_acc=2)
+    assert [h["reason"] for h in hof][:2] == ["max_media", "max_min"] and hof[1]["genome"] == "best_min"
+    assert select_hof(recs, K=3)[1]["genome"] == "tiny"  # sin n_acc el tamaño se colaría en el mínimo (comportamiento anterior intacto)

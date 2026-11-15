@@ -208,3 +208,76 @@ def test_auto_partitions_and_budget_generations():
     assert (auto_partitions(5, 60), n_dirs(5, 3)) == (3, 35)
     assert (auto_partitions(2, 60), n_dirs(2, 59)) == (59, 60)
     assert generations_for_budget(390, 55) == 4 and generations_for_budget(390, 10) == 20 and generations_for_budget(10, 55) == 1
+
+
+def test_per_cluster_size_has_k_plus_one_objectives_with_size_as_own_objective(toy):
+    import json
+    import pytest
+    clients, groups = toy
+    ref = max_n_params(SPACE, SHAPE, N_CLASSES)
+    ev = ClusterSampleEvaluator(clients, SHAPE, N_CLASSES, SPACE, TRAIN, FED, ref, labels=groups, sampler="cluster", seed=3, monitor=False, objectives="per_cluster_size")
+    assert ev.n_objectives() == 4 and ev.n_acc_obj == 3
+    F = ev.evaluate_population(np.random.RandomState(0).rand(2, SPACE.n_var), 0)
+    assert F.shape == (2, 4)
+    for r, f in zip(ev.history, F):
+        o, raw = json.loads(r["obj_acc"]), json.loads(r["obj_raw"])
+        assert len(o) == 4 and len(raw) == 3 and np.allclose(o[:3], raw) and abs(o[3] + r["n_params_norm"]) < 1e-12
+        assert np.allclose(f, [-x for x in o]) and abs(f[3] - r["n_params_norm"]) < 1e-12  # minimización: [-acc_c..., +tamaño]
+    with pytest.raises(AssertionError):
+        ClusterSampleEvaluator(clients, SHAPE, N_CLASSES, SPACE, TRAIN, FED, ref, labels=groups, objectives="per_cluster_size", size_penalty=0.5)
+
+
+def test_nsga3_runs_with_three_cluster_objectives_plus_size(toy):
+    clients, groups = toy
+    ev = _ev(clients, groups, monitor=False, objectives="per_cluster_size")
+    hist, rows = run_search(ev, SPACE, 6, 2, "nsga3", 0, ref_partitions=2)  # 4 objetivos -> C(5,2)=10 direcciones
+    assert ev.n_objectives() == 4 and len(rows) == 2 and "best_min_obj" in rows[-1] and len(hist) == 10 + 20
+
+
+def _ev2(clients, groups, cache=True, objectives="per_cluster_mean_size"):
+    return ClusterSampleEvaluator(clients, SHAPE, N_CLASSES, SPACE, TRAIN, FED, max_n_params(SPACE, SHAPE, N_CLASSES), labels=groups, sampler="cluster", seed=3,
+                                  monitor=False, objectives=objectives, cache=cache)
+
+
+def test_per_cluster_mean_size_has_k_plus_one_objectives_and_means_exclude_trainers(toy):
+    import json
+    clients, groups = toy
+    ev = _ev2(clients, groups, cache=False)
+    assert ev.n_objectives() == 4 and ev.n_acc_obj == 3
+    F = ev.evaluate_population(np.random.RandomState(0).rand(2, SPACE.n_var), 0)
+    for r, f in zip(ev.history, F):
+        o, raw = json.loads(r["obj_acc"]), json.loads(r["obj_raw"])
+        assert len(o) == 4 and len(raw) == 3 and np.allclose(o[:3], raw) and abs(o[3] + r["n_params_norm"]) < 1e-12 and np.allclose(f, [-x for x in o])
+    assert ev.n_objective_node_evals > 0  # evaluó a los miembros de los clusters (solo inferencia)
+
+
+def test_cache_trains_once_for_identical_decoded_architectures(toy):
+    clients, groups = toy
+    ev = _ev2(clients, groups)
+    v = np.random.RandomState(1).rand(SPACE.n_var)
+    v2 = v.copy(); v2[2] = (v[2] + 0.3) % 1.0  # gen de kernel: SPACE solo tiene un kernel, decodifica igual
+    F = ev.evaluate_population(np.stack([v, v2, v]), 0)
+    assert ev.n_evals == 1 and ev.n_cache_hits == 2 and len(ev.history) == 1 and np.allclose(F[0], F[1]) and np.allclose(F[0], F[2])
+    ev.evaluate_population(v[None], 5)  # otra generación (otros representantes): sigue reutilizando el fitness guardado
+    assert ev.n_evals == 1 and ev.n_cache_hits == 3
+
+
+def test_genome_duplicates_compares_decoded_architectures_not_vectors():
+    from pymoo.core.individual import Individual
+    from evofederated.evolution.cs_nas import genome_duplicates
+    d = genome_duplicates(SPACE)
+    v = np.random.RandomState(2).rand(SPACE.n_var)
+    same = v.copy(); same[2] = 0.99  # kernel con una sola opción: misma arquitectura
+    other = v.copy(); other[4] = (v[4] + 0.2) % 1.0  # dropout distinto: otra arquitectura
+    assert d.cmp_func(Individual(X=v), Individual(X=same)) and not d.cmp_func(Individual(X=v), Individual(X=other))
+
+
+def test_run_search_without_reevaluation_evaluates_only_offspring_and_stops_at_budget(toy):
+    clients, groups = toy
+    for search in ("nsga3", "random"):
+        ev = _ev2(clients, groups)
+        hist, rows = run_search(ev, SPACE, 10, 8, search, 0, ref_partitions=2, log=lambda *_: None, reeval_parents=False, eval_budget=30)
+        genomes = [h["genome"] for h in hist]
+        assert len(set(genomes)) == len(genomes)  # ninguna arquitectura se evalúa dos veces
+        assert all(sum(h["generation"] == g for h in hist) <= 10 for g in range(len(rows)))  # solo hijos: <= pop por generación
+        assert ev.n_evals >= 30 and ev.n_evals < 30 + 10 and len(rows) <= 8

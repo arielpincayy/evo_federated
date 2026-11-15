@@ -33,12 +33,13 @@ def select_final(refined: List[dict], k: int = 5, acc_key: str = "acc_refined") 
     return sorted(front, key=lambda r: -r[acc_key])[:k]
 
 
-def select_hof(records: List[dict], K: int = 12) -> List[dict]:
+def select_hof(records: List[dict], K: int = 12, n_acc: int = None) -> List[dict]:
     """Hall of fame en C objetivos: conjunto no dominado del archivo reducido a K representantes (regla fija y determinista).
 
     Se agrega por genoma (media de sus vectores `obj_acc` y de `acc_rep`). Candidatos = capas no dominadas 1, 2, ... hasta tener
     al menos K. Se incluyen (a) el mejor por la media ponderada `acc_rep`, (b) el mejor por su peor objetivo (max-min) y se completa
     hasta K por selección farthest-first en el espacio de objetivos normalizado (empates: menor índice).
+    `n_acc`: si `obj_acc` lleva columnas extra tras las accuracies (p. ej. el tamaño), la regla max-min solo mira las `n_acc` primeras.
     """
     by: Dict[str, dict] = {}
     for r in records:
@@ -55,7 +56,7 @@ def select_hof(records: List[dict], K: int = 12) -> List[dict]:
             break
     Z = O[pool]; rng_ = np.where(np.ptp(Z, axis=0) > 0, np.ptp(Z, axis=0), 1.0); Z = (Z - Z.min(axis=0)) / rng_
     chosen = [int(np.argmax([cands[i]["acc_rep_mean"] for i in pool]))]
-    b = int(np.argmax(O[pool].min(axis=1)))
+    b = int(np.argmax(O[pool][:, :n_acc].min(axis=1)))
     if b not in chosen:
         chosen.append(b)
     while len(chosen) < min(K, len(pool)):
