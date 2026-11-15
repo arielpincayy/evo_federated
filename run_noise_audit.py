@@ -28,8 +28,33 @@ from run_arch_node_study import architectures, load as load_truth
 CFG, SCHEMES = "configs/cs_moea.yaml", ("E1_holdout", "E2_rep", "E3_todos", "E4_cinco")
 
 
+def build_reps(labels, valid, seed, draw, r):
+    """r representantes al azar por cluster; peso |G_c|/(r·N) cada uno (el total por cluster se conserva). -> (reps, cluster de cada rep, pesos)"""
+    rng = np.random.RandomState((seed * 1_000_003 + 7919 * r + draw) % (2**32))
+    ok = set(int(v) for v in valid)
+    reps, rc, w = [], [], []
+    for ci, c in enumerate(np.unique(labels)):
+        members = [int(i) for i in np.where(labels == c)[0] if int(i) in ok]
+        pick = rng.choice(members, min(r, len(members)), replace=False)
+        for m in pick:
+            reps.append(int(m)); rc.append(ci); w.append(len(members) / len(ok) / len(pick))
+    return reps, rc, w
+
+
+def e3_scores(z):
+    """(A, k): media del cluster sobre los miembros que no entrenaron en el sorteo (válida para r = 1 y r > 1)."""
+    acc, reps, labels = z["acc"], np.asarray(z["reps"]), z["labels"]
+    rc = np.asarray(z["rep_cluster"]) if "rep_cluster" in getattr(z, "files", z) else np.arange(len(reps))
+    out = []
+    for ci, c in enumerate(np.unique(labels)):
+        trainers = set(int(x) for x in reps[rc == ci])
+        others = [m for m in np.where(labels == c)[0] if int(m) not in trainers]
+        out.append(acc[:, others].mean(1) if others else acc[:, sorted(trainers)].mean(1))
+    return np.stack(out, 1)
+
+
 def run_task(t):
-    seed, draw, out, n_archs, rounds = t
+    seed, draw, out, n_archs, rounds, r = t
     f = Path(out) / f"s{seed}_d{draw}.npz"
     if f.exists():
         return f"{f.name} ya existe"
@@ -44,13 +69,18 @@ def run_task(t):
     space = CNNSpace(**dataclasses.asdict(cfg.space))
     ev = ClusterSampleEvaluator(clients, shape, K, space, dataclasses.asdict(cfg.train), {"rounds": rounds, "local_epochs": cfg.federated.local_epochs, "weight_by_cluster": True},
                                 max_n_params(space, shape, K), labels=labels, sampler="cluster", seed=cfg.seed, monitor=False, eval_holdout=True, objectives="per_cluster_size")
-    reps, evals, w = ev.assignment(draw)  # el mismo sorteo de la búsqueda (generación = draw)
+    if r == 1:
+        reps, evals, w = ev.assignment(draw)  # el mismo sorteo de la búsqueda (generación = draw)
+        rep_cluster = np.arange(len(reps))
+    else:
+        reps, rep_cluster, w = build_reps(labels, ev.valid, seed, draw, r)
+        evals = reps
     rows = []
     for g in architectures(space, n_archs):
         per = evaluate_global_on_split(ev._train(g, reps, w, ev.init_seed)["model"], clients, split="val")  # una sola evaluación de los 100 nodos por modelo
         rows.append([per[c]["accuracy"] for c in sorted(per)])
     acc = np.array(rows)
-    np.savez(f, acc=acc, reps=reps, evals=evals, w=w, labels=labels)
+    np.savez(f, acc=acc, reps=reps, evals=evals, w=w, labels=labels, rep_cluster=rep_cluster)
     return f"{f.name} {time.time() - t0:.0f}s"
 
 
@@ -98,12 +128,17 @@ if __name__ == "__main__":
     ap.add_argument("--n_archs", type=int, default=24)
     ap.add_argument("--rounds", type=int, default=20)
     ap.add_argument("--workers", type=int, default=16)
-    ap.add_argument("--out", default="runs/noise_audit")
+    ap.add_argument("--reps_per_cluster", type=int, default=1, help="r representantes por cluster (r>1: solo entrena; se analiza con analyze_fidelity.py)")
+    ap.add_argument("--out", default=None)
     ap.add_argument("--analyze-only", action="store_true")
     a = ap.parse_args()
+    a.out = a.out or ("runs/noise_audit" if a.reps_per_cluster == 1 else f"runs/noise_audit_r{a.reps_per_cluster}")
     Path(a.out).mkdir(parents=True, exist_ok=True)
     if not a.analyze_only:
         with Pool(a.workers) as p:
-            for m in p.imap_unordered(run_task, [(s, d, a.out, a.n_archs, a.rounds) for s in a.seeds for d in range(a.draws)]):
+            for m in p.imap_unordered(run_task, [(s, d, a.out, a.n_archs, a.rounds, a.reps_per_cluster) for s in a.seeds for d in range(a.draws)]):
                 print(m, flush=True)
-    analyze(a.out, a.seeds, a.draws, a.n_archs)
+    if a.reps_per_cluster == 1:
+        analyze(a.out, a.seeds, a.draws, a.n_archs)
+    else:
+        print("entrenado; analizar con analyze_fidelity.py")

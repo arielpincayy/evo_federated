@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.stats import wilcoxon
+from scipy.stats import kendalltau, wilcoxon
 
 from evofederated.evolution.cs_nas import _hv, _nd
 
@@ -39,7 +39,8 @@ def run_metrics(d):
     row = dict(k=cost["k"], pop_size=cost["pop_size"], n_gen=cost["n_generations"], search_evals=cost["search_evals"], search_local_trainings=cost["search_local_trainings"],
                elapsed_h=cost["elapsed_sec"] / 3600, n_distinct=cost.get("n_distinct_genomes", pop.genome.nunique()), cache_hits=cost.get("n_cache_hits", 0), hv_retrained=hv2(hof.test_acc_mean, hof.n_params_norm), auc_archive=auc, hv_archive_final=float(curve[-1, 1]),
                slope_hv_gen=slope, gain_hv_gen=float(hvg[-5:].mean() - hvg[0]), hv_gen0=float(hvg[0]), hv_gen_last=float(hvg[-1]),
-               front_size=len(front), size_range=float(front.n_params_norm.max() - front.n_params_norm.min()), best_acc=float(hof.test_acc_mean.max()), cluster_gap_est=gap)
+               front_size=len(front), size_range=float(front.n_params_norm.max() - front.n_params_norm.min()), best_acc=float(hof.test_acc_mean.max()), cluster_gap_est=gap,
+               tau_est_test=float(kendalltau(hof.acc_rep_mean, hof.test_acc_mean)[0]))  # fidelidad práctica del estimador en el hall of fame
     return row, curve
 
 
@@ -82,12 +83,17 @@ if __name__ == "__main__":
     c = pd.DataFrame(out)
     c.to_csv(Path(a.root) / f"paired_contrasts{a.suffix}.csv", index=False)
     print("\ncontrastes pareados nsga3 - rs (Wilcoxon unilateral e IC bootstrap descriptivo):\n", c.round(4).to_string(index=False))
-    if a.compare and (Path(a.compare) / "per_run.csv").exists():
-        o = pd.read_csv(Path(a.compare) / "per_run.csv")
+    if a.compare:  # comparación entre versiones a igual coste de entrenamiento (descriptiva; bilateral): se recalculan las métricas del otro directorio con las mismas funciones
+        o = pd.DataFrame([dict(arm=arm, seed=s, **run_metrics(Path(a.compare) / arm / f"seed{s}")[0]) for arm in ARMS for s in a.seeds if (Path(a.compare) / arm / f"seed{s}" / "cost.json").exists()])
         for arm in ARMS:
-            x, y = d[d.arm == arm].set_index("seed").hv_retrained, o[o.arm == arm].set_index("seed").hv_retrained
-            diff = (x - y).dropna()
-            print(f"\n{arm}: hipervolumen reentrenado {a.root} − {a.compare}: media {diff.mean():+.4f}, por semilla {np.round(diff.values, 4).tolist()}")
+            for m in ("hv_retrained", "tau_est_test"):
+                x, y = d[d.arm == arm].set_index("seed")[m], o[o.arm == arm].set_index("seed")[m]
+                diff = (x - y).dropna()
+                if len(diff) < 2:
+                    continue
+                ci = np.percentile([rng.choice(diff.values, len(diff)).mean() for _ in range(5000)], [2.5, 97.5])
+                p2 = wilcoxon(diff.values).pvalue if np.any(diff.values != 0) else 1.0
+                print(f"\n{arm} {m}: {a.root} − {a.compare}: media {diff.mean():+.4f} IC95 [{ci[0]:+.4f}, {ci[1]:+.4f}], p bilateral {p2:.4f}, {int((diff > 0).sum())}/{len(diff)} semillas a favor (medias {x.mean():.4f} frente a {y.mean():.4f})")
     if len(c):
         ok = lambda m: float(c[c.metrica == m].p_unilateral.iloc[0]) < 0.05
         if ok("hv_retrained") and ok("auc_archive"):
