@@ -83,7 +83,7 @@ def run_cs(cfg: ExperimentConfig, output_dir=None, log=print) -> dict:
     if cfg.final.enabled and cfg.final.hof == "select_hof":
         # C objetivos: hall of fame de K representantes (regla fija) y, opcionalmente, un subconjunto fijo de la población inicial;
         # todos se reentrenan con los 100 nodos y se guarda la accuracy en test de cada nodo
-        hof = select_hof(hist, cfg.final.max_front, n_acc=ev.n_acc_obj if cfg.evolution.objectives in ("per_cluster_size", "per_cluster_mean_size") else None)
+        hof = select_hof(hist, cfg.final.max_front, n_acc=ev.n_acc_obj if cfg.evolution.objectives in ("per_cluster_size", "per_cluster_mean_size", "cluster_mean_global_size") else None)
         gen0 = list(dict.fromkeys(r["genome"] for r in hist if r["generation"] == 0))
         ini = []
         if cfg.final.initial_k > 0:

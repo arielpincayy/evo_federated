@@ -327,3 +327,18 @@ def test_search_runs_with_two_reps_per_cluster_without_reevaluation(toy):
     ev = _evr(clients, groups, 2)
     hist, rows = run_search(ev, SPACE, 10, 6, "nsga3", 0, ref_partitions=2, log=lambda *_: None, reeval_parents=False, eval_budget=20)
     assert len({h["genome"] for h in hist}) == len(hist) and ev.n_evals >= 20 and rows
+
+
+def test_cluster_mean_global_size_ablation_has_two_objectives_and_same_training_as_per_cluster(toy):
+    import json
+    clients, groups = toy
+    a, b = _ev2(clients, groups, cache=False), _ev2(clients, groups, cache=False, objectives="cluster_mean_global_size")
+    assert b.n_objectives() == 2 and b.n_acc_obj == 1
+    X = np.random.RandomState(0).rand(2, SPACE.n_var)
+    Fa, Fb = a.evaluate_population(X, 0), b.evaluate_population(X, 0)
+    for ra, rb, f in zip(a.history, b.history, Fb):
+        o, raw = json.loads(rb["obj_acc"]), json.loads(rb["obj_raw"])
+        assert len(o) == 2 and len(raw) == 3 and np.allclose(raw, json.loads(ra["obj_raw"])) and ra["reps"] == rb["reps"]  # mismo entrenamiento y mismos representantes
+        assert abs(o[0] - rb["acc_rep"]) < 1e-12 and abs(o[1] + rb["n_params_norm"]) < 1e-12 and np.allclose(f, [-o[0], -o[1]])
+    hist, rows = run_search(_ev2(clients, groups, objectives="cluster_mean_global_size"), SPACE, 6, 2, "nsga3", 0, ref_partitions=3, reeval_parents=False)
+    assert len(rows) == 2

@@ -76,7 +76,7 @@ class FederatedConfig:
 @dataclasses.dataclass
 class EvolutionConfig:
     search: str = "nsga2"  # nsga2 | nsga3 | random
-    objectives: str = "mean_params"  # mean_params (acc media, parámetros) | per_node (un objetivo por cluster) | per_cluster_size (un objetivo por cluster + tamaño) | per_cluster_mean_size (media del cluster + tamaño) | per_cluster_mean
+    objectives: str = "mean_params"  # mean_params (acc media, parámetros) | per_node (un objetivo por cluster) | per_cluster_size (un objetivo por cluster + tamaño) | per_cluster_mean_size (media del cluster + tamaño) | cluster_mean_global_size (ablación: acc media ponderada + tamaño) | per_cluster_mean
     ref_partitions: int = 2  # nsga3: particiones de Das-Dennis (nº de direcciones = población); 0 = automático (mayor p con <= pop_size direcciones)
     size_penalty: float = 0.0  # lambda: en los modos por cluster, obj_c = acc_c - lambda * n_params/param_ref (en mean_params debe ser 0)
     eval_budget: int = 0  # >0: con reeval_parents nº de generaciones tal que (pop + (G-1)*2*pop) ~ eval_budget; sin reeval_parents, parada al alcanzar esas evaluaciones reales
