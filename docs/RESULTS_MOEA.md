@@ -165,7 +165,20 @@ En v4 la diferencia es de menos de una generación y no se recalculó. La ventaj
 - Hipervolumen 3D del archivo (estimado; referencia (0, 0, 1.05)): `nsga3` 0.216 / `rs` 0.184 en v2 (gana 10/10 semillas), 0.272 / 0.243 en v3 (9/10), 0.332 / 0.284 en v4 (10/10).
 - Hipervolumen 3D de los 12 reentrenados (accuracy en test por cluster): `nsga3 − rs` = +0.013 en v2 (IC95 [−0.019, +0.043], 7/10, p 0.22), +0.002 en v3 (5/10, p 0.46) y +0.015 en v4 (IC95 [−0.031, +0.057], 7/10, p 0.35): sin significancia, como con el hipervolumen 2D.
 
-## 10. Modelos livianos (exploratorio, post hoc)
+## 10. Eficiencia: el MOEA necesita menos evaluaciones
+Mejora del hipervolumen del archivo sobre la población inicial de cada brazo (10 semillas; accuracies estimadas).
+| diseño | evaluaciones | mejora `nsga3` | mejora `rs` | `nsga3` − `rs` (semillas a favor, p) |
+|---|---|---|---|---|
+| v2 | 198 | +0.105 | +0.077 | +0.028 (9/10, 0.002) |
+| v2 | 497 | +0.130 | +0.097 | +0.034 (9/10, 0.003) |
+| v2 | 1 988 | +0.156 | +0.121 | +0.036 (9/10, 0.002) |
+| v3 | 248 | +0.129 | +0.095 | +0.034 (7/10, 0.053) |
+| v3 | 994 | +0.154 | +0.125 | +0.028 (7/10, 0.080) |
+| v4 | 126 | +0.095 | +0.068 | +0.027 (6/10, 0.19) |
+| v4 | 504 | +0.140 | +0.097 | +0.044 (8/10, 0.053) |
+Con el mismo número de evaluaciones `nsga3` mejora la población inicial ≈30 % más que `rs`. Con ≈50 % de las evaluaciones (generaciones 36/34/17 en v2/v3/v4) su archivo iguala o supera al de `rs` completo (v2 +0.014, 8/10, p 0.03; v3 +0.010; v4 +0.012). Frente reentrenado (Paso D, v2): `nsga3` con 250/500/1 000 evaluaciones 0.550/0.560/0.572 frente a 0.5565 de `rs` con 1 988.
+
+## 11. Modelos livianos (exploratorio, post hoc)
 Mejor accuracy en test entre los 12 modelos reentrenados con tamaño normalizado ≤ s (10 semillas; topes elegidos mirando los datos, 12 comparaciones).
 | diseño | s | `nsga3` | `rs` | diferencia [IC95] | semillas a favor (p unilat.) |
 |---|---|---|---|---|---|

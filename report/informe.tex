@@ -552,6 +552,28 @@ v4 & \texttt{rs} & 0.062 & 2.51 & 0.86 & 3.37\\
 
 \textbf{Tiempo.} El tiempo de reloj de \texttt{nsga3} es menor que el de \texttt{rs} en el v1 ($-21$\,\%) y en el v4 ($-17$\,\%), casi igual en el v2 ($-4$\,\%) y mayor en el v3 ($+7$\,\%); la etapa final es algo más rápida con \texttt{nsga3} en los cuatro diseños. \texttt{nsga3} evalúa arquitecturas más pequeñas en promedio (Tabla~\ref{tab:tiempo}), lo que explica en parte el menor tiempo en el v1 y el v4. Pero el tiempo no sigue al tamaño de forma consistente: en el v2 los modelos son un 40\,\% más pequeños y la búsqueda solo un 3\,\% más corta, y en el v3 la búsqueda de \texttt{nsga3} es un 12\,\% más lenta con modelos un 15\,\% más pequeños, porque el número de parámetros es un mal indicador del coste de cómputo (depende del kernel, de la resolución y de BatchNorm). Con un ruido de $\approx$10\,\% las diferencias del v2 y el v3 no son concluyentes. Queda pendiente comparar a igual tiempo de cómputo (midiendo el tiempo por evaluación en una máquina sin carga o estimando los FLOPs), donde la ventaja del MOEA podría crecer.
 
+\subsection*{Eficiencia: el MOEA necesita menos evaluaciones}
+Se midió cuánto mejora el hipervolumen del archivo respecto a la población inicial de cada brazo según avanzan las evaluaciones (10 semillas; accuracies estimadas en la búsqueda). Las poblaciones iniciales de los dos brazos son distintas, así que cada brazo se compara con la suya.
+\begin{table}[h]
+\centering\footnotesize
+\begin{tabular}{lcccc}
+\toprule
+diseño & evaluaciones & mejora \texttt{nsga3} & mejora \texttt{rs} & \texttt{nsga3} $-$ \texttt{rs} (semillas a favor, $p$)\\
+\midrule
+v2 & 198 & $+0.105$ & $+0.077$ & $+0.028$ (9/10, 0.002)\\
+v2 & 497 & $+0.130$ & $+0.097$ & $+0.034$ (9/10, 0.003)\\
+v2 & 1\,988 & $+0.156$ & $+0.121$ & $+0.036$ (9/10, 0.002)\\
+v3 & 248 & $+0.129$ & $+0.095$ & $+0.034$ (7/10, 0.053)\\
+v3 & 994 & $+0.154$ & $+0.125$ & $+0.028$ (7/10, 0.080)\\
+v4 & 126 & $+0.095$ & $+0.068$ & $+0.027$ (6/10, 0.19)\\
+v4 & 504 & $+0.140$ & $+0.097$ & $+0.044$ (8/10, 0.053)\\
+\bottomrule
+\end{tabular}
+\caption{Mejora del hipervolumen del archivo sobre la población inicial, frente al número de evaluaciones reales.}
+\label{tab:eficiencia}
+\end{table}
+Con el mismo número de evaluaciones, \texttt{nsga3} mejora la población inicial $\approx$30\,\% más que \texttt{rs}, y la ventaja se establece pronto ($\approx+0.03$ a $+0.04$ desde el 25\,\% del presupuesto). En términos de presupuesto, con $\approx$50\,\% de las evaluaciones (generaciones 36, 34 y 17 en v2, v3 y v4) el archivo de \texttt{nsga3} iguala o supera al de \texttt{rs} con el 100\,\% (v2: $+0.014$, 8/10, $p=0.03$; v3 $+0.010$ y v4 $+0.012$, 7/10). Sobre el frente reentrenado (Paso D, v2) \texttt{nsga3} con 250, 500 y 1\,000 evaluaciones obtiene un hipervolumen de 0.550, 0.560 y 0.572, frente a 0.5565 de \texttt{rs} con 1\,988.
+
 \subsection*{Modelos livianos (exploratorio, post hoc)}
 Después de ver los resultados se midió la mejor accuracy en test, entre los 12 modelos reentrenados de cada corrida, con tamaño normalizado menor o igual a un tope $s$ (10 semillas por diseño). Los topes se eligieron mirando los datos y son 12 comparaciones: es un análisis \emph{exploratorio}, no una prueba confirmatoria.
 \begin{table}[h]
