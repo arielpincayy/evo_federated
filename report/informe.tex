@@ -589,4 +589,35 @@ Para cada semilla, los 12 modelos reentrenados de cada brazo y su frente no domi
 \label{fig:seedv4}
 \end{figure}
 
+
+\section{Frentes de Pareto en los tres objetivos}
+La búsqueda optimiza tres objetivos: la accuracy de cada uno de los dos clusters y el tamaño. Las figuras muestran, para la semilla 0, el frente en 3D (puntos no dominados en los tres objetivos) y sus tres cortes en 2D (proyecciones sobre pares de objetivos, con los puntos no dominados en 3D resaltados y la frontera 2D de cada proyección). Las figuras de ``búsqueda'' usan las accuracies \emph{estimadas} de todas las arquitecturas evaluadas; las de ``reentrenado'', la accuracy en test por cluster de los 12 modelos reentrenados con los 100 nodos (rellenos: no dominados en 3D; huecos: dominados). Los dos clusters son distintos en cada semilla, así que los frentes 3D no se agrupan entre semillas.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.92\linewidth]{frente3d_busqueda_v2_s0}
+\caption{Frente en los tres objetivos y cortes 2D, v2, semilla 0, accuracies estimadas de todas las arquitecturas evaluadas. Hipervolumen 3D con punto de referencia $(0,0,1.05)$.}
+\label{fig:f3bv2}
+\end{figure}
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.92\linewidth]{frente3d_reentrenado_v2_s0}
+\caption{Frente en los tres objetivos y cortes 2D, v2, semilla 0, accuracy en test por cluster de los 12 modelos reentrenados.}
+\label{fig:f3rv2}
+\end{figure}
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.92\linewidth]{frente3d_busqueda_v4_s0}
+\caption{Frente en los tres objetivos y cortes 2D, v4 (espacio ampliado), semilla 0, accuracies estimadas.}
+\label{fig:f3bv4}
+\end{figure}
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.92\linewidth]{frente3d_reentrenado_v4_s0}
+\caption{Frente en los tres objetivos y cortes 2D, v4 (espacio ampliado), semilla 0, accuracy en test por cluster de los 12 modelos reentrenados.}
+\label{fig:f3rv4}
+\end{figure}
+
+Dos lecturas (la segunda, post hoc). Primero, las accuracies de los dos clusters están casi correlacionadas (Pearson 0.94 a 0.97 entre los 12 modelos reentrenados de cada corrida): el frente 3D es casi un frente en dos dimensiones, tamaño frente a accuracy media, y el tercer objetivo aporta poco. Segundo, en el espacio de los tres objetivos el hipervolumen 3D del archivo (estimado) es mayor con \texttt{nsga3} en 10 de 10 semillas en el v2 (0.216 frente a 0.184), en 9 de 10 en el v3 (0.272 frente a 0.243) y en 10 de 10 en el v4 (0.332 frente a 0.284), de acuerdo con la mejora de la búsqueda; pero con los 12 modelos reentrenados la diferencia es de $+0.013$ en el v2 (7/10 semillas, $p=0.22$), $+0.002$ en el v3 (5/10) y $+0.015$ en el v4 (7/10, $p=0.35$), sin significancia, igual que con el hipervolumen en dos dimensiones.
+
 \end{document}

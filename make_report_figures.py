@@ -15,6 +15,8 @@ import pandas as pd
 
 from analyze_moea import hv2
 from evofederated.evolution.cs_nas import _nd
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 (registra la proyección 3d)
+from pymoo.indicators.hv import HV
 
 OUT = Path("report/figures")
 COL = {"nsga3": "#0072B2", "rs": "#D55E00"}  # Okabe-Ito (apta para daltónicos)
@@ -205,6 +207,107 @@ def fig_seed_fronts(tag, root):
     save(fig, f"frentes_semilla_{tag}")
 
 
+# ---------------------------------------------------------------- frentes en los 3 objetivos (accuracy cluster 1, accuracy cluster 2, tamaño)
+def nondominated3(m1, m2, size):
+    """Índices no dominados en los 3 objetivos (maximizar las accuracies de los dos clusters, minimizar el tamaño)."""
+    return np.asarray(_nd(np.stack([-np.asarray(m1, float), -np.asarray(m2, float), np.asarray(size, float)], 1)))
+
+
+def hv3(m1, m2, size):
+    """Hipervolumen en los 3 objetivos (minimización de [-m1, -m2, tamaño]) con punto de referencia (0, 0, 1.05)."""
+    F = np.stack([-np.asarray(m1, float), -np.asarray(m2, float), np.asarray(size, float)], 1)
+    return float(HV(ref_point=np.array([0.0, 0.0, 1.05])).do(F)) if len(F) else 0.0
+
+
+def cluster_acc(nodes, labels):
+    """Accuracy media por nodo dentro de cada cluster, para cada modelo (genoma). -> DataFrame genoma x cluster."""
+    return nodes.assign(cl=np.asarray(labels)[nodes.node.values]).groupby(["genome", "cl"]).acc.mean().unstack()
+
+
+def search_points(root, arm, seed):
+    """Objetivos estimados de TODAS las arquitecturas evaluadas en la búsqueda: (m1, m2, tamaño)."""
+    p = pd.read_csv(Path(root) / arm / f"seed{seed}" / "population.csv")
+    raw = np.stack(p.obj_raw.map(json.loads).values)
+    return raw[:, 0], raw[:, 1], p.n_params_norm.values
+
+
+def retrained_points(root, arm, seed):
+    """Objetivos reales (accuracy en test por cluster, tamaño) de los 12 modelos reentrenados con los 100 nodos."""
+    d = Path(root) / arm / f"seed{seed}"
+    labels = json.load(open(d / "clusters.json"))["labels"]
+    nodes = pd.read_csv(d / "final_nodes.csv")
+    nodes = nodes[nodes.roles.str.split("|").map(lambda r: "hof" in r)]
+    ca = cluster_acc(nodes, labels)
+    f = pd.read_csv(d / "final_front.csv").drop_duplicates("genome").set_index("genome")
+    return ca[0].values, ca[1].values, f.loc[ca.index, "n_params_norm"].values
+
+
+def front2d(x, y, minimize_x):
+    """Frente no dominado de una proyección 2D (y se maximiza), ordenado por x."""
+    k = np.asarray(_nd(np.stack([x if minimize_x else -x, -y], 1)))
+    o = np.argsort(x[k])
+    return x[k][o], y[k][o]
+
+
+def fig_front3d(tag, root, seed, source):
+    """Frente de Pareto en 3D (arriba a la izquierda) y sus tres cortes 2D, con ambos brazos."""
+    get = search_points if source == "busqueda" else retrained_points
+    pts = {a: get(root, a, seed) for a in COL}
+    fig = plt.figure(figsize=(W, 6.0))
+    ax3 = fig.add_subplot(2, 2, 1, projection="3d")
+    axs = [fig.add_subplot(2, 2, i) for i in (2, 3, 4)]
+    proj = [(0, 1, False, "accuracy cluster 1", "accuracy cluster 2"), (2, 0, True, "tamaño normalizado", "accuracy cluster 1"), (2, 1, True, "tamaño normalizado", "accuracy cluster 2")]
+    handles = []
+    for a in COL:
+        m = np.stack(pts[a], 1)
+        nd = nondominated3(*pts[a])
+        mask = np.zeros(len(m), bool)
+        mask[nd] = True
+        h = hv3(*[m[nd, i] for i in range(3)])
+        handles.append(plt.Line2D([], [], color=COL[a], marker="o", ls="", ms=4, label=f"{LAB[a]}: {len(nd)} no dominados, HV 3D {h:.3f}"))
+        ax3.scatter(m[mask, 0], m[mask, 1], np.log10(m[mask, 2]), color=COL[a], s=10, alpha=0.9, depthshade=False)
+        for ax, (i, j, logx, xl, yl) in zip(axs, proj):
+            if source == "busqueda":
+                ax.scatter(m[~mask, i], m[~mask, j], s=3, color=COL[a], alpha=0.10, linewidths=0)
+                ax.scatter(m[mask, i], m[mask, j], s=9, color=COL[a], alpha=0.85, linewidths=0)
+            else:  # 12 modelos: rellenos los no dominados en 3D, huecos los dominados
+                ax.scatter(m[~mask, i], m[~mask, j], s=16, facecolors="none", edgecolors=COL[a], linewidths=0.8)
+                ax.scatter(m[mask, i], m[mask, j], s=16, color=COL[a], linewidths=0)
+            fx, fy = front2d(m[:, i], m[:, j], minimize_x=logx)
+            ax.plot(fx, fy, color=COL[a], lw=1.0, alpha=0.9)
+            if logx:
+                ax.set_xscale("log")
+            ax.set_xlabel(xl)
+            ax.set_ylabel(yl)
+    ax3.set_xlabel("acc. cluster 1", labelpad=-4, fontsize=7)
+    ax3.set_ylabel("acc. cluster 2", labelpad=-4, fontsize=7)
+    ax3.set_zlabel("log10 tamaño", labelpad=-4, fontsize=7)
+    ax3.tick_params(labelsize=6, pad=-2)
+    ax3.view_init(elev=22, azim=-58)
+    ax3.set_title("frente en 3D (puntos no dominados)", fontsize=8)
+    for ax, t in zip(axs, ("corte: cluster 1 frente a cluster 2", "corte: tamaño frente a cluster 1", "corte: tamaño frente a cluster 2")):
+        ax.set_title(t, fontsize=8)
+    what = "accuracy estimada en la búsqueda" if source == "busqueda" else "accuracy en test de los 12 modelos reentrenados"
+    fig.suptitle(f"{tag}, semilla {seed}: frente en los 3 objetivos ({what})", fontsize=9, y=0.995)
+    fig.legend(handles=handles, loc="lower center", ncol=1, frameon=False, fontsize=7)
+    fig.tight_layout(rect=[0, 0.07, 1, 0.97])
+    save(fig, f"frente3d_{source}_{tag}_s{seed}")
+    return {a: (int(len(nondominated3(*pts[a]))), round(hv3(*[np.stack(pts[a], 1)[nondominated3(*pts[a]), i] for i in range(3)]), 4)) for a in COL}
+
+
+def summary_3d():
+    """Hipervolumen 3D del archivo de la búsqueda (estimado) por diseño: media de las semillas y semillas en las que gana nsga3."""
+    for tag, root, _ in DESIGNS:
+        h = {a: [] for a in COL}
+        for s in SEEDS:
+            for a in COL:
+                m = np.stack(search_points(root, a, s), 1)
+                nd = nondominated3(*search_points(root, a, s))
+                h[a].append(hv3(*[m[nd, i] for i in range(3)]))
+        d = np.array(h["nsga3"]) - np.array(h["rs"])
+        print(f"{tag}: HV 3D del archivo (estimado) nsga3 {np.mean(h['nsga3']):.4f} / rs {np.mean(h['rs']):.4f}; diferencia media {d.mean():+.4f}, nsga3 gana en {(d > 0).sum()}/10 semillas")
+
+
 def main():
     style()
     fig_fronts()
@@ -215,6 +318,10 @@ def main():
     fig_seed_fronts("v4", "runs/moea4")
     for tag, root, _ in DESIGNS:
         print(tag, "hipervolumen reentrenado medio:", {a: round(float(np.mean([hv2(*hof_points(root, a, s)) for s in SEEDS])), 4) for a in COL})
+    for tag, root, _ in DESIGNS:
+        for source in ("busqueda", "reentrenado"):
+            print(f"frente 3D {tag} semilla 0 ({source}): (no dominados, HV 3D)", fig_front3d(tag, root, 0, source))
+    summary_3d()
     print("figuras en", OUT)
 
 
