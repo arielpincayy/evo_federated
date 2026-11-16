@@ -165,6 +165,26 @@ En v4 la diferencia es de menos de una generación y no se recalculó. La ventaj
 - Hipervolumen 3D del archivo (estimado; referencia (0, 0, 1.05)): `nsga3` 0.216 / `rs` 0.184 en v2 (gana 10/10 semillas), 0.272 / 0.243 en v3 (9/10), 0.332 / 0.284 en v4 (10/10).
 - Hipervolumen 3D de los 12 reentrenados (accuracy en test por cluster): `nsga3 − rs` = +0.013 en v2 (IC95 [−0.019, +0.043], 7/10, p 0.22), +0.002 en v3 (5/10, p 0.46) y +0.015 en v4 (IC95 [−0.031, +0.057], 7/10, p 0.35): sin significancia, como con el hipervolumen 2D.
 
+## 10. Modelos livianos (exploratorio, post hoc)
+Mejor accuracy en test entre los 12 modelos reentrenados con tamaño normalizado ≤ s (10 semillas; topes elegidos mirando los datos, 12 comparaciones).
+| diseño | s | `nsga3` | `rs` | diferencia [IC95] | semillas a favor (p unilat.) |
+|---|---|---|---|---|---|
+| v2 | 0.02 | 0.308 | 0.221 | +0.087 [+0.048, +0.123] | 9/10 (0.003) |
+| v2 | 0.05 | 0.446 | 0.425 | +0.021 [+0.005, +0.038] | 7/10 (0.032) |
+| v2 | 0.10 | 0.483 | 0.468 | +0.015 [−0.007, +0.040] | 7/10 (0.138) |
+| v2 | 0.20 | 0.548 | 0.528 | +0.020 [+0.002, +0.037] | 7/10 (0.024) |
+| v3 | 0.02 | 0.239 | 0.228 | +0.011 [−0.067, +0.070] | 8/10 (0.116) |
+| v3 | 0.05 | 0.437 | 0.384 | +0.053 [+0.010, +0.097] | 7/10 (0.032) |
+| v3 | 0.10 | 0.501 | 0.486 | +0.015 [−0.009, +0.042] | 5/10 (0.216) |
+| v3 | 0.20 | 0.544 | 0.541 | +0.003 [−0.016, +0.023] | 5/10 (0.385) |
+| v4 | 0.005 | 0.404 | 0.226 | +0.178 [+0.055, +0.293] | 9/10 (0.014) |
+| v4 | 0.01 | 0.531 | 0.453 | +0.077 [+0.002, +0.148] | 7/10 (0.053) |
+| v4 | 0.02 | 0.584 | 0.569 | +0.015 [−0.007, +0.036] | 7/10 (0.116) |
+| v4 | 0.05 | 0.648 | 0.627 | +0.021 [−0.006, +0.048] | 7/10 (0.097) |
+(Semillas sin ningún modelo tan pequeño, contadas como 0: v3 s=0.02, `nsga3` 1; v4 s=0.005, 1 por brazo.)
+- La ventaja de `nsga3` se concentra en los modelos pequeños (+0.09 en v2, +0.18 en v4) y desaparece en los grandes. Coherente con que `nsga3` evalúa arquitecturas más pequeñas (tamaño medio 0.033 frente a 0.062 en v4); explica por qué el hipervolumen apenas cambia.
+- Con 12 comparaciones solo v2 s=0.02 resiste Holm (0.003×12≈0.04); v4 s=0.005 queda en ≈0.17. Hace falta un contraste preregistrado con semillas nuevas; el mecanismo no se aisló.
+
 ## Conclusiones
 1. El MOEA v2 **optimiza lo que se le pide**: el archivo y la población mejoran frente a la aleatoria en 9 de 10 semillas (p = 0.002), y se replica en ambas mitades.
 2. **No se demuestra una ventaja en el frente final reentrenado**: +0.038 en las 5 primeras semillas se redujo a −0.004 en la réplica (regresión a la media); sobre las 10 semillas es +0.017 con IC que incluye el 0.

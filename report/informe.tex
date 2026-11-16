@@ -552,6 +552,33 @@ v4 & \texttt{rs} & 0.062 & 2.51 & 0.86 & 3.37\\
 
 \textbf{Tiempo.} El tiempo de reloj de \texttt{nsga3} es menor que el de \texttt{rs} en el v1 ($-21$\,\%) y en el v4 ($-17$\,\%), casi igual en el v2 ($-4$\,\%) y mayor en el v3 ($+7$\,\%); la etapa final es algo más rápida con \texttt{nsga3} en los cuatro diseños. \texttt{nsga3} evalúa arquitecturas más pequeñas en promedio (Tabla~\ref{tab:tiempo}), lo que explica en parte el menor tiempo en el v1 y el v4. Pero el tiempo no sigue al tamaño de forma consistente: en el v2 los modelos son un 40\,\% más pequeños y la búsqueda solo un 3\,\% más corta, y en el v3 la búsqueda de \texttt{nsga3} es un 12\,\% más lenta con modelos un 15\,\% más pequeños, porque el número de parámetros es un mal indicador del coste de cómputo (depende del kernel, de la resolución y de BatchNorm). Con un ruido de $\approx$10\,\% las diferencias del v2 y el v3 no son concluyentes. Queda pendiente comparar a igual tiempo de cómputo (midiendo el tiempo por evaluación en una máquina sin carga o estimando los FLOPs), donde la ventaja del MOEA podría crecer.
 
+\subsection*{Modelos livianos (exploratorio, post hoc)}
+Después de ver los resultados se midió la mejor accuracy en test, entre los 12 modelos reentrenados de cada corrida, con tamaño normalizado menor o igual a un tope $s$ (10 semillas por diseño). Los topes se eligieron mirando los datos y son 12 comparaciones: es un análisis \emph{exploratorio}, no una prueba confirmatoria.
+\begin{table}[h]
+\centering\footnotesize
+\begin{tabular}{llcccc}
+\toprule
+diseño & tope $s$ & \texttt{nsga3} & \texttt{rs} & diferencia [IC95] & semillas a favor ($p$ unilat.)\\
+\midrule
+v2 & $\le 0.02$ & 0.308 & 0.221 & $+0.087$ [$+0.048,+0.123$] & 9/10 (0.003)\\
+v2 & $\le 0.05$ & 0.446 & 0.425 & $+0.021$ [$+0.005,+0.038$] & 7/10 (0.032)\\
+v2 & $\le 0.10$ & 0.483 & 0.468 & $+0.015$ [$-0.007,+0.040$] & 7/10 (0.138)\\
+v2 & $\le 0.20$ & 0.548 & 0.528 & $+0.020$ [$+0.002,+0.037$] & 7/10 (0.024)\\
+v3 & $\le 0.02$ & 0.239 & 0.228 & $+0.011$ [$-0.067,+0.070$] & 8/10 (0.116)\\
+v3 & $\le 0.05$ & 0.437 & 0.384 & $+0.053$ [$+0.010,+0.097$] & 7/10 (0.032)\\
+v3 & $\le 0.10$ & 0.501 & 0.486 & $+0.015$ [$-0.009,+0.042$] & 5/10 (0.216)\\
+v3 & $\le 0.20$ & 0.544 & 0.541 & $+0.003$ [$-0.016,+0.023$] & 5/10 (0.385)\\
+v4 & $\le 0.005$ & 0.404 & 0.226 & $+0.178$ [$+0.055,+0.293$] & 9/10 (0.014)\\
+v4 & $\le 0.01$ & 0.531 & 0.453 & $+0.077$ [$+0.002,+0.148$] & 7/10 (0.053)\\
+v4 & $\le 0.02$ & 0.584 & 0.569 & $+0.015$ [$-0.007,+0.036$] & 7/10 (0.116)\\
+v4 & $\le 0.05$ & 0.648 & 0.627 & $+0.021$ [$-0.006,+0.048$] & 7/10 (0.097)\\
+\bottomrule
+\end{tabular}
+\caption{Mejor accuracy en test con tamaño $\le s$ entre los modelos reentrenados (media de 10 semillas). Exploratorio: los topes se fijaron mirando los datos. En v3 $\le 0.02$ y v4 $\le 0.005$ hay una semilla sin ningún modelo tan pequeño (cuenta como 0).}
+\label{tab:livianos}
+\end{table}
+\texttt{nsga3} encuentra mejores modelos pequeños: la diferencia es de $+0.09$ (v2) y $+0.18$ (v4) en los topes más bajos, y en los topes grandes (v3 $\ge 0.1$; v4 $\ge 0.02$) es de $\le 0.02$ sin significancia. Es coherente con que \texttt{nsga3} evalúa arquitecturas más pequeñas (tamaño medio 0.033 frente a 0.062 en el v4), porque el tamaño es uno de sus objetivos, mientras que la búsqueda aleatoria casi no muestrea esa zona; esto explica también que el hipervolumen, dominado por los modelos grandes, apenas cambie. Cautelas: con 12 comparaciones solo la del v2 $\le 0.02$ resiste una corrección de Holm ($0.003\times12\approx0.04$; la del v4 $\le 0.005$ queda en $\approx0.17$); la dirección es consistente en los tres diseños, pero hace falta confirmarla con un contraste preregistrado y semillas nuevas, y el mecanismo (más evaluaciones en la zona pequeña) no se aisló.
+
 \subsection*{Conclusiones del MOEA}
 \begin{enumerate}[leftmargin=*,itemsep=2pt]
 \item El MOEA corregido \textbf{optimiza lo que se le pide}: el archivo y la población mejoran frente a la aleatoria en 9 o 10 de 10 semillas en el v2, el v3 y el v4.
