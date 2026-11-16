@@ -151,6 +151,12 @@ Hipervolumen reentrenado medio 0.696 (`nsga3`) y 0.684 (`rs`) (no comparable con
 (`búsqueda` = tiempo de entrenamiento y evaluación del checkpoint de la búsqueda; `final` = total − búsqueda; horas con 20 procesos compartiendo la máquina, ruido ≈10 %.)
 
 **Caché y generaciones.** Los hijos de `nsga3` que repiten una arquitectura se sirven de la caché y no cuentan como evaluación real (≈160 por corrida en v2, ≈70 en v3, 12 en v4): `nsga3` hace ≈6 generaciones más que `rs` en v2 (77.1 frente a 71.0), 4 en v3 y <1 en v4 para el mismo número de evaluaciones reales. La caché no reduce el coste: el presupuesto compra arquitecturas distintas (≈1 998 en v2, como la aleatoria).
+**Robustez frente al criterio de parada.** Se paró al llegar al mismo número de evaluaciones reales (igual cómputo), lo que da a `nsga3` ≈8 % más generaciones que a `rs`; con igual número de generaciones tendría ≈7 % menos entrenamiento (1 850 frente a 1 988 evaluaciones en v2). Se cortó el archivo de `nsga3` en el mismo número de generaciones que `rs` y se recalculó el hipervolumen del archivo (accuracies estimadas, 10 semillas):
+| diseño | `nsga3`: evaluaciones (todas / cortado) | HV del archivo (todas / cortado) | `rs` | ventaja (todas / cortado) | aporte de las extra |
+|---|---|---|---|---|---|
+| v2 | 1 998 / 1 850 | 0.4745 / 0.4713 | 0.4439 | +0.0306 / +0.0274 | +0.0031 |
+| v3 | 1 001 / 941 | 0.5281 / 0.5276 | 0.5085 | +0.0195 / +0.0191 | +0.0004 |
+En v4 la diferencia es de menos de una generación y no se recalculó. La ventaja se mantiene a igual número de generaciones; las extra aportan ≈10 % (v2) y ≈2 % (v3), porque llegan al final de la búsqueda. Estimación indirecta sobre el frente reentrenado (Paso D): `nsga3` pasa de 0.5724 a 0.5737 entre 1 000 y 1 988 evaluaciones, así que ≈160 evaluaciones valen ≈ +0.0002. La elección del criterio no altera las conclusiones.
 **Tiempo.** `nsga3` es más rápido que `rs` en v1 (−21 %) y v4 (−17 %), casi igual en v2 (−4 %) y más lento en v3 (+7 %); la etapa final es algo más rápida en los cuatro. `nsga3` evalúa arquitecturas más pequeñas (tamaño 0.043 frente a 0.130 en v1, 0.079 frente a 0.131 en v2, 0.110 frente a 0.130 en v3, 0.033 frente a 0.062 en v4), lo que explica en parte v1 y v4, pero el tiempo no sigue al tamaño (v2: −40 % de tamaño, −3 % de tiempo de búsqueda; v3: −15 % de tamaño, +12 %): los parámetros son un mal indicador del coste de cómputo. Pendiente: comparar a igual tiempo de cómputo (tiempo por evaluación en una máquina sin carga o FLOPs).
 
 ## Conclusiones

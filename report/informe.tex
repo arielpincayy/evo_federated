@@ -512,6 +512,23 @@ v4 & \texttt{rs} & 4 & $\approx$96 & 40\,800 & 34.0 & 74\\
 
 \textbf{Caché y generaciones.} El presupuesto cuenta evaluaciones \emph{reales}: los hijos de \texttt{nsga3} que decodifican a una arquitectura ya evaluada reutilizan su resultado de la caché y no cuentan ($\approx$160 por corrida en el v2, $\approx$70 en el v3 y 12 en el v4). Por eso \texttt{nsga3} hace $\approx$6 generaciones más que \texttt{rs} en el v2 (77.1 frente a 71.0), 4 más en el v3 y menos de una en el v4, para el mismo número de evaluaciones reales. La caché no reduce el coste: hace que el presupuesto compre arquitecturas distintas ($\approx$1\,998 en el v2, como la aleatoria) y no repeticiones.
 
+\textbf{Robustez frente al criterio de parada.} Se eligió parar al llegar al mismo número de evaluaciones reales (igual cómputo), lo que da a \texttt{nsga3} $\approx$8\,\% más de generaciones que a \texttt{rs}. La alternativa, igual número de generaciones, le daría $\approx$7\,\% menos entrenamiento (1\,850 frente a 1\,988 evaluaciones en el v2). Para ver si la elección altera las conclusiones se cortó el archivo de \texttt{nsga3} en el mismo número de generaciones que \texttt{rs} y se recalculó el hipervolumen del archivo (con accuracies estimadas).
+\begin{table}[h]
+\centering\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lccccc}
+\toprule
+diseño & eval. \texttt{nsga3} & HV \texttt{nsga3} & HV \texttt{rs} & ventaja & aporte extra\\
+\midrule
+v2 & 1\,998 / 1\,850 & 0.4745 / 0.4713 & 0.4439 & $+0.0306$ / $+0.0274$ & $+0.0031$\\
+v3 & 1\,001 / 941 & 0.5281 / 0.5276 & 0.5085 & $+0.0195$ / $+0.0191$ & $+0.0004$\\
+\bottomrule
+\end{tabular}
+\caption{Hipervolumen (HV) del archivo de \texttt{nsga3} con todas sus generaciones y cortado en el mismo número que \texttt{rs}; en las columnas de \texttt{nsga3}, ``todas / cortado''. Ventaja $=$ HV de \texttt{nsga3} $-$ HV de \texttt{rs}; aporte extra $=$ lo que añaden las generaciones adicionales. Media de 10 semillas; en el v4 la diferencia es de menos de una generación y no se recalculó.}
+\label{tab:robustez}
+\end{table}
+La ventaja de \texttt{nsga3} sobre \texttt{rs} se mantiene a igual número de generaciones; las extra aportan el 10\,\% de ella en el v2 y el 2\,\% en el v3, porque llegan al final de la búsqueda, cuando el archivo apenas mejora. Una estimación indirecta sobre el frente reentrenado va en el mismo sentido: en el Paso D, \texttt{nsga3} pasa de 0.5724 a 0.5737 entre 1\,000 y 1\,988 evaluaciones, de modo que $\approx$160 evaluaciones valen $\approx+0.0002$. La elección del criterio de parada no altera las conclusiones.
+
 \begin{table}[h]
 \centering\footnotesize
 \setlength{\tabcolsep}{4pt}
