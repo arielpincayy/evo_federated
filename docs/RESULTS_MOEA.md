@@ -132,6 +132,27 @@ Hipervolumen reentrenado medio 0.696 (`nsga3`) y 0.684 (`rs`) (no comparable con
 
 **Los tres diseños juntos.** Primaria `nsga3 − rs`: v2 +0.017, v3 +0.005, v4 +0.012 (7, 5 y 7 de 10 semillas a favor). Promediada por federación (las tres versiones comparten las mismas 10 federaciones; descriptivo y no independiente): +0.0115 [−0.0076, +0.0296], 6/10 federaciones a favor, Wilcoxon unilateral p = 0.14; la media por federación va de −0.046 a +0.048.
 
+## Figuras
+`python make_report_figures.py` regenera desde `runs/` las figuras del informe LaTeX en `report/figures/` (PDF y PNG; ignoradas por git): frentes de Pareto reentrenados (curva de alcance mediana entre semillas) de v2, v3 y v4, diferencias de hipervolumen por diseño (forest plot), convergencia del archivo y de la población, curva de eficiencia del Paso D y, en el anexo del informe, los frentes por semilla de v2 y v4.
+
+## 8. Coste de la búsqueda y tiempo
+**Nodos.** Cada evaluación entrena con 2 nodos (uno por cluster; v1 y v2) o 4 (dos por cluster; v3 y v4), 20 rondas × 2 épocas. v1: se mide en 2 nodos retenidos; desde v2, en todos los miembros del cluster que no entrenaron (≈96–98 nodos), solo inferencia. Los representantes se re-sortean por generación: llegan a entrenar 50–93 de los 100 nodos. El coste de entrenamiento de la búsqueda es igual en ambos brazos por construcción y muy inferior a entrenar cada candidato con los 100 nodos (2 000 entrenamientos locales): ≈79 600 frente a 3.98 M en v2 (50×) y ≈40 300 frente a 1.0 M en v4 (25×). Costes fijos iguales: sonda (100 entrenamientos de 1 época) y etapa final (12 × 2 000 = 24 000).
+
+| diseño | brazo | entrenan / eval. | evalúan / eval. | entren. locales | generaciones | nodos distintos | tamaño medio evaluado | búsqueda (h) | final (h) | total (h) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| v1 A | `nsga3` | 2 | 2 | 79 520 | 36.0 | 50 | 0.043 | 1.36 | 0.37 | 1.73 |
+| v1 A | `rs` | 2 | 2 | 79 520 | 36.0 | 50 | 0.130 | 1.77 | 0.41 | 2.18 |
+| v2 | `nsga3` | 2 | ≈98 | 79 936 | 77.1 | 78 | 0.079 | 1.97 | 0.39 | 2.36 |
+| v2 | `rs` | 2 | ≈98 | 79 520 | 71.0 | 76 | 0.131 | 2.03 | 0.43 | 2.46 |
+| v3 | `nsga3` | 4 | ≈96 | 80 048 | 71.4 | 93 | 0.110 | 2.42 | 0.48 | 2.90 |
+| v3 | `rs` | 4 | ≈96 | 80 400 | 67.0 | 92 | 0.130 | 2.16 | 0.56 | 2.72 |
+| v4 | `nsga3` | 4 | ≈96 | 40 800 | 34.8 | 75 | 0.033 | 2.01 | 0.80 | 2.81 |
+| v4 | `rs` | 4 | ≈96 | 40 800 | 34.0 | 74 | 0.062 | 2.51 | 0.86 | 3.37 |
+(`búsqueda` = tiempo de entrenamiento y evaluación del checkpoint de la búsqueda; `final` = total − búsqueda; horas con 20 procesos compartiendo la máquina, ruido ≈10 %.)
+
+**Caché y generaciones.** Los hijos de `nsga3` que repiten una arquitectura se sirven de la caché y no cuentan como evaluación real (≈160 por corrida en v2, ≈70 en v3, 12 en v4): `nsga3` hace ≈6 generaciones más que `rs` en v2 (77.1 frente a 71.0), 4 en v3 y <1 en v4 para el mismo número de evaluaciones reales. La caché no reduce el coste: el presupuesto compra arquitecturas distintas (≈1 998 en v2, como la aleatoria).
+**Tiempo.** `nsga3` es más rápido que `rs` en v1 (−21 %) y v4 (−17 %), casi igual en v2 (−4 %) y más lento en v3 (+7 %); la etapa final es algo más rápida en los cuatro. `nsga3` evalúa arquitecturas más pequeñas (tamaño 0.043 frente a 0.130 en v1, 0.079 frente a 0.131 en v2, 0.110 frente a 0.130 en v3, 0.033 frente a 0.062 en v4), lo que explica en parte v1 y v4, pero el tiempo no sigue al tamaño (v2: −40 % de tamaño, −3 % de tiempo de búsqueda; v3: −15 % de tamaño, +12 %): los parámetros son un mal indicador del coste de cómputo. Pendiente: comparar a igual tiempo de cómputo (tiempo por evaluación en una máquina sin carga o FLOPs).
+
 ## Conclusiones
 1. El MOEA v2 **optimiza lo que se le pide**: el archivo y la población mejoran frente a la aleatoria en 9 de 10 semillas (p = 0.002), y se replica en ambas mitades.
 2. **No se demuestra una ventaja en el frente final reentrenado**: +0.038 en las 5 primeras semillas se redujo a −0.004 en la réplica (regresión a la media); sobre las 10 semillas es +0.017 con IC que incluye el 0.

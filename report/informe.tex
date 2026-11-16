@@ -3,9 +3,10 @@
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[spanish,es-tabla]{babel}
-\usepackage{lmodern,microtype,booktabs,xcolor,hyperref,amsmath,enumitem}
+\usepackage{lmodern,microtype,booktabs,xcolor,hyperref,amsmath,enumitem,graphicx}
 \hypersetup{colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black}
 \setlength{\emergencystretch}{4em}
+\graphicspath{{figures/}}
 \newcommand{\acc}{\mathrm{acc}}
 
 \title{Validación de los clusters por $\Delta$ y de la búsqueda de arquitecturas:\\ PCA, transferencia, FEMNIST, DBSCAN, interacción arquitectura $\times$ nodo, P3 y MOEA}
@@ -16,7 +17,7 @@
 \maketitle
 
 \begin{abstract}
-\noindent Se valida la agrupación de nodos federados por similitud de las actualizaciones $\Delta$ de un modelo sonda (k-means esférico, $C=10$, $N=100$ nodos) y, a partir de ella, la búsqueda de arquitecturas, con siete estudios que no repiten el NAS completo salvo los dos últimos. \textbf{(1)} Aplicar PCA antes del clustering es igual o peor que usar $\Delta$ crudo; la pérdida viene de centrar, no de reducir dimensiones. \textbf{(2)} En CIFAR-10 con Dirichlet, un modelo entrenado en un nodo rinde entre 10 y 35 puntos de accuracy más en nodos de su cluster que en otros (10 de 10 semillas significativas en los tres $\alpha$); $\Delta$ recupera entre el 76\,\% y el 89\,\% de la ganancia de una agrupación con etiquetas. \textbf{(3)} En FEMNIST, con partición natural por escritor, el efecto es pequeño pero real (3.3 puntos, 20 de 20 semillas) y $\Delta$ iguala a la agrupación con etiquetas; de forma exploratoria, $\Delta$ conserva una señal de $\approx$1 punto al controlar por la distribución de etiquetas. \textbf{(4)} Agrupar por \texttt{hsf\_id} transfiere casi tan bien como $\Delta$ pero son agrupaciones distintas, y DBSCAN, con o sin PCA, no mejora a k-means: encuentra 2--6 clusters grandes con 17--43\,\% de ruido. \textbf{(5)} Con un modelo global FedAvg por arquitectura, existe una interacción arquitectura $\times$ nodo estable pero pequeña (SD de 4.7 puntos frente a 18.1 del efecto de arquitectura); el ranking de arquitecturas es casi el mismo en todos los nodos (Spearman 0.92 entre nodos), elegir por nodo o por cluster no supera a la mejor global y bastan pocos nodos para elegir (10 nodos recuperan el 98.5\,\% de la mejora posible). \textbf{(6)} La silueta elige $k=2$ en las 20 federaciones; con ese $k$, NSGA-III con un objetivo por cluster y accuracy penalizada por tamaño no se distingue de NSGA-II con $C=10$ ni de la búsqueda aleatoria (hipervolumen 0.515, 0.518 y 0.499; todos los intervalos incluyen 0, 3 semillas) y usa 4.6 veces menos entrenamientos locales; la evolución mejora a la población pero no al mejor individuo. \textbf{(7)} Con NSGA-III y un objetivo por cluster más el tamaño como objetivo propio, el MOEA corregido (sin reevaluar, sin duplicados y con el score medido en todos los miembros del cluster) optimiza lo que se le pide (el archivo y la población mejoran frente a la búsqueda aleatoria en 9 de 10 semillas, $p=0.002$), pero la ventaja en el frente final reentrenado no se replicó: $+0.038$ en 5 semillas, $-0.004$ en una réplica con otras 5 y $+0.017$ (IC95 $[-0.009,+0.042]$, 7 de 10 semillas) en conjunto. Los puntos (3) exploratorio, (4) y los análisis de evolución por generación de las Secciones~\ref{sec:p3} y~\ref{sec:moea} son post hoc; (5), (6) y (7) se preregistraron, y la réplica del punto (7) es una ampliación posterior al primer análisis.
+\noindent Se valida la agrupación de nodos federados por similitud de las actualizaciones $\Delta$ de un modelo sonda (k-means esférico, $C=10$, $N=100$ nodos) y, a partir de ella, la búsqueda de arquitecturas, con siete estudios que no repiten el NAS completo salvo los dos últimos. \textbf{(1)} Aplicar PCA antes del clustering es igual o peor que usar $\Delta$ crudo; la pérdida viene de centrar, no de reducir dimensiones. \textbf{(2)} En CIFAR-10 con Dirichlet, un modelo entrenado en un nodo rinde entre 10 y 35 puntos de accuracy más en nodos de su cluster que en otros (10 de 10 semillas significativas en los tres $\alpha$); $\Delta$ recupera entre el 76\,\% y el 89\,\% de la ganancia de una agrupación con etiquetas. \textbf{(3)} En FEMNIST, con partición natural por escritor, el efecto es pequeño pero real (3.3 puntos, 20 de 20 semillas) y $\Delta$ iguala a la agrupación con etiquetas; de forma exploratoria, $\Delta$ conserva una señal de $\approx$1 punto al controlar por la distribución de etiquetas. \textbf{(4)} Agrupar por \texttt{hsf\_id} transfiere casi tan bien como $\Delta$ pero son agrupaciones distintas, y DBSCAN, con o sin PCA, no mejora a k-means: encuentra 2--6 clusters grandes con 17--43\,\% de ruido. \textbf{(5)} Con un modelo global FedAvg por arquitectura, existe una interacción arquitectura $\times$ nodo estable pero pequeña (SD de 4.7 puntos frente a 18.1 del efecto de arquitectura); el ranking de arquitecturas es casi el mismo en todos los nodos (Spearman 0.92 entre nodos), elegir por nodo o por cluster no supera a la mejor global y bastan pocos nodos para elegir (10 nodos recuperan el 98.5\,\% de la mejora posible). \textbf{(6)} La silueta elige $k=2$ en las 20 federaciones; con ese $k$, NSGA-III con un objetivo por cluster y accuracy penalizada por tamaño no se distingue de NSGA-II con $C=10$ ni de la búsqueda aleatoria (hipervolumen 0.515, 0.518 y 0.499; todos los intervalos incluyen 0, 3 semillas) y usa 4.6 veces menos entrenamientos locales; la evolución mejora a la población pero no al mejor individuo. \textbf{(7)} Con NSGA-III y un objetivo por cluster más el tamaño como objetivo propio, el MOEA corregido (sin reevaluar, sin duplicados y con el score medido en todos los miembros del cluster) optimiza lo que se le pide: el archivo y la población mejoran frente a la búsqueda aleatoria en 9 o 10 de 10 semillas ($p\le0.014$ en todos los diseños). Pero la ventaja en el frente final reentrenado es pequeña y no se demuestra: $+0.038$ en 5 semillas, $-0.004$ en una réplica con otras 5, $+0.017$ en las 10 juntas. Un diagnóstico del cuello de botella (el proxy de 2 representantes ordena mal entre las buenas arquitecturas, $\tau=0.50$ en la mitad superior, y mejora con más representantes por cluster), un diseño con 2 representantes a igual coste de entrenamiento (v3, $+0.005$), una curva de eficiencia con 250, 500 y 1\,000 evaluaciones (sin ventaja a presupuestos bajos) y un espacio de arquitecturas 1\,600 veces mayor (v4, $+0.012$) dan el mismo patrón: promediado por federación sobre los tres diseños el efecto es $+0.0115$ (IC95 $[-0.008,+0.030]$, $p=0.14$), por debajo de la dispersión entre semillas. El coste de la búsqueda es el mismo para ambos brazos ($\approx$80\,000 entrenamientos locales en el v2, 25 a 50 veces menos que entrenar cada candidato con los 100 nodos); el tiempo de reloj de \texttt{nsga3} es menor en el v1 y el v4, pero no en el v2 ni en el v3. Los puntos (3) exploratorio, (4) y los análisis de evolución por generación de las Secciones~\ref{sec:p3} y~\ref{sec:moea} son post hoc; (5), (6) y (7) se preregistraron, y la réplica, el Paso D y el v4 siguen diseños fijados antes de correr.
 \end{abstract}
 
 \section{Motivación y medidas}
@@ -334,7 +335,215 @@ Por semilla, la primaria fue $+0.068,+0.041,+0.068,+0.053,-0.041$ en las semilla
 
 \textbf{Decisión preregistrada (10 semillas): el MOEA mejora la población, sin ventaja demostrada en el frente final.} La réplica por separado no cumple su criterio (al menos 4 de 5 semillas a favor con media positiva en la primaria: 3/5 y $-0.004$).
 
-\textbf{Lectura.} (1) El MOEA optimiza lo que se le pide: el archivo y la población mejoran frente a la aleatoria en 9 de 10 semillas y en ambas mitades. (2) La ventaja en el frente final reentrenado no se demuestra: el $+0.038$ inicial regresó a la media. (3) Las correcciones del v2 cambiaron el resultado del v1 de ``peor que la aleatoria'' a ``no distinguible o ligeramente mejor''; no se separa cuál aportó cuánto. (4) Hipótesis, no probada: el MOEA optimiza un \emph{proxy} (2 representantes por cluster) que ordena las arquitecturas con $\tau\approx0.78$ respecto del entrenamiento con los 100 nodos, la aleatoria también elige su hall of fame con ese proxy, y la primaria se mide con 12 modelos y una inicialización (desviación entre semillas $\approx$0.04).
+\subsection*{Diagnóstico del cuello de botella (pasos A, B y C)}
+El v2 optimiza el proxy, pero su frente final no se distingue de la aleatoria. Tres explicaciones: la fidelidad del proxy (entrenar con 2 representantes), la elección final de solo 12 candidatos con ese proxy, o un espacio saturado. Se separaron con tres pasos baratos que reutilizan datos (preregistrados antes de correr).
+
+\textbf{A: dónde falla el proxy de 1 representante} (24 arquitecturas, 3 federaciones; la accuracy real va de $\approx$5\,\% a $\approx$58\,\%; el azar daría recall@$k\approx k/24$).
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcc}
+\toprule
+ & E1: un nodo retenido & E3: todos los miembros\\
+\midrule
+$\tau$ con la accuracy real & 0.73 & 0.79\\
+\textbf{$\tau$ en la mitad superior real} & 0.36 & \textbf{0.50}\\
+recall@3 / @6 / @8 & 0.42 / 0.66 / 0.80 & 0.53 / 0.71 / 0.83\\
+arrepentimiento si eliges la mejor por proxy & 6.9 pp & 3.4 pp\\
+arrepentimiento con las 3 / 6 mejores reentrenadas & 2.4 / 0.5 pp & 0.14 / 0.0 pp\\
+\bottomrule
+\end{tabular}
+\caption{Calidad de selección del proxy frente a la accuracy real con los 100 nodos.}
+\label{tab:A}
+\end{table}
+El proxy ordena bien en conjunto pero mal entre las buenas, que es donde importa; reentrenar unos pocos candidatos recupera la mejor. Además está sesgado: subestima $\approx$8 pp de media y más a las arquitecturas con BatchNorm (Spearman $-0.82$ entre sesgo y BatchNorm), más bloques ($-0.67$), ELU ($-0.52$) y más parámetros ($-0.56$), es decir, penaliza los rasgos de las arquitecturas que ganan de verdad (la mejor: BatchNorm, ELU, 3 bloques, 69 mil parámetros). Con solo 24 arquitecturas, esos rasgos están correlacionados y no se separa cuál causa el sesgo.
+
+\textbf{B: fidelidad frente a representantes por cluster} ($r$ representantes al azar por cluster, peso $|G_c|/(r\,N)$ cada uno; 6 sorteos por (federación, $r$), 10 para $r=1$).
+\begin{table}[h]
+\centering\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{cccccccc}
+\toprule
+$r$ & ruido & $\tau$ & $\tau$ mitad sup. & recall@3 & arrep.@1 & sesgo medio & $\rho$(sesgo, BN)\\
+\midrule
+1 (1$\times$) & 0.036 & 0.788 & 0.50 & 0.53 & 3.4 pp & $-8.2$ pp & $-0.82$\\
+2 (2$\times$) & 0.031 & 0.853 & 0.75 & 0.76 & 0.4 pp & $-4.4$ pp & $-0.69$\\
+4 (4$\times$) & 0.023 & 0.892 & 0.87 & 0.85 & 0.9 pp & $-2.0$ pp & $-0.66$\\
+8 (8$\times$) & 0.016 & 0.913 & 0.91 & 0.96 & 0.2 pp & $-0.9$ pp & $-0.46$\\
+\bottomrule
+\end{tabular}
+\caption{Fidelidad del proxy según los representantes por cluster (el coste crece con $r$).}
+\label{tab:B}
+\end{table}
+La diferencia de $\tau$ frente a $r=1$ es $+0.064$ (IC95 $[+0.009,+0.137]$) con $r=2$ y $+0.104$ ($[+0.032,+0.210]$) con $r=4$: la regla preregistrada (al menos $+0.05$ con IC por encima de 0 para $r\le4$) se cumple. El nivel del sesgo baja con $r$, pero su relación con BatchNorm y profundidad solo se debilita de verdad con $r=4$--8.
+
+\textbf{C: ¿tiene el archivo del MOEA mejores candidatos?} De cada uno de los 20 archivos del v2 se reentrenan 24 candidatos con los 100 nodos (los 12 ya reentrenados se reutilizan).
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcc}
+\toprule
+ & \texttt{nsga3} & \texttt{rs}\\
+\midrule
+hipervolumen con los 12 originales & 0.574 & 0.557\\
+hipervolumen con los 24 reentrenados & 0.577 & 0.568\\
+puntos del frente de la unión de ambos brazos (media) & 11.7 & 4.5\\
+\bottomrule
+\end{tabular}
+\caption{Paso C: reentrenamiento de 24 candidatos por archivo (10 semillas).}
+\label{tab:C}
+\end{table}
+Con 24 candidatos, $\texttt{nsga3}-\texttt{rs}=+0.009$ (IC95 $[-0.013,+0.031]$, $p=0.25$, 7/10 semillas). Reentrenar 24 en lugar de 12 ayuda más a \texttt{rs} ($+0.011$) que a \texttt{nsga3} ($+0.003$). La unión de ambos archivos supera a \texttt{nsga3} en solo $\approx$0.014 y a \texttt{rs} en $\approx$0.023: el margen es pequeño. El reparto del frente de la unión es descriptivo. Por la lectura fijada de antemano, el límite apunta a la fidelidad del proxy.
+
+\subsection*{v3: 2 representantes por cluster a igual coste de entrenamiento}
+Como el v2 pero con 2 representantes por cluster (4 nodos entrenan por evaluación), \textbf{994 evaluaciones} (los mismos $\approx$79\,500 entrenamientos locales que el v2) y población 15 ($\approx$66 generaciones); \texttt{nsga3} y \texttt{rs}, semillas 0--9.
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcc}
+\toprule
+ & v3: \texttt{nsga3}$-$\texttt{rs} (IC95) & semillas a favor, $p$\\
+\midrule
+\textbf{hipervolumen reentrenado (primaria)} & $+0.005$ $[-0.010,+0.020]$ & 5/10, 0.28\\
+convergencia del archivo & $+0.022$ $[+0.010,+0.034]$ & 9/10, 0.005\\
+mejora de la población & $+0.083$ $[+0.053,+0.117]$ & 10/10, 0.001\\
+\midrule
+\texttt{nsga3}: v3 $-$ v2 a igual coste & $+0.009$ $[-0.006,+0.021]$ & 8/10, 0.16 (bilateral)\\
+\texttt{rs}: v3 $-$ v2 a igual coste & $+0.021$ $[+0.002,+0.040]$ & 7/10, 0.13 (bilateral)\\
+\bottomrule
+\end{tabular}
+\caption{MOEA v3 (10 semillas) y comparación con el v2 a igual coste de entrenamiento.}
+\label{tab:v3}
+\end{table}
+La decisión preregistrada es la misma: mejora la población, sin ventaja en el frente final. Mejor evaluar bien que evaluar mucho, pero poco: ambos brazos suben en hipervolumen reentrenado (más la aleatoria) y la ventaja relativa del MOEA no crece ($+0.005$ frente a $+0.017$ del v2).
+
+\subsection*{Paso D: curva de eficiencia}
+Si el espacio está saturado, la ventaja de un MOEA debería verse con pocas evaluaciones. Con los archivos del v2 se reentrenan los 12 candidatos elegidos tras solo las primeras $B$ evaluaciones.
+\begin{table}[h]
+\centering\small
+\begin{tabular}{rcccc}
+\toprule
+$B$ & \texttt{nsga3} & \texttt{rs} & \texttt{nsga3}$-$\texttt{rs} (IC95) & a favor, $p$ (Holm)\\
+\midrule
+250 & 0.550 & 0.546 & $+0.005$ $[-0.015,+0.023]$ & 6/10, 0.35\\
+500 & 0.560 & 0.549 & $+0.011$ $[-0.011,+0.030]$ & 6/10, 0.35\\
+1\,000 & 0.572 & 0.553 & $+0.020$ $[-0.001,+0.041]$ & 6/10, 0.35\\
+1\,988 (completo) & 0.574 & 0.557 & $+0.017$ $[-0.009,+0.041]$ & 7/10, --\\
+\bottomrule
+\end{tabular}
+\caption{Hipervolumen reentrenado tras $B$ evaluaciones (10 semillas).}
+\label{tab:D}
+\end{table}
+Ningún presupuesto parcial cumple la regla (Holm $p<0.05$ con al menos 7 de 10 semillas a favor), y la diferencia \emph{crece} con el presupuesto, lo contrario de lo esperado si el MOEA ganara sobre todo con pocas evaluaciones. De forma post hoc, \texttt{nsga3} con 500 evaluaciones iguala a \texttt{rs} con 1\,988 ($+0.003$, $p=1.0$), una calidad parecida con $\approx$4 veces menos evaluaciones, pero el intervalo ($\pm0.027$) no lo distingue de una ventaja nula ni de una mayor.
+
+\subsection*{v4: espacio de arquitecturas más difícil}
+Espacio con 5 bloques, canales hasta 128, kernels $\{3,5,7\}$, activaciones $\{$relu, elu, gelu, tanh$\}$, hasta 3 capas FC de hasta 512 y 12 genes ($\approx3\cdot10^{7}$ arquitecturas discretas, 1\,600 veces el anterior). Un piloto con 60 arquitecturas aleatorias cumplió la regla (mediana de 10.5 s por evaluación; el 78\,\% aprende) y mostró un espacio más disperso (SD de la accuracy del proxy 0.150 frente a 0.087; el 3--4\,\% de las arquitecturas a $\le0.05$ de la mejor, frente al 10\,\%). Diseño como el v3, con 504 evaluaciones y población 15; \texttt{nsga3} y \texttt{rs}, semillas 0--9.
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcc}
+\toprule
+\texttt{nsga3}$-$\texttt{rs} (10 semillas) & diferencia (IC95) & a favor, $p$\\
+\midrule
+\textbf{hipervolumen reentrenado (primaria)} & $+0.012$ $[-0.017,+0.039]$ & 7/10, 0.25\\
+convergencia del archivo & $+0.024$ $[+0.008,+0.040]$ & 9/10, 0.014\\
+mejora de la población & $+0.103$ $[+0.063,+0.140]$ & 9/10, 0.002\\
+\bottomrule
+\end{tabular}
+\caption{MOEA v4 (espacio ampliado).}
+\label{tab:v4}
+\end{table}
+La decisión preregistrada vuelve a ser que mejora la población sin ventaja en el frente final. El hipervolumen reentrenado medio es 0.696 (\texttt{nsga3}) y 0.684 (\texttt{rs}), no comparable con los diseños anteriores (otro espacio y otra normalización del tamaño); la mejor accuracy en test es 0.67 frente a 0.58 en el espacio anterior, de modo que el espacio mayor contiene mejores modelos. El Kendall $\tau$ entre la accuracy estimada y la de test en el hall of fame baja a 0.69--0.71 (0.79 en el v2).
+
+\textbf{Diagnóstico de saturación.} La ganancia tardía del archivo de \texttt{rs} (hipervolumen estimado al 100\,\% menos al 50\,\% de las evaluaciones) es $+0.0134$ tanto en el v4 como en el v2, y en el mismo rango absoluto (252 a 504 evaluaciones) es $+0.0134$ frente a $+0.0157$: por esta medida, que usa accuracies estimadas, el espacio mayor no es menos saturado para la aleatoria.
+
+\textbf{Los tres diseños juntos.} La primaria \texttt{nsga3}$-$\texttt{rs} fue $+0.017$ (v2), $+0.005$ (v3) y $+0.012$ (v4), con 7, 5 y 7 de 10 semillas a favor. Promediada por federación (las tres versiones comparten las mismas 10 federaciones; descriptivo y no independiente) es $+0.0115$ (IC95 $[-0.008,+0.030]$, 6/10 federaciones a favor, $p=0.14$), con medias por federación entre $-0.046$ y $+0.048$.
+
+\subsection*{Frentes de Pareto y curvas de hipervolumen}
+Las figuras siguientes resumen los diseños v2, v3 y v4 (10 semillas, \texttt{nsga3} frente a \texttt{rs}). La Figura~\ref{fig:fronts} muestra los frentes de Pareto reentrenados: con $r=1$ (v2) y en el espacio ampliado (v4), \texttt{nsga3} queda por encima en tamaños pequeños e intermedios; con $r=2$ (v3) las curvas casi coinciden; en los tamaños grandes ambos brazos convergen. La Figura~\ref{fig:forest} compara el hipervolumen reentrenado entre diseños: el efecto es pequeño, variable entre semillas y su intervalo incluye el 0 salvo en la variante B del v1, donde favorece a la aleatoria. La Figura~\ref{fig:conv} muestra que la mejora de \texttt{nsga3} aparece en el archivo y en la población, y la Figura~\ref{fig:eff} que, con los archivos del v2, la diferencia en el hipervolumen reentrenado crece con el presupuesto.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{frentes_pareto}
+\caption{Frentes de Pareto reentrenados (accuracy en test frente a tamaño normalizado) de los 12 modelos del hall of fame de cada corrida, con 10 semillas por brazo. Puntos tenues: modelos individuales. Línea: curva de alcance mediana entre semillas, $f(s)=$ mejor accuracy con tamaño $\le s$ (un frente de Pareto en escalón); banda: rango intercuartílico. El v4 usa otro espacio y otra normalización del tamaño.}
+\label{fig:fronts}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{hv_diferencias}
+\caption{Diferencia en hipervolumen reentrenado \texttt{nsga3}$-$\texttt{rs} por diseño. Puntos grises: semillas (5 en el v1, 10 en los demás); rombo e intervalo: media e IC95 bootstrap. La última fila promedia v2--v4 por federación (descriptivo; los tres diseños comparten las mismas federaciones).}
+\label{fig:forest}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{hv_convergencia}
+\caption{Convergencia de la búsqueda. Arriba: hipervolumen del archivo frente al número de evaluaciones, con accuracies \emph{estimadas} (optimistas). Abajo: hipervolumen de los individuos nuevos de cada generación. Media $\pm$ error estándar de 10 semillas.}
+\label{fig:conv}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.62\linewidth]{hv_eficiencia}
+\caption{Paso D: hipervolumen reentrenado de los 12 candidatos elegidos tras las primeras $B$ evaluaciones del archivo del v2. Línea: media; banda: IC95 bootstrap; líneas finas: semillas.}
+\label{fig:eff}
+\end{figure}
+
+\subsection*{Coste de la búsqueda y tiempo}
+\textbf{Nodos.} Cada evaluación entrena el modelo con 2 nodos (uno por cluster; v1 y v2) o con 4 (dos por cluster; v3 y v4) durante 20 rondas $\times$ 2 épocas. En el v1 se mide en 2 nodos retenidos; desde el v2 se mide en todos los miembros del cluster que no entrenaron ($\approx$96--98 nodos), solo con inferencia (no se entrena ni salen datos del nodo). Como los representantes se re-sortean en cada generación, a lo largo de una búsqueda llegan a entrenar entre 50 y 93 de los 100 nodos. El coste de entrenamiento de la búsqueda es el mismo en los dos brazos por construcción (mismo presupuesto) y muy inferior al de entrenar cada candidato con los 100 nodos ($2\,000$ entrenamientos locales): $\approx$79\,600 frente a 3.98 millones en el v2 (50 veces menos) y $\approx$40\,300 frente a 1.0 millones en el v4 (25 veces menos). Son costes fijos e iguales para ambos brazos la sonda (100 entrenamientos de una época) y la etapa final ($12\times2\,000=24\,000$ entrenamientos locales).
+
+\begin{table}[h]
+\centering\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llccccc}
+\toprule
+diseño & brazo & entrenan / eval. & evalúan / eval. & entren. locales & generaciones & nodos distintos\\
+\midrule
+v1 A & \texttt{nsga3} & 2 & 2 & 79\,520 & 36.0 & 50\\
+v1 A & \texttt{rs} & 2 & 2 & 79\,520 & 36.0 & 50\\
+v2 & \texttt{nsga3} & 2 & $\approx$98 & 79\,936 & 77.1 & 78\\
+v2 & \texttt{rs} & 2 & $\approx$98 & 79\,520 & 71.0 & 76\\
+v3 & \texttt{nsga3} & 4 & $\approx$96 & 80\,048 & 71.4 & 93\\
+v3 & \texttt{rs} & 4 & $\approx$96 & 80\,400 & 67.0 & 92\\
+v4 & \texttt{nsga3} & 4 & $\approx$96 & 40\,800 & 34.8 & 75\\
+v4 & \texttt{rs} & 4 & $\approx$96 & 40\,800 & 34.0 & 74\\
+\bottomrule
+\end{tabular}
+\caption{Nodos y entrenamientos de la búsqueda (media de las semillas). ``Nodos distintos'': de los 100, cuántos llegaron a entrenar alguna vez como representantes.}
+\label{tab:coste}
+\end{table}
+
+\textbf{Caché y generaciones.} El presupuesto cuenta evaluaciones \emph{reales}: los hijos de \texttt{nsga3} que decodifican a una arquitectura ya evaluada reutilizan su resultado de la caché y no cuentan ($\approx$160 por corrida en el v2, $\approx$70 en el v3 y 12 en el v4). Por eso \texttt{nsga3} hace $\approx$6 generaciones más que \texttt{rs} en el v2 (77.1 frente a 71.0), 4 más en el v3 y menos de una en el v4, para el mismo número de evaluaciones reales. La caché no reduce el coste: hace que el presupuesto compre arquitecturas distintas ($\approx$1\,998 en el v2, como la aleatoria) y no repeticiones.
+
+\begin{table}[h]
+\centering\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llcccc}
+\toprule
+diseño & brazo & tamaño medio evaluado & búsqueda (h) & etapa final (h) & total (h)\\
+\midrule
+v1 A & \texttt{nsga3} & 0.043 & 1.36 & 0.37 & 1.73\\
+v1 A & \texttt{rs} & 0.130 & 1.77 & 0.41 & 2.18\\
+v2 & \texttt{nsga3} & 0.079 & 1.97 & 0.39 & 2.36\\
+v2 & \texttt{rs} & 0.131 & 2.03 & 0.43 & 2.46\\
+v3 & \texttt{nsga3} & 0.110 & 2.42 & 0.48 & 2.90\\
+v3 & \texttt{rs} & 0.130 & 2.16 & 0.56 & 2.72\\
+v4 & \texttt{nsga3} & 0.033 & 2.01 & 0.80 & 2.81\\
+v4 & \texttt{rs} & 0.062 & 2.51 & 0.86 & 3.37\\
+\bottomrule
+\end{tabular}
+\caption{Tiempo por corrida (media de las semillas) y tamaño medio normalizado de las arquitecturas evaluadas. Las horas se midieron con 20 procesos compartiendo la máquina (ruido de $\approx$10\,\%).}
+\label{tab:tiempo}
+\end{table}
+
+\textbf{Tiempo.} El tiempo de reloj de \texttt{nsga3} es menor que el de \texttt{rs} en el v1 ($-21$\,\%) y en el v4 ($-17$\,\%), casi igual en el v2 ($-4$\,\%) y mayor en el v3 ($+7$\,\%); la etapa final es algo más rápida con \texttt{nsga3} en los cuatro diseños. \texttt{nsga3} evalúa arquitecturas más pequeñas en promedio (Tabla~\ref{tab:tiempo}), lo que explica en parte el menor tiempo en el v1 y el v4. Pero el tiempo no sigue al tamaño de forma consistente: en el v2 los modelos son un 40\,\% más pequeños y la búsqueda solo un 3\,\% más corta, y en el v3 la búsqueda de \texttt{nsga3} es un 12\,\% más lenta con modelos un 15\,\% más pequeños, porque el número de parámetros es un mal indicador del coste de cómputo (depende del kernel, de la resolución y de BatchNorm). Con un ruido de $\approx$10\,\% las diferencias del v2 y el v3 no son concluyentes. Queda pendiente comparar a igual tiempo de cómputo (midiendo el tiempo por evaluación en una máquina sin carga o estimando los FLOPs), donde la ventaja del MOEA podría crecer.
+
+\subsection*{Conclusiones del MOEA}
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+\item El MOEA corregido \textbf{optimiza lo que se le pide}: el archivo y la población mejoran frente a la aleatoria en 9 o 10 de 10 semillas en el v2, el v3 y el v4.
+\item \textbf{No se demuestra una ventaja en el frente final reentrenado}: el efecto es de $\approx+0.01$ en hipervolumen (un 1--2\,\%), por debajo de la dispersión entre semillas ($\approx$0.04--0.05); confirmarlo exigiría decenas de federaciones.
+\item Las correcciones del v2 (no reevaluar, sin duplicados, score en todos los miembros) pasaron el resultado del v1 de ``peor que la aleatoria'' a ``no distinguible o ligeramente mejor''; no se separa cuál aportó cuánto.
+\item Un proxy más fiable (v3) sube el resultado de ambos brazos pero no abre una ventaja del MOEA; la curva de eficiencia (Paso D) no muestra ventaja a presupuestos bajos; y un espacio 1\,600 veces mayor (v4) da el mismo patrón y no resulta menos saturado según el diagnóstico.
+\item El coste de entrenamiento de la búsqueda es el mismo con ambos métodos ($\approx$80\,000 entrenamientos locales en el v2 y el v3, $\approx$40\,800 en el v4; 25 a 50 veces menos que entrenar cada candidato con los 100 nodos). La posible ventaja de \texttt{nsga3} en tiempo de reloj ($-21$\,\% en el v1 y $-17$\,\% en el v4) no es consistente (v2 y v3) y no se ha medido a igual cómputo.
+\item Hipótesis, no probada: el límite es la brecha entre el proxy (2 representantes por cluster) y el entrenamiento con los 100 nodos ($\tau$ estimado-test de 0.69 a 0.79), que la aleatoria comparte al elegir su hall of fame, más la dispersión de medir 12 modelos con una inicialización.
+\end{enumerate}
 
 \section{Límites}
 \begin{itemize}[leftmargin=*,itemsep=2pt]
@@ -343,7 +552,24 @@ Por semilla, la primaria fue $+0.068,+0.041,+0.068,+0.053,-0.041$ en las semilla
 \item Con Dirichlet la similitud funcional depende casi solo de las etiquetas. En FEMNIST el coeficiente de $\approx$1 punto sobre Hellinger es exploratorio y no identifica qué captura $\Delta$.
 \item Arquitectura $\times$ nodo: 24 arquitecturas aleatorias del espacio v2, una receta y solo FEMNIST; test por nodo muy pequeño (36 muestras); el IC bootstrap remuestrea nodos, no arquitecturas; no se identificó qué arquitecturas o nodos generan la interacción.
 \item P3: 3 semillas (intervalos de $\pm0.03$--$0.05$), un $\lambda$, 4 generaciones en \texttt{p3} y \texttt{rs}; evaluaciones casi iguales (420 y 390) pero entrenamientos locales distintos; los conjuntos finales tienen tamaños distintos, lo que complica comparar hipervolúmenes; la penalización común elimina el frente accuracy-tamaño. Como la silueta eligió $k=2$, no se probó el caso de muchos objetivos.
-\item MOEA: un dataset, un espacio, una receta y un solo MOEA (NSGA-III); 10 semillas, y la réplica 5--9 es una ampliación posterior al primer análisis (el $p$ combinado es algo optimista). Las tres correcciones del v2 se aplicaron juntas, sin ablaciones. El hipervolumen reentrenado usa una sola inicialización por modelo. Evaluar en todos los miembros relaja la premisa de no tocar a todos los nodos (solo inferencia, $\approx$+50\,\% de tiempo por evaluación). Los umbrales de la auditoría de ruido los fijé yo.
+\item MOEA: un dataset (FEMNIST), una receta y un solo MOEA (NSGA-III); 10 semillas por diseño, y la réplica 5--9 es una ampliación posterior al primer análisis (el $p$ combinado es algo optimista). Las tres correcciones del v2 se aplicaron juntas, sin ablaciones. El hipervolumen reentrenado usa 12 modelos y una inicialización. Evaluar en todos los miembros relaja la premisa de no tocar a todos los nodos (solo inferencia, $\approx$+50\,\% de tiempo por evaluación). Los umbrales de la auditoría de ruido y de las reglas de los pasos B, D y del piloto los fijé yo.
+\item Diagnóstico y diseños posteriores: A y B usan solo 24 arquitecturas y 3 federaciones; el Paso D reutiliza solo los archivos del v2; el v3 cambia a la vez fidelidad, número de evaluaciones y tamaño de la población; el v4 es una sola forma de ``más difícil'' (más opciones y profundidad, sin heterogeneidad por bloque), con otra normalización del tamaño que impide comparar hipervolúmenes con los diseños anteriores, y su diagnóstico de saturación usa accuracies estimadas. El promedio de los tres diseños por federación no es independiente.
 \end{itemize}
+
+\appendix
+\section{Frentes de Pareto por semilla}
+Para cada semilla, los 12 modelos reentrenados de cada brazo y su frente no dominado (escalón); sobre cada panel, el hipervolumen de \texttt{nsga3} y de \texttt{rs}. Permiten ver en qué semillas gana o pierde cada brazo.
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{frentes_semilla_v2}
+\caption{Frentes de Pareto por semilla en el v2 (1 988 evaluaciones, $r=1$). Hipervolumen \texttt{nsga3} / \texttt{rs} sobre cada panel.}
+\label{fig:seedv2}
+\end{figure}
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{frentes_semilla_v4}
+\caption{Frentes de Pareto por semilla en el v4 (espacio ampliado, 504 evaluaciones). Hipervolumen \texttt{nsga3} / \texttt{rs} sobre cada panel (otra normalización del tamaño que en el v2).}
+\label{fig:seedv4}
+\end{figure}
 
 \end{document}
