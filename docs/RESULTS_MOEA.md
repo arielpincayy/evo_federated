@@ -115,6 +115,23 @@ El hipervolumen reentrenado de `nsga3` se aplana hacia 1 000 evaluaciones (0.572
 
 **Post hoc (no preregistrado; bilateral):** `nsga3` con 500 evaluaciones iguala a `rs` con 1 988 (+0.003 [−0.025, +0.029], 6/10, p 1.0), es decir, una calidad parecida con ≈4 veces menos evaluaciones, pero el IC (±0.027) no distingue esto de una ventaja nula ni de una mayor. `nsga3` con 1 000 evaluaciones frente a `rs` con 1 988: +0.016 [−0.011, +0.040], 7/10, p 0.32.
 
+## 7. v4: espacio de arquitecturas más difícil
+Diseño y piloto en `docs/MOEA_DESIGN.md` ("MOEA v4") y `configs/cs_moea4.yaml`. Espacio: 5 bloques, canales hasta 128, kernels {3, 5, 7}, activaciones {relu, elu, gelu, tanh}, hasta 3 capas FC de hasta 512; 12 genes (≈3·10⁷ arquitecturas discretas, ×1 600). Piloto (60 arquitecturas aleatorias): tiempo por evaluación mediana 10.5 s, el 78 % aprende, accuracy del proxy con SD 0.150 (0.087 en el espacio anterior) y solo el 3–4 % a ≤ 0.05 de la mejor (10 % antes).
+Diseño de la búsqueda como el v3 (k=2, 3 objetivos, 2 representantes por cluster, sin reevaluar, caché, duplicados por arquitectura): `eval_budget` 504 (510 evaluaciones reales) y población 15; `nsga3` y `rs`, semillas 0–9, 20 corridas (2.8 h y 3.4 h por corrida).
+
+`nsga3 − rs` (10 semillas; diferencia media, IC95 bootstrap, p unilateral, semillas a favor):
+| métrica | v4 |
+|---|---|
+| **hipervolumen reentrenado (primaria)** | +0.012 [−0.017, +0.039], p 0.25, 7/10 (+0.040, −0.044, +0.053, +0.073, +0.002, −0.051, +0.036, +0.018, +0.052, −0.055) |
+| convergencia del archivo | +0.024 [+0.008, +0.040], p 0.014, 9/10 |
+| pendiente de la población | +0.0022 [+0.0015, +0.0028], p 0.002, 9/10 |
+| mejora de la población (últimas 5 gen. − g0) | +0.103 [+0.063, +0.140], p 0.002, 9/10 |
+Hipervolumen reentrenado medio 0.696 (`nsga3`) y 0.684 (`rs`) (no comparable con v2/v3: otro espacio y otra normalización del tamaño); mejor accuracy en test 0.669 y 0.659 (≈0.58 en el espacio anterior: el espacio mayor contiene modelos mejores); tamaño del frente 8.1 y 7.9; Kendall τ estimado-test en el hall of fame 0.69 y 0.71 (0.79 en el v2). Decisión preregistrada: **mejora la población, sin ventaja demostrada en el frente final.**
+
+**Diagnóstico de saturación.** Ganancia tardía del archivo de `rs` (hipervolumen estimado al 100 % − al 50 % de las evaluaciones): +0.0134 en v4 y +0.0134 en v2, es decir, **igual**: por esta medida el espacio mayor no es menos saturado para la aleatoria. En el mismo rango absoluto de evaluaciones (252 → 504) la ganancia de `rs` es +0.0134 (v4) frente a +0.0157 (v2), y la de `nsga3` +0.0224 frente a +0.0191. (El hipervolumen del archivo usa accuracies estimadas y otra normalización del tamaño.)
+
+**Los tres diseños juntos.** Primaria `nsga3 − rs`: v2 +0.017, v3 +0.005, v4 +0.012 (7, 5 y 7 de 10 semillas a favor). Promediada por federación (las tres versiones comparten las mismas 10 federaciones; descriptivo y no independiente): +0.0115 [−0.0076, +0.0296], 6/10 federaciones a favor, Wilcoxon unilateral p = 0.14; la media por federación va de −0.046 a +0.048.
+
 ## Conclusiones
 1. El MOEA v2 **optimiza lo que se le pide**: el archivo y la población mejoran frente a la aleatoria en 9 de 10 semillas (p = 0.002), y se replica en ambas mitades.
 2. **No se demuestra una ventaja en el frente final reentrenado**: +0.038 en las 5 primeras semillas se redujo a −0.004 en la réplica (regresión a la media); sobre las 10 semillas es +0.017 con IC que incluye el 0.
@@ -122,11 +139,12 @@ El hipervolumen reentrenado de `nsga3` se aplana hacia 1 000 evaluaciones (0.572
 4. v3 (r=2 a igual coste): mejorar el proxy sube el hipervolumen reentrenado de ambos brazos (+0.009 `nsga3`, +0.021 `rs`) pero no abre una ventaja del MOEA (+0.005 frente a la aleatoria; 5/10 semillas), mientras la población sigue mejorando (10/10, p = 0.001).
 5. Hipótesis (no probada) principal: el espacio de 9 genes está **saturado** con ~1 000–2 000 evaluaciones: ambos brazos llegan a ≈0.58 de hipervolumen y a ≈0.58 de accuracy máxima, y la unión de los archivos de ambos solo supera a cada brazo en ≈0.014–0.023 (Paso C).
 6. Paso D (curva de eficiencia): no se demuestra ventaja a presupuestos bajos (Holm p = 0.35 en B = 250, 500 y 1 000); la diferencia crece con el presupuesto hasta ≈ +0.02, sin significancia con 10 semillas. Con la dispersión observada (SD de la diferencia ≈ 0.03–0.04 por semilla), confirmar un efecto de ≈ +0.02 exigiría ≈ 20–35 semillas.
-7. Hipótesis (no probada) de por qué se diluye: el MOEA optimiza un **proxy** (2 representantes por cluster) que ordena las arquitecturas con Kendall ≈ 0.78 respecto del entrenamiento con los 100 nodos; la aleatoria también elige su hall of fame con ese proxy, y el hipervolumen reentrenado se mide con 12 modelos y una inicialización (SD entre semillas ≈ 0.04).
+7. v4 (espacio ×1 600 mayor): mismo patrón. El MOEA mejora la población y el archivo (9/10) y la primaria es +0.012 (IC95 [−0.017, +0.039], 7/10); el diagnóstico de saturación no muestra que el espacio mayor sea menos saturado para la aleatoria (ganancia tardía igual a la del espacio anterior). En los tres diseños el efecto en el frente final es de ≈ +0.01 (+0.0115 por federación, p = 0.14), por debajo de la dispersión entre semillas.
+8. Hipótesis (no probada) de por qué se diluye: el MOEA optimiza un **proxy** (2 representantes por cluster) que ordena las arquitecturas con Kendall ≈ 0.78 respecto del entrenamiento con los 100 nodos; la aleatoria también elige su hall of fame con ese proxy, y el hipervolumen reentrenado se mide con 12 modelos y una inicialización (SD entre semillas ≈ 0.04).
 
 ## Límites
 Un dataset (FEMNIST), un espacio, una receta y un solo MOEA (NSGA-III); 10 semillas en total; la réplica 5–9 es una ampliación posterior al primer análisis (el p combinado es algo optimista). Las tres correcciones del v2 se aplicaron juntas, sin ablaciones. El hipervolumen reentrenado usa una sola inicialización por modelo.
 Evaluar en todos los miembros relaja la premisa de no tocar a todos los nodos (solo inferencia, ≈ +50 % de tiempo por evaluación). Los umbrales de la auditoría de ruido (fiabilidad ≥ 0.90) los fijé yo.
 
 ## Siguientes pasos
-El Paso D no encontró ventaja a presupuestos bajos. Opciones: (a) un espacio de arquitecturas más difícil (más bloques, canales, kernels y capas FC), donde la búsqueda aleatoria cubra menos y un MOEA tenga más margen; (b) más semillas del diseño actual (≈ 20–35) para confirmar o descartar un efecto de ≈ +0.02; (c) cerrar con lo medido.
+Ni el Paso D ni el espacio más difícil (v4) abren una ventaja del MOEA sobre la aleatoria en el frente final reentrenado. Opciones: (a) cerrar con lo medido y actualizar el informe LaTeX; (b) más federaciones (≈ 40) para confirmar o descartar un efecto de ≈ +0.01; (c) atacar la brecha entre el proxy y el entrenamiento completo (en v4 el τ estimado-test baja a 0.69), por ejemplo reordenando con reentrenamiento los mejores candidatos del archivo antes de elegir el hall of fame (Paso C aplicado a los archivos del v4).

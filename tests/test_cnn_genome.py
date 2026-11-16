@@ -50,3 +50,18 @@ def test_off_slots_are_skipped_and_first_conv_never_off():
 def test_probe_architecture_is_unchanged():
     # la sonda de los estudios de clusters (fc=[], pool=1) debe seguir teniendo 1610 parámetros: mismos Δ y clusters
     assert n_params(cnn_to_model(CNNGenome(2, [8, 16], 3, "relu", 0.0, True), (3, 32, 32), 10)) == 1610
+
+
+V4_SPACE = CNNSpace(max_blocks=5, channels=(8, 16, 32, 64, 128), kernels=(3, 5, 7), activations=("relu", "elu", "gelu", "tanh"), max_fc=3, fc_widths=(32, 64, 128, 256, 512), pool=2)
+
+
+def test_v4_space_has_12_genes_and_its_extreme_and_random_genomes_are_valid_and_bounded():
+    assert V4_SPACE.n_var == 12
+    g = CNNGenome.from_vector(np.ones(12), V4_SPACE)
+    assert g.channels == [128] * 5 and g.kernel == 7 and g.fc == [512] * 3 and g.activation == "tanh"
+    ref = max_n_params(V4_SPACE, (1, 28, 28), 62)
+    assert n_params(cnn_to_model(g, (1, 28, 28), 62)) <= ref
+    rng = np.random.RandomState(0)
+    for _ in range(10):
+        m = cnn_to_model(CNNGenome.from_vector(rng.rand(12), V4_SPACE), (1, 28, 28), 62)
+        assert m(torch.randn(2, 1, 28, 28)).shape == (2, 62) and n_params(m) <= ref

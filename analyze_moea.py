@@ -26,6 +26,7 @@ def run_metrics(d):
     gens = sorted(pop.generation.unique())
     curve = np.array([(int((pop.generation <= g).sum()), hv2(pop[pop.generation <= g].acc_rep, pop[pop.generation <= g].n_params_norm)) for g in gens])
     auc = float(np.trapz(curve[:, 1], curve[:, 0]) / (curve[-1, 0] - curve[0, 0]))
+    late_gain = float(curve[-1, 1] - curve[min(np.searchsorted(curve[:, 0], 0.5 * curve[-1, 0]), len(curve) - 1), 1])  # ganancia del archivo entre el 50 % y el 100 % de las evaluaciones (saturación)
     # población: hipervolumen de los individuos nuevos por generación (g0 completa; después solo hijos, los padres se reevalúan)
     new = pop if cost.get("reeval_parents", True) is False else pop[(pop.generation == 0) | (pop.individual_idx >= cost["pop_size"])]  # v2: solo se evalúan hijos
     hvg = np.array([hv2(g.acc_rep, g.n_params_norm) for _, g in new.groupby("generation")])
@@ -37,7 +38,7 @@ def run_metrics(d):
     raw = pop.assign(raw=pop.obj_raw.map(json.loads)).groupby("genome").raw.apply(lambda r: np.mean(np.stack(r.values), axis=0))
     gap = float(np.mean([raw[g].max() - raw[g].min() for g in hof.genome if g in raw.index]))
     row = dict(k=cost["k"], pop_size=cost["pop_size"], n_gen=cost["n_generations"], search_evals=cost["search_evals"], search_local_trainings=cost["search_local_trainings"],
-               elapsed_h=cost["elapsed_sec"] / 3600, n_distinct=cost.get("n_distinct_genomes", pop.genome.nunique()), cache_hits=cost.get("n_cache_hits", 0), hv_retrained=hv2(hof.test_acc_mean, hof.n_params_norm), auc_archive=auc, hv_archive_final=float(curve[-1, 1]),
+               elapsed_h=cost["elapsed_sec"] / 3600, n_distinct=cost.get("n_distinct_genomes", pop.genome.nunique()), cache_hits=cost.get("n_cache_hits", 0), hv_retrained=hv2(hof.test_acc_mean, hof.n_params_norm), auc_archive=auc, late_gain_archive=late_gain, hv_archive_final=float(curve[-1, 1]),
                slope_hv_gen=slope, gain_hv_gen=float(hvg[-5:].mean() - hvg[0]), hv_gen0=float(hvg[0]), hv_gen_last=float(hvg[-1]),
                front_size=len(front), size_range=float(front.n_params_norm.max() - front.n_params_norm.min()), best_acc=float(hof.test_acc_mean.max()), cluster_gap_est=gap,
                tau_est_test=float(kendalltau(hof.acc_rep_mean, hof.test_acc_mean)[0]))  # fidelidad práctica del estimador en el hall of fame
