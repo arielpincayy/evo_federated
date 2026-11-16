@@ -100,17 +100,33 @@ Hipervolumen reentrenado medio: 0.582 (`nsga3`) y 0.577 (`rs`); mejor accuracy e
 | `rs`, Kendall τ estimado-test en el hall of fame | 0.730 | 0.794 | +0.064 [+0.006, +0.140], p 0.08 |
 Mejor evaluar bien que evaluar mucho, pero poco: ambos brazos suben, más la aleatoria, y ningún contraste bilateral llega a 0.05. La ventaja relativa del MOEA en el frente final no aumenta con el proxy más fiable (+0.005 frente a +0.017 del v2).
 
+## 6. Paso D: curva de eficiencia con los archivos del v2
+Preregistrado en `docs/MOEA_DESIGN.md` ("Paso D"); `python run_rerank.py --budgets 250 500 1000` → `runs/rerank_prefix/` (410 reentrenamientos nuevos con los 100 nodos). Para cada corrida del v2 (semillas 0–9, ambos brazos) se eligen 12 candidatos (`select_hof`) con solo las primeras B evaluaciones reales del archivo y se mide su hipervolumen reentrenado.
+Hipótesis: si el espacio está saturado, la ventaja de un MOEA debería verse con pocas evaluaciones.
+
+| B (evaluaciones) | `nsga3` | `rs` | `nsga3 − rs` (IC95) | semillas a favor | p unilateral (p con Holm) |
+|---|---|---|---|---|---|
+| 250 | 0.550 | 0.546 | +0.005 [−0.015, +0.023] | 6/10 | 0.28 (0.35) |
+| 500 | 0.560 | 0.549 | +0.011 [−0.011, +0.030] | 6/10 | 0.12 (0.35) |
+| 1 000 | 0.572 | 0.553 | +0.020 [−0.001, +0.041] | 6/10 | 0.12 (0.35) |
+| 1 988 (completo) | 0.574 | 0.557 | +0.017 [−0.009, +0.041] | 7/10 | 0.12 |
+**Lectura preregistrada: ningún presupuesto parcial cumple la regla** (p con Holm < 0.05, ≥ 7/10 semillas): no se demuestra eficiencia de muestras. La diferencia `nsga3 − rs` **crece con el presupuesto** (+0.005, +0.011, +0.020), lo contrario de lo esperado si el MOEA ganara sobre todo con pocas evaluaciones: necesita generaciones para acumular ventaja, y esa ventaja sigue por debajo de la dispersión entre semillas (SD ≈ 0.03–0.04 con 10 semillas).
+El hipervolumen reentrenado de `nsga3` se aplana hacia 1 000 evaluaciones (0.572 → 0.574 con el presupuesto completo), mientras que el de `rs` sigue subiendo despacio (0.546 → 0.557).
+
+**Post hoc (no preregistrado; bilateral):** `nsga3` con 500 evaluaciones iguala a `rs` con 1 988 (+0.003 [−0.025, +0.029], 6/10, p 1.0), es decir, una calidad parecida con ≈4 veces menos evaluaciones, pero el IC (±0.027) no distingue esto de una ventaja nula ni de una mayor. `nsga3` con 1 000 evaluaciones frente a `rs` con 1 988: +0.016 [−0.011, +0.040], 7/10, p 0.32.
+
 ## Conclusiones
 1. El MOEA v2 **optimiza lo que se le pide**: el archivo y la población mejoran frente a la aleatoria en 9 de 10 semillas (p = 0.002), y se replica en ambas mitades.
 2. **No se demuestra una ventaja en el frente final reentrenado**: +0.038 en las 5 primeras semillas se redujo a −0.004 en la réplica (regresión a la media); sobre las 10 semillas es +0.017 con IC que incluye el 0.
 3. Las correcciones del v2 (no reevaluar, sin duplicados, score en todos los miembros) cambiaron el resultado del v1 de "peor que la aleatoria" a "no distinguible o ligeramente mejor", y explicaron por qué el v1 perdía (exploración y ruido); no se separa cuál aportó cuánto.
 4. v3 (r=2 a igual coste): mejorar el proxy sube el hipervolumen reentrenado de ambos brazos (+0.009 `nsga3`, +0.021 `rs`) pero no abre una ventaja del MOEA (+0.005 frente a la aleatoria; 5/10 semillas), mientras la población sigue mejorando (10/10, p = 0.001).
 5. Hipótesis (no probada) principal: el espacio de 9 genes está **saturado** con ~1 000–2 000 evaluaciones: ambos brazos llegan a ≈0.58 de hipervolumen y a ≈0.58 de accuracy máxima, y la unión de los archivos de ambos solo supera a cada brazo en ≈0.014–0.023 (Paso C).
-6. Hipótesis (no probada) de por qué se diluye: el MOEA optimiza un **proxy** (2 representantes por cluster) que ordena las arquitecturas con Kendall ≈ 0.78 respecto del entrenamiento con los 100 nodos; la aleatoria también elige su hall of fame con ese proxy, y el hipervolumen reentrenado se mide con 12 modelos y una inicialización (SD entre semillas ≈ 0.04).
+6. Paso D (curva de eficiencia): no se demuestra ventaja a presupuestos bajos (Holm p = 0.35 en B = 250, 500 y 1 000); la diferencia crece con el presupuesto hasta ≈ +0.02, sin significancia con 10 semillas. Con la dispersión observada (SD de la diferencia ≈ 0.03–0.04 por semilla), confirmar un efecto de ≈ +0.02 exigiría ≈ 20–35 semillas.
+7. Hipótesis (no probada) de por qué se diluye: el MOEA optimiza un **proxy** (2 representantes por cluster) que ordena las arquitecturas con Kendall ≈ 0.78 respecto del entrenamiento con los 100 nodos; la aleatoria también elige su hall of fame con ese proxy, y el hipervolumen reentrenado se mide con 12 modelos y una inicialización (SD entre semillas ≈ 0.04).
 
 ## Límites
 Un dataset (FEMNIST), un espacio, una receta y un solo MOEA (NSGA-III); 10 semillas en total; la réplica 5–9 es una ampliación posterior al primer análisis (el p combinado es algo optimista). Las tres correcciones del v2 se aplicaron juntas, sin ablaciones. El hipervolumen reentrenado usa una sola inicialización por modelo.
 Evaluar en todos los miembros relaja la premisa de no tocar a todos los nodos (solo inferencia, ≈ +50 % de tiempo por evaluación). Los umbrales de la auditoría de ruido (fiabilidad ≥ 0.90) los fijé yo.
 
 ## Siguientes pasos
-Paso D (preregistrado en `docs/MOEA_DESIGN.md`): curva de eficiencia con los archivos del v2, reentrenando los 12 candidatos elegidos tras solo las primeras 250, 500 y 1 000 evaluaciones (`python run_rerank.py --budgets 250 500 1000`). Si no hay ventaja a presupuestos bajos, la siguiente prueba sería un espacio de arquitecturas más difícil (más bloques, canales, kernels y capas FC).
+El Paso D no encontró ventaja a presupuestos bajos. Opciones: (a) un espacio de arquitecturas más difícil (más bloques, canales, kernels y capas FC), donde la búsqueda aleatoria cubra menos y un MOEA tenga más margen; (b) más semillas del diseño actual (≈ 20–35) para confirmar o descartar un efecto de ≈ +0.02; (c) cerrar con lo medido.
