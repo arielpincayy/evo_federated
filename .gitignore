@@ -133,3 +133,6 @@ temp/
 !src/evofederated/data/
 !src/evofederated/models/
 !manuscript/figures/
+
+# PDFs de artículos de terceros (no se versionan)
+manuscript/fulltext/pdf/
