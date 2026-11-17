@@ -207,6 +207,14 @@ Preregistro en `docs/MOEA_DESIGN.md` (última sección), escrito antes de correr
 | H2 eficiencia (HV archivo, `nsga3` al 50 % vs `rs` al 100 %) | v2 | 0.458 | 0.434 | +0.024 [+0.014, +0.035] | 9/10 | 0.006 | **sí** |
 | H2 eficiencia | v4 | 0.562 | 0.547 | +0.015 [+0.002, +0.028] | 7/10 | 0.084 | no (p sin corregir 0.042) |
 - H1 se confirma en el espacio grande (v4) y no en v2 (la ventaja de +0.087 de las semillas 0–9 baja a +0.026). H2 se confirma en v2; en v4 el signo es el mismo pero no pasa Holm. H2 usa accuracies estimadas del archivo.
+- **H2b (secundaria, post hoc, no preregistrada, sin Holm):** mejor accuracy estimada del archivo, `nsga3` con el 50 % de sus evaluaciones frente a `rs` con el 100 % (semillas 10–19; `analyze_confirm.py`).
+| métrica | diseño | `nsga3` 50 % | `rs` 100 % | diferencia [IC95] | a favor | p unilat. |
+|---|---|---|---|---|---|---|
+| mejor accuracy del archivo | v2 | 0.447 | 0.427 | +0.021 [+0.010, +0.032] | 9/10 | 0.007 |
+| mejor accuracy del archivo | v4 | 0.538 | 0.527 | +0.012 [−0.001, +0.025] | 7/10 | 0.097 |
+| mejor accuracy, tamaño ≤ 0.05 | v2 | 0.387 | 0.353 | +0.034 [+0.026, +0.041] | 10/10 | 0.001 |
+| mejor accuracy, tamaño ≤ 0.05 | v4 | 0.530 | 0.502 | +0.028 [+0.018, +0.040] | 10/10 | 0.001 |
+  Con el 50 % de las evaluaciones `nsga3` encuentra individuos de accuracy igual o mayor que `rs` con el 100 %, y en los modelos pequeños en 10/10 semillas de ambos diseños. Semillas 0–9: +0.010 (ambos diseños, 5/10) y, con tamaño ≤ 0.05, +0.030 (v2) y +0.019 (v4). Accuracies estimadas (optimistas por igual en ambos brazos); sobre modelos reentrenados, la igualdad solo está medida en el Paso D del v2 (500 evaluaciones: 0.560 frente a 0.5565 de `rs` con 1 988).
 - Con la definición preregistrada de H2 (corte a ⌈0.5·n⌉ evaluaciones reales), las semillas 0–9 dan +0.016 (v2) y +0.012 (v4); la cifra +0.014 de la sección 10 usaba un corte por generación.
 
 **Ablación H3** (`nsga3g`: mismo entrenamiento, representantes, evaluación en todos los miembros, caché y presupuesto que `nsga3`, pero la selección ve 2 objetivos: accuracy media ponderada por cluster y tamaño; v2 con pop 28). Semillas 0–19, 20 pares por diseño, Wilcoxon bilateral, Holm sobre 4 tests.

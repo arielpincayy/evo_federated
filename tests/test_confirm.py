@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from analyze_confirm import archive_hv, best_at_size, holm
+from analyze_confirm import archive_hv, best_acc_prefix, best_at_size, holm
 
 
 def test_best_at_size_is_zero_when_no_model_is_small_enough():
@@ -18,3 +18,9 @@ def test_archive_hv_prefix_grows_and_matches_full_at_one():
 def test_holm_adjusts_in_input_order_and_is_monotone():
     adj = holm([0.04, 0.001, 0.03])
     assert np.allclose(adj, [0.06, 0.003, 0.06])
+
+
+def test_best_acc_prefix_uses_only_the_first_evaluations_and_the_size_cap():
+    pop = pd.DataFrame({"acc_rep": [0.2, 0.3, 0.6, 0.5], "n_params_norm": [0.01, 0.2, 0.01, 0.01]})
+    assert best_acc_prefix(pop, 0.5) == 0.3 and best_acc_prefix(pop) == 0.6
+    assert best_acc_prefix(pop, 0.5, 0.05) == 0.2 and best_acc_prefix(pop.iloc[1:2], 1.0, 0.05) == 0.0

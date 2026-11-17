@@ -30,6 +30,14 @@ def archive_hv(pop, frac=1.0):
     return hv2(p.acc_rep, p.n_params_norm)
 
 
+def best_acc_prefix(pop, frac=1.0, max_size=None):
+    """Mejor accuracy estimada del archivo tras las primeras frac*n evaluaciones (con tamaño <= max_size si se da; 0 si ninguno)."""
+    p = pop.iloc[: int(np.ceil(frac * len(pop)))]
+    if max_size is not None:
+        p = p[p.n_params_norm <= max_size]
+    return float(p.acc_rep.max()) if len(p) else 0.0
+
+
 def holm(p):
     """Corrección de Holm (p ajustados, en el orden de entrada)."""
     p = np.asarray(p, float)
@@ -46,7 +54,7 @@ def run_row(root, arm, seed, s):
     ff, pop = pd.read_csv(d / "final_front.csv"), pd.read_csv(d / "population.csv")
     hof = ff[ff.roles.str.split("|").map(lambda r: "hof" in r)]
     return dict(h1=best_at_size(hof.test_acc_mean, hof.n_params_norm, s), hv_retrained=hv2(hof.test_acc_mean, hof.n_params_norm),
-                hv_archive=archive_hv(pop), hv_archive_half=archive_hv(pop, 0.5), hv_archive_initial=hv2(pop[pop.generation == 0].acc_rep, pop[pop.generation == 0].n_params_norm), n_evals=len(pop))
+                hv_archive=archive_hv(pop), hv_archive_half=archive_hv(pop, 0.5), best_half=best_acc_prefix(pop, 0.5), best_full=best_acc_prefix(pop), best_half_small=best_acc_prefix(pop, 0.5, 0.05), best_full_small=best_acc_prefix(pop, 1.0, 0.05), hv_archive_initial=hv2(pop[pop.generation == 0].acc_rep, pop[pop.generation == 0].n_params_norm), n_evals=len(pop))
 
 
 def collect(arms_seeds):
@@ -91,6 +99,11 @@ def main():
     t1 = pd.DataFrame(conf)
     t1["p_holm"] = holm(t1.p)
     t1["cumple"] = (t1.p_holm < 0.05) & (t1.n_pos >= 7)
+    sec = []  # secundarias post hoc (no preregistradas, fuera de Holm): mejor accuracy estimada con el 50 % de las evaluaciones de nsga3 frente al 100 % de rs
+    for design in DESIGNS:
+        sub = df[df.seed.isin(a.seeds)]
+        for name, ca, cb in (("H2b mejor accuracy del archivo", "best_half", "best_full"), ("H2b mejor accuracy, tamaño <= 0.05", "best_half_small", "best_full_small")):
+            sec.append(dict(hyp=name, design=design, **test(paired(sub, design, "nsga3", "rs", ca, cb), "greater")))
     abl = []
     for design in DESIGNS:
         sub = df[df.seed.isin(a.h3_seeds)]
@@ -100,7 +113,7 @@ def main():
     t3["p_holm"] = holm(t3.p)
     t3["cumple"] = t3.p_holm < 0.05
     pd.set_option("display.width", 200)
-    out = pd.concat([t1, t3], ignore_index=True)
+    out = pd.concat([t1, pd.DataFrame(sec), t3], ignore_index=True)
     out.to_csv(f"{a.out}/tests.csv", index=False)
     print(df.groupby(["design", "arm"])[["h1", "hv_retrained", "hv_archive", "hv_archive_half", "hv_archive_initial"]].mean().round(4).to_string())
     print(out.round(4).to_string(index=False))

@@ -618,6 +618,25 @@ H2 eficiencia & v4 & 0.562 & 0.547 & $+0.015$ [$+0.002,+0.028$] & 7/10 & 0.084\\
 \caption{Confirmatoria (semillas 10--19). H1: mejor accuracy en test con tamaño $\le s$; H2: hipervolumen del archivo (\texttt{nsga3} con el 50\,\% de sus evaluaciones, \texttt{rs} con el 100\,\%). En negrita, las que cumplen la regla fijada de antemano.}
 \label{tab:confirm}
 \end{table}
+Como lectura complementaria de H2 (\emph{no preregistrada}, fuera de la corrección de Holm), la Tabla~\ref{tab:h2b} compara directamente la mejor accuracy estimada que encuentra \texttt{nsga3} con la mitad de sus evaluaciones con la de \texttt{rs} con todas las suyas.
+\begin{table}[h]
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llccccc}
+\toprule
+métrica & diseño & \texttt{nsga3} 50\% & \texttt{rs} 100\% & diferencia [IC95] & a favor & $p$\\
+\midrule
+mejor acc.\ del archivo & v2 & 0.447 & 0.427 & $+0.021$ [$+0.010,+0.032$] & 9/10 & 0.007\\
+mejor acc.\ del archivo & v4 & 0.538 & 0.527 & $+0.012$ [$-0.001,+0.025$] & 7/10 & 0.097\\
+mejor acc., tamaño $\le0.05$ & v2 & 0.387 & 0.353 & $+0.034$ [$+0.026,+0.041$] & 10/10 & 0.001\\
+mejor acc., tamaño $\le0.05$ & v4 & 0.530 & 0.502 & $+0.028$ [$+0.018,+0.040$] & 10/10 & 0.001\\
+\bottomrule
+\end{tabular}
+\caption{Mejor accuracy estimada del archivo (semillas 10--19): \texttt{nsga3} con el 50\,\% de sus evaluaciones menos \texttt{rs} con el 100\,\%. Secundaria, post hoc ($p$ unilateral sin corregir). Las accuracies son las estimadas en la búsqueda, optimistas por igual en ambos brazos.}
+\label{tab:h2b}
+\end{table}
+Con la mitad de las evaluaciones, \texttt{nsga3} no solo iguala la mejor accuracy de \texttt{rs} con todas las suyas: la supera en los cuatro casos (significativamente en tres), y entre los modelos de tamaño $\le0.05$ la ventaja se da en las 10 semillas de ambos diseños. Con las semillas 0--9 la diferencia en la mejor accuracy global es de $+0.010$ en ambos diseños (5/10, sin significancia), y con tamaño $\le0.05$ de $+0.030$ (v2) y $+0.019$ (v4). Sobre modelos reentrenados, la igualdad solo está medida en el Paso D del v2 (500 evaluaciones de \texttt{nsga3}: 0.560 frente a 0.5565 de \texttt{rs} con 1\,988).
+
 Se confirman H1 en el v4 y H2 en el v2. H1 no se confirma en el v2 (la ventaja de $+0.087$ de las semillas 0--9 pasa a $+0.026$) y H2 en el v4 tiene el mismo signo pero no pasa la corrección de Holm ($p=0.042$ sin corregir). Con las semillas 0--9 H2 daba $+0.016$ (v2) y $+0.012$ (v4), y con la corrección tampoco habría pasado en v4.
 
 \textbf{Ablación (H3).} Para saber si el objetivo por cluster aporta, se añadió el brazo \texttt{nsga3g}: igual que \texttt{nsga3} (mismo entrenamiento, representantes, evaluación en todos los miembros, caché y presupuesto), pero la selección ve dos objetivos, la accuracy media ponderada por tamaño de cluster y el tamaño. Se corrió en las semillas 0--19 de ambos diseños (20 pares); Wilcoxon bilateral, Holm sobre 4 tests.
