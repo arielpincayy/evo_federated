@@ -176,9 +176,9 @@ Mejora del hipervolumen del archivo sobre la población inicial de cada brazo (1
 | v3 | 994 | +0.154 | +0.125 | +0.028 (7/10, 0.080) |
 | v4 | 126 | +0.095 | +0.068 | +0.027 (6/10, 0.19) |
 | v4 | 504 | +0.140 | +0.097 | +0.044 (8/10, 0.053) |
-Con el mismo número de evaluaciones `nsga3` mejora la población inicial ≈30 % más que `rs`. Con ≈50 % de las evaluaciones (generaciones 36/34/17 en v2/v3/v4) su archivo iguala o supera al de `rs` completo (v2 +0.014, 8/10, p 0.03; v3 +0.010; v4 +0.012). Frente reentrenado (Paso D, v2): `nsga3` con 250/500/1 000 evaluaciones 0.550/0.560/0.572 frente a 0.5565 de `rs` con 1 988.
+Con el mismo número de evaluaciones `nsga3` mejora la población inicial ≈30 % más que `rs`. Con ≈50 % de las evaluaciones (generaciones 36/34/17 en v2/v3/v4) su archivo iguala o supera al de `rs` completo (v2 +0.016, 8/10, p 0.03, corte por evaluaciones reales; v3 +0.010; v4 +0.012). Frente reentrenado (Paso D, v2): `nsga3` con 250/500/1 000 evaluaciones 0.550/0.560/0.572 frente a 0.5565 de `rs` con 1 988.
 
-## 11. Modelos livianos (exploratorio, post hoc)
+## 11. Modelos livianos (exploratorio, post hoc; confirmación en la sección 12)
 Mejor accuracy en test entre los 12 modelos reentrenados con tamaño normalizado ≤ s (10 semillas; topes elegidos mirando los datos, 12 comparaciones).
 | diseño | s | `nsga3` | `rs` | diferencia [IC95] | semillas a favor (p unilat.) |
 |---|---|---|---|---|---|
@@ -198,6 +198,28 @@ Mejor accuracy en test entre los 12 modelos reentrenados con tamaño normalizado
 - La ventaja de `nsga3` se concentra en los modelos pequeños (+0.09 en v2, +0.18 en v4) y desaparece en los grandes. Coherente con que `nsga3` evalúa arquitecturas más pequeñas (tamaño medio 0.033 frente a 0.062 en v4); explica por qué el hipervolumen apenas cambia.
 - Con 12 comparaciones solo v2 s=0.02 resiste Holm (0.003×12≈0.04); v4 s=0.005 queda en ≈0.17. Hace falta un contraste preregistrado con semillas nuevas; el mecanismo no se aisló.
 
+## 12. Confirmatoria preregistrada (semillas 10–19) y ablación del objetivo por cluster
+Preregistro en `docs/MOEA_DESIGN.md` (última sección), escrito antes de correr. v2 y v4 sin cambios de receta, semillas nuevas 10–19. Análisis: `python analyze_confirm.py` (salidas en `runs/confirm/`). Wilcoxon unilateral pareado, Holm sobre los 4 tests; se cumple con Holm-p < 0.05 y ≥ 7/10 a favor.
+| hipótesis | diseño | `nsga3` | `rs` | diferencia [IC95] | a favor | Holm-p | ¿se cumple? |
+|---|---|---|---|---|---|---|---|
+| H1 livianos (acc. test con tamaño ≤ s) | v2 (s=0.02) | 0.292 | 0.266 | +0.026 [−0.019, +0.071] | 6/10 | 0.14 | no |
+| H1 livianos | v4 (s=0.005) | 0.467 | 0.263 | +0.204 [+0.136, +0.275] | 10/10 | 0.004 | **sí** |
+| H2 eficiencia (HV archivo, `nsga3` al 50 % vs `rs` al 100 %) | v2 | 0.458 | 0.434 | +0.024 [+0.014, +0.035] | 9/10 | 0.006 | **sí** |
+| H2 eficiencia | v4 | 0.562 | 0.547 | +0.015 [+0.002, +0.028] | 7/10 | 0.084 | no (p sin corregir 0.042) |
+- H1 se confirma en el espacio grande (v4) y no en v2 (la ventaja de +0.087 de las semillas 0–9 baja a +0.026). H2 se confirma en v2; en v4 el signo es el mismo pero no pasa Holm. H2 usa accuracies estimadas del archivo.
+- Con la definición preregistrada de H2 (corte a ⌈0.5·n⌉ evaluaciones reales), las semillas 0–9 dan +0.016 (v2) y +0.012 (v4); la cifra +0.014 de la sección 10 usaba un corte por generación.
+
+**Ablación H3** (`nsga3g`: mismo entrenamiento, representantes, evaluación en todos los miembros, caché y presupuesto que `nsga3`, pero la selección ve 2 objetivos: accuracy media ponderada por cluster y tamaño; v2 con pop 28). Semillas 0–19, 20 pares por diseño, Wilcoxon bilateral, Holm sobre 4 tests.
+| métrica | diseño | `nsga3` | `nsga3g` | diferencia [IC95] | a favor de `nsga3` | Holm-p |
+|---|---|---|---|---|---|---|
+| HV reentrenado | v2 | 0.574 | 0.519 | +0.055 [+0.037, +0.073] | 19/20 | <0.001 |
+| HV reentrenado | v4 | 0.698 | 0.663 | +0.035 [+0.013, +0.059] | 14/20 | 0.048 |
+| livianos | v2 | 0.300 | 0.314 | −0.014 [−0.035, +0.008] | 7/20 | 0.35 |
+| livianos | v4 | 0.436 | 0.489 | −0.053 [−0.098, −0.016] | 2/20 | 0.011 |
+- El objetivo por cluster mejora el HV reentrenado en ambos diseños; también el HV del archivo de búsqueda (0.476 frente a 0.451 en v2; 0.576 frente a 0.556 en v4), así que no se explica solo por la selección del hall of fame (con un objetivo de accuracy la regla max-min usa una sola columna).
+- La ventaja en modelos livianos **no** viene del objetivo por cluster: con un solo objetivo de accuracy + tamaño salen iguales (v2) o mejores (v4). Viene de tener el tamaño como objetivo explícito en un MOEA.
+- Sigue sin demostrarse una ventaja de `nsga3` frente a `rs` en el HV reentrenado.
+
 ## Conclusiones
 1. El MOEA v2 **optimiza lo que se le pide**: el archivo y la población mejoran frente a la aleatoria en 9 de 10 semillas (p = 0.002), y se replica en ambas mitades.
 2. **No se demuestra una ventaja en el frente final reentrenado**: +0.038 en las 5 primeras semillas se redujo a −0.004 en la réplica (regresión a la media); sobre las 10 semillas es +0.017 con IC que incluye el 0.
@@ -207,6 +229,8 @@ Mejor accuracy en test entre los 12 modelos reentrenados con tamaño normalizado
 6. Paso D (curva de eficiencia): no se demuestra ventaja a presupuestos bajos (Holm p = 0.35 en B = 250, 500 y 1 000); la diferencia crece con el presupuesto hasta ≈ +0.02, sin significancia con 10 semillas. Con la dispersión observada (SD de la diferencia ≈ 0.03–0.04 por semilla), confirmar un efecto de ≈ +0.02 exigiría ≈ 20–35 semillas.
 7. v4 (espacio ×1 600 mayor): mismo patrón. El MOEA mejora la población y el archivo (9/10) y la primaria es +0.012 (IC95 [−0.017, +0.039], 7/10); el diagnóstico de saturación no muestra que el espacio mayor sea menos saturado para la aleatoria (ganancia tardía igual a la del espacio anterior). En los tres diseños el efecto en el frente final es de ≈ +0.01 (+0.0115 por federación, p = 0.14), por debajo de la dispersión entre semillas.
 8. Hipótesis (no probada) de por qué se diluye: el MOEA optimiza un **proxy** (2 representantes por cluster) que ordena las arquitecturas con Kendall ≈ 0.78 respecto del entrenamiento con los 100 nodos; la aleatoria también elige su hall of fame con ese proxy, y el hipervolumen reentrenado se mide con 12 modelos y una inicialización (SD entre semillas ≈ 0.04).
+
+9. **Confirmatoria (sección 12):** modelos livianos confirmados en v4 (+0.204, 10/10, Holm 0.004) y no en v2; menos evaluaciones confirmado en v2 (+0.024, 9/10, Holm 0.006) y solo tendencia en v4. **Ablación:** el objetivo por cluster mejora el HV reentrenado (v2 +0.055, v4 +0.035) pero los modelos livianos vienen del objetivo de tamaño.
 
 ## Límites
 Un dataset (FEMNIST), un espacio, una receta y un solo MOEA (NSGA-III); 10 semillas en total; la réplica 5–9 es una ampliación posterior al primer análisis (el p combinado es algo optimista). Las tres correcciones del v2 se aplicaron juntas, sin ablaciones. El hipervolumen reentrenado usa una sola inicialización por modelo.
